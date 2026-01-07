@@ -47,15 +47,15 @@ export default function Login() {
 
             {/* Navbar */}
             <header className="flex items-center justify-between border-b border-solid border-[#e7f3eb] dark:border-[#2a4030] px-10 py-4 bg-white dark:bg-[#1c2e22]/50 backdrop-blur-md sticky top-0 z-50">
-                <div className="flex items-center gap-4 text-[#0d1b12] dark:text-white">
+                <Link href="/" className="flex items-center gap-4 text-[#0d1b12] dark:text-white hover:opacity-80 transition-opacity">
                     <div className="size-8 text-[#13ec5b]">
                         <span className="material-symbols-outlined text-4xl">sports_soccer</span>
                     </div>
                     <h2 className="text-xl font-bold leading-tight tracking-[-0.015em]">PelaFacil</h2>
-                </div>
+                </Link>
                 <div className="hidden md:flex flex-1 justify-end gap-8 items-center">
                     <div className="flex items-center gap-9">
-                        <Link className="text-[#0d1b12] dark:text-[#cfe7d7] text-sm font-medium leading-normal hover:text-[#13ec5b] transition-colors" href="#">Ajuda</Link>
+                        <Link className="text-[#0d1b12] dark:text-[#cfe7d7] text-sm font-medium leading-normal hover:text-[#13ec5b] transition-colors" href="/ajuda">Ajuda</Link>
                     </div>
                     <Link
                         className="flex cursor-pointer items-center justify-center overflow-hidden rounded-full h-10 px-6 bg-transparent border border-[#e7f3eb] dark:border-[#2a4030] text-[#0d1b12] dark:text-[#cfe7d7] text-sm font-bold leading-normal hover:bg-[#e7f3eb] dark:hover:bg-[#2a4030] transition-colors"

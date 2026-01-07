@@ -65,12 +65,13 @@ export default function Cadastro() {
                 {/* Left Column: Form Section */}
                 <div className="w-full lg:w-1/2 flex flex-col justify-center items-center px-6 sm:px-12 xl:px-24 py-12 relative z-10 bg-[#f6f8f6] dark:bg-[#102216]">
                     {/* Logo Header */}
-                    <div className="absolute top-8 left-6 sm:left-12 xl:left-24 flex items-center gap-3">
+                    {/* Logo Header */}
+                    <Link href="/" className="absolute top-8 left-6 sm:left-12 xl:left-24 flex items-center gap-3 hover:opacity-80 transition-opacity">
                         <div className="size-10 flex items-center justify-center rounded-full bg-[#13ec5b]/20 text-[#0eb345] dark:text-[#13ec5b]">
                             <span className="material-symbols-outlined text-2xl">sports_soccer</span>
                         </div>
                         <h2 className="text-[#0d1b12] dark:text-white text-xl font-bold tracking-tight">PelaFacil</h2>
-                    </div>
+                    </Link>
                     {/* Main Content Container */}
                     <div className="w-full max-w-md flex flex-col gap-8 mt-16 lg:mt-0">
                         {/* Page Heading */}
