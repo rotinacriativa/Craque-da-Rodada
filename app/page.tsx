@@ -2,6 +2,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { Lexend, Noto_Sans } from "next/font/google";
+import { Instagram, Twitter, Facebook } from "lucide-react";
 
 const lexend = Lexend({ subsets: ["latin"] });
 const notoSans = Noto_Sans({ subsets: ["latin"], weight: ["400", "500", "700"] });
@@ -16,12 +17,12 @@ export default function Home() {
       <header className="sticky top-0 z-50 flex items-center justify-between whitespace-nowrap border-b border-solid border-b-[#e7f3eb] dark:border-b-white/10 bg-[#f6f8f6]/90 dark:bg-[#102216]/90 backdrop-blur-md px-6 py-4 md:px-10 lg:px-40">
         <div className="flex items-center gap-3 text-[#0d1b12] dark:text-white cursor-pointer select-none">
           <span className="material-symbols-outlined text-[#13ec5b] text-3xl">sports_soccer</span>
-          <h2 className="text-lg font-bold leading-tight tracking-[-0.015em]">PelaFacil</h2>
+          <span className="text-xl font-bold leading-tight tracking-[-0.015em]">Craque da Rodada</span>
         </div>
         <div className="hidden md:flex items-center gap-8">
           <div className="flex items-center gap-6">
             <a className="text-sm font-medium leading-normal hover:text-[#13ec5b] transition-colors" href="#como-funciona">Como funciona</a>
-            <a className="text-sm font-medium leading-normal hover:text-[#13ec5b] transition-colors" href="#precos">Preços</a>
+
           </div>
           <div className="flex gap-3">
             <Link
@@ -56,7 +57,7 @@ export default function Home() {
                     A sua pelada organizada em <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#13ec5b] to-green-400">segundos</span>.
                   </h1>
                   <h2 className="text-[#0d1b12]/80 dark:text-white/80 text-lg font-normal leading-relaxed">
-                    Chega de listas no WhatsApp. Gerencie pagamentos, times e presença em um só lugar com o PelaFacil.
+                    Chega de listas no WhatsApp. Gerencie pagamentos, times e presença em um só lugar com o Craque da Rodada.
                   </h2>
                 </div>
                 <div className="flex flex-wrap gap-3 pt-2">
@@ -143,7 +144,7 @@ export default function Home() {
                 <div className="flex flex-1 flex-col py-2">
                   <p className="text-[#4c9a66] dark:text-[#13ec5b] font-bold text-sm uppercase tracking-wide mb-1">Passo 3</p>
                   <h3 className="text-[#0d1b12] dark:text-white text-xl font-bold leading-normal mb-2">Jogo feito</h3>
-                  <p className="text-[#0d1b12]/70 dark:text-white/60 text-base">O PelaFacil sorteia os times equilibrados baseado nas notas dos jogadores. É só jogar!</p>
+                  <p className="text-[#0d1b12]/70 dark:text-white/60 text-base">O Craque da Rodada sorteia os times equilibrados baseado nas notas dos jogadores. É só jogar!</p>
                 </div>
               </div>
             </div>
@@ -154,7 +155,7 @@ export default function Home() {
         <section className="w-full py-16 md:py-24">
           <div className="max-w-7xl mx-auto px-4 md:px-10 lg:px-40">
             <div className="flex flex-col items-center mb-12">
-              <h2 className="text-[#0d1b12] dark:text-white text-3xl font-bold leading-tight tracking-[-0.015em] text-center">Por que usar o PelaFacil</h2>
+              <h2 className="text-[#0d1b12] dark:text-white text-3xl font-bold leading-tight tracking-[-0.015em] text-center">Por que usar o Craque da Rodada</h2>
               <p className="text-[#0d1b12]/60 dark:text-white/60 text-center mt-3 max-w-xl">Ferramentas profissionais para o futebol amador. Tudo que você precisa para evitar dor de cabeça.</p>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -210,33 +211,69 @@ export default function Home() {
       </main>
 
       {/* Footer */}
-      <footer className="w-full border-t border-[#e7f3eb] dark:border-white/10 bg-white dark:bg-[#102216] py-12">
-        <div className="max-w-7xl mx-auto px-4 md:px-10 lg:px-40 flex flex-col md:flex-row justify-between items-center md:items-start gap-8">
-          <div className="flex flex-col gap-4 items-center md:items-start">
-            <div className="flex items-center gap-2 text-[#0d1b12] dark:text-white">
-              <span className="material-symbols-outlined text-[#13ec5b]">sports_soccer</span>
-              <span className="text-lg font-bold">PelaFacil</span>
+      <footer className="w-full bg-[#f8faf8] dark:bg-[#0d1b12] border-t border-[#e7f3eb] dark:border-white/5 pt-16 pb-8">
+        <div className="max-w-7xl mx-auto px-4 md:px-10 lg:px-40">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-10 mb-16">
+            <div className="flex flex-col gap-4">
+              <div className="flex items-center gap-2 select-none">
+                <span className="material-symbols-outlined text-[#13ec5b] text-3xl">sports_soccer</span>
+                <span className="text-xl font-bold text-[#0d1b12] dark:text-white">Craque da Rodada</span>
+              </div>
+              <p className="text-[#0d1b12]/60 dark:text-white/50 text-sm leading-relaxed max-w-xs">
+                A plataforma completa para organizar seu futebol com os amigos. Sem planilhas, sem calotes e com muito mais diversão.
+              </p>
+              <div className="flex gap-4 mt-2">
+                <a href="#" className="flex items-center justify-center size-10 rounded-full bg-white dark:bg-white/5 text-[#0d1b12] dark:text-white hover:bg-[#13ec5b] hover:text-[#0d1b12] shadow-sm transition-all group">
+                  <Instagram className="size-5" />
+                </a>
+                <a href="#" className="flex items-center justify-center size-10 rounded-full bg-white dark:bg-white/5 text-[#0d1b12] dark:text-white hover:bg-[#13ec5b] hover:text-[#0d1b12] shadow-sm transition-all group">
+                  <Twitter className="size-5" />
+                </a>
+                <a href="#" className="flex items-center justify-center size-10 rounded-full bg-white dark:bg-white/5 text-[#0d1b12] dark:text-white hover:bg-[#13ec5b] hover:text-[#0d1b12] shadow-sm transition-all group">
+                  <Facebook className="size-5" />
+                </a>
+              </div>
             </div>
-            <p className="text-sm text-[#0d1b12]/60 dark:text-white/50 text-center md:text-left max-w-xs">
-              A plataforma definitiva para organizar seu futebol semanal sem estresse.
+
+            <div>
+              <h4 className="font-bold text-[#0d1b12] dark:text-white mb-6">Produto</h4>
+              <ul className="flex flex-col gap-3 text-sm text-[#0d1b12]/70 dark:text-white/60">
+                <li><a href="#como-funciona" className="hover:text-[#13ec5b] transition-colors">Como funciona</a></li>
+                <li><a href="#" className="hover:text-[#13ec5b] transition-colors">Funcionalidades</a></li>
+                <li><Link href="/login" className="hover:text-[#13ec5b] transition-colors">Entrar</Link></li>
+                <li><Link href="/cadastro" className="hover:text-[#13ec5b] transition-colors">Criar conta</Link></li>
+              </ul>
+            </div>
+
+            <div>
+              <h4 className="font-bold text-[#0d1b12] dark:text-white mb-6">Recursos</h4>
+              <ul className="flex flex-col gap-3 text-sm text-[#0d1b12]/70 dark:text-white/60">
+                <li><a href="#" className="hover:text-[#13ec5b] transition-colors">Blog</a></li>
+                <li><a href="#" className="hover:text-[#13ec5b] transition-colors">Central de Ajuda</a></li>
+                <li><a href="#" className="hover:text-[#13ec5b] transition-colors">Comunidade</a></li>
+              </ul>
+            </div>
+
+            <div>
+              <h4 className="font-bold text-[#0d1b12] dark:text-white mb-6">Legal</h4>
+              <ul className="flex flex-col gap-3 text-sm text-[#0d1b12]/70 dark:text-white/60">
+                <li><a href="#" className="hover:text-[#13ec5b] transition-colors">Termos de Uso</a></li>
+                <li><a href="#" className="hover:text-[#13ec5b] transition-colors">Política de Privacidade</a></li>
+                <li><a href="#" className="hover:text-[#13ec5b] transition-colors">Cookies</a></li>
+              </ul>
+            </div>
+          </div>
+
+          <div className="border-t border-slate-100 dark:border-white/5 pt-8 flex flex-col md:flex-row justify-between items-center gap-4">
+            <p className="text-xs text-[#0d1b12]/40 dark:text-white/30 text-center md:text-left">
+              © {new Date().getFullYear()} Craque da Rodada. Todos os direitos reservados.
             </p>
-          </div>
-          <div className="flex gap-12 text-sm">
-            <div className="flex flex-col gap-3">
-              <span className="font-bold text-[#0d1b12] dark:text-white">Produto</span>
-              <Link className="text-[#0d1b12]/70 dark:text-white/60 hover:text-[#13ec5b] transition-colors" href="#">Funcionalidades</Link>
-              <Link className="text-[#0d1b12]/70 dark:text-white/60 hover:text-[#13ec5b] transition-colors" href="#">Preços</Link>
-              <Link className="text-[#0d1b12]/70 dark:text-white/60 hover:text-[#13ec5b] transition-colors" href="/login">Login</Link>
-            </div>
-            <div className="flex flex-col gap-3">
-              <span className="font-bold text-[#0d1b12] dark:text-white">Legal</span>
-              <Link className="text-[#0d1b12]/70 dark:text-white/60 hover:text-[#13ec5b] transition-colors" href="#">Termos de Uso</Link>
-              <Link className="text-[#0d1b12]/70 dark:text-white/60 hover:text-[#13ec5b] transition-colors" href="#">Privacidade</Link>
+            <div className="flex items-center gap-2 text-xs text-[#0d1b12]/40 dark:text-white/30">
+              <span>Feito com</span>
+              <span className="text-[#13ec5b]">❤</span>
+              <span>para boleiros.</span>
             </div>
           </div>
-        </div>
-        <div className="max-w-7xl mx-auto px-4 md:px-10 lg:px-40 mt-12 pt-8 border-t border-slate-100 dark:border-white/5 text-center md:text-left">
-          <p className="text-xs text-[#0d1b12]/40 dark:text-white/30">© 2023 PelaFacil. Todos os direitos reservados.</p>
         </div>
       </footer>
     </div>
