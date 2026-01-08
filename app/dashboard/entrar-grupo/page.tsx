@@ -63,7 +63,7 @@ export default function JoinGroup() {
                                 </div>
                                 <input
                                     className="w-full h-16 pl-12 pr-6 rounded-full bg-[#f8fcf9] dark:bg-[#102216] border-2 border-[#cfe7d7] dark:border-[#2a4a35] text-[#0d1b12] dark:text-white placeholder:text-[#4c9a66]/50 dark:placeholder:text-[#8baaa0]/50 focus:border-[#13ec5b] focus:ring-0 focus:outline-none transition-all text-lg font-medium"
-                                    placeholder="Ex: PELA-1234"
+                                    placeholder="Ex: CRAQUE-1234"
                                     type="text"
                                     value={inviteCode}
                                     onChange={(e) => setInviteCode(e.target.value)}

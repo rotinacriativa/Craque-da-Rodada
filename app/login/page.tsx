@@ -51,7 +51,7 @@ export default function Login() {
                     <div className="size-8 text-[#13ec5b]">
                         <span className="material-symbols-outlined text-4xl">sports_soccer</span>
                     </div>
-                    <h2 className="text-xl font-bold leading-tight tracking-[-0.015em]">PelaFacil</h2>
+                    <h2 className="text-xl font-bold leading-tight tracking-[-0.015em]">Craque da Rodada</h2>
                 </Link>
                 <div className="hidden md:flex flex-1 justify-end gap-8 items-center">
                     <div className="flex items-center gap-9">
@@ -111,7 +111,7 @@ export default function Login() {
                     <div className="w-full max-w-[440px] flex flex-col gap-8">
                         {/* Heading */}
                         <div className="flex flex-col gap-2">
-                            <h1 className="text-[#0d1b12] dark:text-white tracking-tight text-[32px] font-bold leading-tight">Entrar no PelaFacil</h1>
+                            <h1 className="text-[#0d1b12] dark:text-white tracking-tight text-[32px] font-bold leading-tight">Entrar no Craque da Rodada</h1>
                             <p className="text-[#4c9a66] dark:text-[#8ab39b] text-base font-normal leading-normal">Bem-vindo de volta, craque! Organize sua partida agora.</p>
                         </div>
 

@@ -212,7 +212,7 @@ export default function GroupFinancialPage({ params }: { params: Promise<{ id: s
                                 </div>
                                 <div className="bg-white/10 backdrop-blur-sm p-3 rounded-lg border border-white/10 mb-4">
                                     <p className="text-xs text-slate-400 mb-1">E-mail</p>
-                                    <p className="font-mono text-sm tracking-wide truncate">pagamentos@pelafacil.com.br</p>
+                                    <p className="font-mono text-sm tracking-wide truncate">pagamentos@craquedarodada.com.br</p>
                                 </div>
                                 <div className="flex gap-2">
                                     <button className="flex-1 bg-white/10 hover:bg-white/20 py-2 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2">

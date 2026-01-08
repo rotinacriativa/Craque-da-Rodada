@@ -19,6 +19,7 @@ export default function DashboardLayout({
     const [userAvatar, setUserAvatar] = useState<string | null>(null);
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
     const router = useRouter();
+    const pathname = usePathname();
 
     useEffect(() => {
         async function fetchUser() {
@@ -63,69 +64,71 @@ export default function DashboardLayout({
                         <span className="material-symbols-outlined text-2xl" style={{ fontVariationSettings: "'FILL' 1" }}>sports_soccer</span>
                     </div>
                     <div className="flex flex-col">
-                        <h1 className="text-[#0d1b12] dark:text-white text-lg font-bold leading-none tracking-tight">PelaFacil</h1>
+                        <h1 className="text-[#0d1b12] dark:text-white text-lg font-bold leading-none tracking-tight">Craque da Rodada</h1>
                         <p className="text-[#4c9a66] text-xs font-medium leading-normal mt-1">Organizador de Peladas</p>
                     </div>
                 </div>
                 {/* Navigation Links */}
                 <nav className="flex-1 px-4 flex flex-col gap-2 mt-2">
                     {/* Helper to determine if link is active */}
-                    {(() => {
-                        const pathname = usePathname();
-                        const isActive = (path: string) => pathname === path || (path !== '/dashboard' && pathname?.startsWith(path));
+                    {/* Navigation Links Helper */}
+                    {
+                        (function () {
+                            const isActive = (path: string) => pathname === path || (path !== '/dashboard' && pathname?.startsWith(path));
 
-                        const linkClass = (path: string) => cn(
-                            "flex items-center gap-3 px-4 py-3 rounded-full transition-all",
-                            isActive(path)
-                                ? "bg-[#13ec5b] text-[#0d1b12] font-bold shadow-md shadow-[#13ec5b]/20 hover:scale-[1.02]"
-                                : "text-[#0d1b12] dark:text-white font-medium hover:bg-[#e7f3eb] dark:hover:bg-[#2a4535]"
-                        );
+                            const linkClass = (path: string) => cn(
+                                "flex items-center gap-3 px-4 py-3 rounded-full transition-all",
+                                isActive(path)
+                                    ? "bg-[#13ec5b] text-[#0d1b12] font-bold shadow-md shadow-[#13ec5b]/20 hover:scale-[1.02]"
+                                    : "text-[#0d1b12] dark:text-white font-medium hover:bg-[#e7f3eb] dark:hover:bg-[#2a4535]"
+                            );
 
-                        const iconStyle = (path: string) => isActive(path) ? { fontVariationSettings: "'FILL' 1" } : {};
+                            const iconStyle = (path: string) => isActive(path) ? { fontVariationSettings: "'FILL' 1" } : {};
 
-                        return (
-                            <>
-                                <Link className={linkClass("/dashboard")} href="/dashboard">
-                                    <span className="material-symbols-outlined" style={iconStyle("/dashboard")}>dashboard</span>
-                                    <span>Dashboard</span>
-                                </Link>
+                            return (
+                                <>
+                                    <Link className={linkClass("/dashboard")} href="/dashboard">
+                                        <span className="material-symbols-outlined" style={iconStyle("/dashboard")}>dashboard</span>
+                                        <span>Dashboard</span>
+                                    </Link>
 
-                                <Link className={linkClass("/dashboard/entrar-grupo")} href="/dashboard/entrar-grupo">
-                                    <span className="material-symbols-outlined" style={iconStyle("/dashboard/entrar-grupo")}>groups</span>
-                                    <span>Grupos</span>
-                                </Link>
+                                    <Link className={linkClass("/dashboard/entrar-grupo")} href="/dashboard/entrar-grupo">
+                                        <span className="material-symbols-outlined" style={iconStyle("/dashboard/entrar-grupo")}>groups</span>
+                                        <span>Grupos</span>
+                                    </Link>
 
-                                <Link className={linkClass("/dashboard/ranking")} href="/dashboard/ranking">
-                                    <span className="material-symbols-outlined" style={iconStyle("/dashboard/ranking")}>emoji_events</span>
-                                    <span>Ranking</span>
-                                </Link>
+                                    <Link className={linkClass("/dashboard/ranking")} href="/dashboard/ranking">
+                                        <span className="material-symbols-outlined" style={iconStyle("/dashboard/ranking")}>emoji_events</span>
+                                        <span>Ranking</span>
+                                    </Link>
 
-                                <Link className={linkClass("/dashboard/explorar")} href="/dashboard/explorar">
-                                    <span className="material-symbols-outlined" style={iconStyle("/dashboard/explorar")}>explore</span>
-                                    <span>Explorar</span>
-                                </Link>
+                                    <Link className={linkClass("/dashboard/explorar")} href="/dashboard/explorar">
+                                        <span className="material-symbols-outlined" style={iconStyle("/dashboard/explorar")}>explore</span>
+                                        <span>Explorar</span>
+                                    </Link>
 
-                                <Link className={linkClass("/dashboard/perfil")} href="/dashboard/perfil">
-                                    <span className="material-symbols-outlined" style={iconStyle("/dashboard/perfil")}>person</span>
-                                    <span>Perfil</span>
-                                </Link>
+                                    <Link className={linkClass("/dashboard/perfil")} href="/dashboard/perfil">
+                                        <span className="material-symbols-outlined" style={iconStyle("/dashboard/perfil")}>person</span>
+                                        <span>Perfil</span>
+                                    </Link>
 
-                                <Link className={linkClass("/dashboard/configuracoes")} href="/dashboard/configuracoes">
-                                    <span className="material-symbols-outlined" style={iconStyle("/dashboard/configuracoes")}>settings</span>
-                                    <span>Configurações</span>
-                                </Link>
+                                    <Link className={linkClass("/dashboard/configuracoes")} href="/dashboard/configuracoes">
+                                        <span className="material-symbols-outlined" style={iconStyle("/dashboard/configuracoes")}>settings</span>
+                                        <span>Configurações</span>
+                                    </Link>
 
-                                <button onClick={handleSignOut} className="flex items-center gap-3 px-4 py-3 text-[#0d1b12] dark:text-white hover:bg-red-50 dark:hover:bg-red-900/10 hover:text-red-500 dark:hover:text-red-400 rounded-full font-medium transition-colors mt-auto mb-2 w-full text-left">
-                                    <span className="material-symbols-outlined">logout</span>
-                                    <span>Sair</span>
-                                </button>
-                            </>
-                        );
-                    })()}
+                                    <button onClick={handleSignOut} className="flex items-center gap-3 px-4 py-3 text-[#0d1b12] dark:text-white hover:bg-red-50 dark:hover:bg-red-900/10 hover:text-red-500 dark:hover:text-red-400 rounded-full font-medium transition-colors mt-auto mb-2 w-full text-left">
+                                        <span className="material-symbols-outlined">logout</span>
+                                        <span>Sair</span>
+                                    </button>
+                                </>
+                            );
+                        })()
+                    }
                 </nav>
                 {/* Sidebar CTA */}
                 <div className="p-6 border-t border-[#e7f3eb] dark:border-[#2a4535]">
-                    <Link href="/dashboard/grupos/1/nova-partida" className="w-full group flex items-center justify-center gap-2 bg-[#0d1b12] dark:bg-white text-white dark:text-[#0d1b12] py-3.5 rounded-full font-bold hover:opacity-90 hover:shadow-lg transition-all">
+                    <Link href="/dashboard" className="w-full group flex items-center justify-center gap-2 bg-[#0d1b12] dark:bg-white text-white dark:text-[#0d1b12] py-3.5 rounded-full font-bold hover:opacity-90 hover:shadow-lg transition-all">
                         <span className="material-symbols-outlined text-xl group-hover:rotate-90 transition-transform">add</span>
                         <span className="truncate">Criar Nova Pelada</span>
                     </Link>

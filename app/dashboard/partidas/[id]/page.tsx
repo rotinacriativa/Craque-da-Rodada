@@ -41,6 +41,8 @@ export default function MatchDetails({ params }: { params: Promise<{ id: string 
     const [match, setMatch] = useState<Match | null>(null);
     const [participants, setParticipants] = useState<Participant[]>([]);
     const [currentUser, setCurrentUser] = useState<string | null>(null);
+    const [groupName, setGroupName] = useState<string>("");
+    const [isAdmin, setIsAdmin] = useState(false);
     const [loading, setLoading] = useState(true);
     const [actionLoading, setActionLoading] = useState(false);
     const [generatedTeams, setGeneratedTeams] = useState<{ A: Participant[], B: Participant[] } | null>(null);
@@ -68,31 +70,60 @@ export default function MatchDetails({ params }: { params: Promise<{ id: string 
             if (matchError) throw matchError;
             setMatch(matchData);
 
-            // 3. Get Participants
+            // 3. Get Group Details & Check Admin
+            if (matchData.group_id) {
+                const { data: groupData } = await supabase
+                    .from('groups')
+                    .select('name')
+                    .eq('id', matchData.group_id)
+                    .single();
+                if (groupData) setGroupName(groupData.name);
+
+                if (user) {
+                    const { data: memberData } = await supabase
+                        .from('group_members')
+                        .select('role')
+                        .eq('group_id', matchData.group_id)
+                        .eq('user_id', user.id)
+                        .single();
+
+                    if (memberData && (memberData.role === 'admin' || memberData.role === 'owner')) {
+                        setIsAdmin(true);
+                    }
+                }
+            }
+
+            // 4. Get Participants
             const { data: partData, error: partError } = await supabase
                 .from('match_participants')
-                .select(`
-                    id,
-                    user_id,
-                    status,
-                    team,
-                    profile:profiles (
-                        full_name,
-                        avatar_url,
-                        position,
-                        skill_level
-                    )
-                `)
+                .select('id, user_id, status, team')
                 .eq('match_id', matchId);
 
             if (partError) throw partError;
+
+            // Fetch Profiles Manually to avoid relation issues
+            const userIds = (partData || []).map((p: any) => p.user_id);
+            const profilesMap: Record<string, any> = {};
+
+            if (userIds.length > 0) {
+                const { data: profilesData } = await supabase
+                    .from('profiles')
+                    .select('id, full_name, avatar_url, position, skill_level')
+                    .in('id', userIds);
+
+                if (profilesData) {
+                    profilesData.forEach((profile: any) => {
+                        profilesMap[profile.id] = profile;
+                    });
+                }
+            }
 
             const formattedParticipants = (partData as any[]).map(p => ({
                 id: p.id,
                 user_id: p.user_id,
                 status: p.status,
                 team: p.team,
-                profile: p.profile || { full_name: 'Usuário', avatar_url: null, position: '-', skill_level: '' }
+                profile: profilesMap[p.user_id] || { full_name: 'Usuário', avatar_url: null, position: '-', skill_level: '' }
             }));
 
             setParticipants(formattedParticipants);
@@ -112,18 +143,19 @@ export default function MatchDetails({ params }: { params: Promise<{ id: string 
                     .eq('match_id', matchId)
                     .eq('voter_id', user.id)
                     .eq('category', 'craque')
-                    .maybeSingle(); // Use maybeSingle to avoid 406 error if no rows
+                    .maybeSingle();
 
                 if (myVoteData) {
                     setMyVote({ voted_user_id: myVoteData.voted_user_id, category: 'craque' });
-                    // If I voted, assume voting is open/done, so let's fetch results? 
-                    // Or keep voting open. Let's show results only if user voted.
-                    calculateResults();
+                    await calculateResults();
                 }
             }
 
-        } catch (error) {
+        } catch (error: any) {
             console.error("Error loading match:", error);
+            if (typeof error === 'object' && error !== null && Object.keys(error).length === 0) {
+                console.error("Empty error detail:", JSON.stringify(error, Object.getOwnPropertyNames(error)));
+            }
         } finally {
             setLoading(false);
         }
@@ -307,19 +339,23 @@ export default function MatchDetails({ params }: { params: Promise<{ id: string 
     // Let's toggle voting with a button "Iniciar Votação" (visible to everyone for simplicity or admin)
 
     const dateStr = new Date(match.date).toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' });
+    const formattedPrice = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(match.price);
+    const priceParts = formattedPrice.replace('R$', '').trim().split(',');
+    const priceMajor = priceParts[0];
+    const priceMinor = priceParts[1] || '00';
 
     return (
         <div className="flex-1 w-full max-w-7xl mx-auto px-4 py-8 md:px-8">
             {/* Notifications */}
-            <div className="fixed top-24 right-4 z-50 flex flex-col gap-2 max-w-xs w-full">
+            <div className="fixed top-24 right-4 z-50 flex flex-col gap-2 max-w-xs w-full pointer-events-none">
                 {errorMessage && (
-                    <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl shadow-lg animate-in slide-in-from-right fade-in duration-300">
+                    <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl shadow-lg animate-in slide-in-from-right fade-in duration-300 pointer-events-auto">
                         <strong className="font-bold block text-sm">Erro!</strong>
                         <span className="block sm:inline text-sm">{errorMessage}</span>
                     </div>
                 )}
                 {successMessage && (
-                    <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-xl shadow-lg animate-in slide-in-from-right fade-in duration-300">
+                    <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-xl shadow-lg animate-in slide-in-from-right fade-in duration-300 pointer-events-auto">
                         <strong className="font-bold block text-sm">Sucesso!</strong>
                         <span className="block sm:inline text-sm">{successMessage}</span>
                     </div>
@@ -329,8 +365,33 @@ export default function MatchDetails({ params }: { params: Promise<{ id: string 
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
                 {/* Left Column: Details (Span 8) */}
                 <div className="lg:col-span-8 flex flex-col gap-8">
-                    {/* Header */}
+                    {/* Header Section */}
                     <div className="flex flex-col gap-4">
+                        {/* Breadcrumbs */}
+                        <nav aria-label="Breadcrumb" className="hidden md:flex mb-2">
+                            <ol className="inline-flex items-center space-x-1 md:space-x-2">
+                                <li className="inline-flex items-center">
+                                    <Link className="inline-flex items-center text-sm font-medium text-gray-500 hover:text-[#13ec5b] dark:text-gray-400 dark:hover:text-white transition-colors" href="/dashboard">
+                                        Home
+                                    </Link>
+                                </li>
+                                <li>
+                                    <div className="flex items-center">
+                                        <span className="material-symbols-outlined text-gray-400 text-sm">chevron_right</span>
+                                        <Link className="ml-1 text-sm font-medium text-gray-500 hover:text-[#13ec5b] md:ml-1 dark:text-gray-400 dark:hover:text-white transition-colors" href={`/dashboard/grupos/${match.group_id}`}>
+                                            {groupName || 'Grupo'}
+                                        </Link>
+                                    </div>
+                                </li>
+                                <li>
+                                    <div className="flex items-center">
+                                        <span className="material-symbols-outlined text-gray-400 text-sm">chevron_right</span>
+                                        <span className="ml-1 text-sm font-medium text-[#0d1b12] md:ml-1 dark:text-white truncate max-w-[200px]">{match.name}</span>
+                                    </div>
+                                </li>
+                            </ol>
+                        </nav>
+
                         <div className="flex flex-wrap items-center gap-3">
                             {spotsLeft > 0 ? (
                                 <span className="inline-flex items-center gap-1.5 rounded-full bg-[#13ec5b]/20 px-3 py-1 text-sm font-bold text-green-800 dark:text-green-300">
@@ -342,7 +403,20 @@ export default function MatchDetails({ params }: { params: Promise<{ id: string 
                                     Lotado
                                 </span>
                             )}
+                            <span className="inline-flex items-center rounded-full bg-gray-100 dark:bg-white/10 px-3 py-1 text-sm font-medium text-gray-600 dark:text-gray-300">
+                                Competitivo
+                            </span>
+                            {isAdmin && (
+                                <Link
+                                    href={`/dashboard/grupos/${match.group_id}/admin`}
+                                    className="inline-flex items-center gap-1 px-3 py-1 bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/20 rounded-full text-xs font-bold text-[#0d1b12] dark:text-white transition-colors ml-auto sm:ml-0"
+                                >
+                                    <span className="material-symbols-outlined text-[16px]">settings</span>
+                                    Gerenciar
+                                </Link>
+                            )}
                         </div>
+
                         <div>
                             <h1 className="text-3xl md:text-5xl font-black leading-tight tracking-tight text-[#0d1b12] dark:text-white mb-2">
                                 {match.name}
@@ -354,18 +428,57 @@ export default function MatchDetails({ params }: { params: Promise<{ id: string 
                         </div>
                     </div>
 
-                    {/* VOTING SECTION (New) */}
+                    {/* Location Card */}
+                    <section className="rounded-2xl overflow-hidden border border-[#e7f3eb] dark:border-[#1f3b28] bg-white dark:bg-[#183020] shadow-sm">
+                        <div className="h-48 w-full bg-gray-200 relative group">
+                            {/* Map Placeholder */}
+                            <div className="absolute inset-0 bg-cover bg-center transition-opacity hover:opacity-90" style={{ backgroundImage: 'url("https://lh3.googleusercontent.com/aida-public/AB6AXuAXN2pk8LXHs1dsBLfAhgFB3zKlTTOOymcoK9-htdI6HJe7H_tFy3FbZy719E3qzsI-He-8AQwruCn5QbrQJ7SxwfefiaS04MlhIsAVPnOVYNabWFI6V45Wcs36gRxsCgZaPXs6zZmGFDTXEr5Vf_0YlWd3YotfGAOZiy0Ol2bt_4qg5e9p702ISVP8a_Iy9cWU3QLsBvrgSj1PG5OYJ1hOPgv27H0Ul9GyDljiyNB9jfQf2TdoORZL8uPnfPumx8pclO8jzirPwIY")' }}>
+                            </div>
+                            <button className="absolute bottom-4 right-4 bg-white dark:bg-[#102216] text-[#0d1b12] dark:text-white px-4 py-2 rounded-full text-sm font-bold shadow-lg flex items-center gap-2 hover:scale-105 transition-transform">
+                                <span className="material-symbols-outlined text-[#13ec5b]">map</span>
+                                Ver no Mapa
+                            </button>
+                        </div>
+                        <div className="p-6">
+                            <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-6">
+                                <div className="flex-1">
+                                    <h3 className="text-xl font-bold mb-1 text-[#0d1b12] dark:text-white">{match.location}</h3>
+                                    <p className="text-gray-500 dark:text-gray-400 mb-4">Campo Society 7 • Grama Sintética</p>
+                                    {/* Amenities */}
+                                    <div className="flex flex-wrap gap-4 mt-4">
+                                        <div className="flex items-center gap-2 text-sm font-medium text-gray-600 dark:text-gray-300 bg-gray-50 dark:bg-white/5 px-3 py-2 rounded-lg">
+                                            <span className="material-symbols-outlined text-[#13ec5b]">local_parking</span>
+                                            Estacionamento
+                                        </div>
+                                        <div className="flex items-center gap-2 text-sm font-medium text-gray-600 dark:text-gray-300 bg-gray-50 dark:bg-white/5 px-3 py-2 rounded-lg">
+                                            <span className="material-symbols-outlined text-[#13ec5b]">shower</span>
+                                            Vestiário
+                                        </div>
+                                        <div className="flex items-center gap-2 text-sm font-medium text-gray-600 dark:text-gray-300 bg-gray-50 dark:bg-white/5 px-3 py-2 rounded-lg">
+                                            <span className="material-symbols-outlined text-[#13ec5b]">sports_bar</span>
+                                            Bar
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    {/* Voting Component (If confirmed and ready) */}
                     {isConfirmed && (
                         <div className="rounded-2xl border border-yellow-200 bg-yellow-50 dark:bg-yellow-900/10 p-6 flex flex-col gap-4">
                             <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-2">
                                     <span className="material-symbols-outlined text-yellow-600">stars</span>
-                                    <h3 className="font-bold text-lg text-[#0d1b12] dark:text-white">Craque da Rodada</h3>
+                                    <div>
+                                        <h3 className="font-bold text-lg text-[#0d1b12] dark:text-white">Craque da Rodada</h3>
+                                        <p className="text-xs text-gray-500 dark:text-gray-400">Vote no melhor jogador da partida</p>
+                                    </div>
                                 </div>
                                 {!showVoting && !myVote && (
                                     <button
                                         onClick={() => setShowVoting(true)}
-                                        className="text-sm font-bold bg-yellow-400 hover:bg-yellow-500 text-[#0d1b12] px-4 py-2 rounded-lg transition-colors shadow-sm"
+                                        className="text-sm font-bold bg-yellow-400 hover:bg-yellow-500 text-[#0d1b12] px-4 py-2 rounded-full transition-colors shadow-sm"
                                     >
                                         Votar Agora
                                     </button>
@@ -394,94 +507,79 @@ export default function MatchDetails({ params }: { params: Promise<{ id: string 
 
                             {/* RESULTS (After voting) */}
                             {myVote && voteResults && (
-                                <div className="flex flex-col gap-4 bg-white dark:bg-[#1a2c22] rounded-xl p-4 border border-yellow-100 dark:border-white/5">
-                                    <p className="text-sm text-center text-gray-500">Você votou! Resultados parciais:</p>
-                                    <div className="flex flex-col gap-3">
-                                        {voteResults.slice(0, 3).map((r, i) => (
-                                            <div key={r.userId} className="flex items-center gap-3">
-                                                <span className={`font-black text-lg w-6 text-center ${i === 0 ? 'text-yellow-500' : 'text-gray-400'}`}>{i + 1}º</span>
-                                                <div className="flex-1">
-                                                    <div className="flex items-center justify-between mb-1">
-                                                        <span className="font-bold text-sm text-[#0d1b12] dark:text-white">{r.user.profile.full_name}</span>
-                                                        <span className="font-bold text-xs text-gray-500">{r.count} votos</span>
-                                                    </div>
-                                                    <div className="w-full h-2 bg-gray-100 dark:bg-black/20 rounded-full overflow-hidden">
-                                                        <div className="h-full bg-yellow-400 rounded-full" style={{ width: `${(r.count / confirmedPlayers.length) * 100}%` }}></div>
-                                                    </div>
+                                <div className="flex flex-col gap-3">
+                                    {voteResults.slice(0, 3).map((r, i) => (
+                                        <div key={r.userId} className="flex items-center gap-3">
+                                            <span className={`font-black text-lg w-6 text-center ${i === 0 ? 'text-yellow-500' : 'text-gray-400'}`}>{i + 1}º</span>
+                                            <div className="flex-1">
+                                                <div className="flex items-center justify-between mb-1">
+                                                    <span className="font-bold text-sm text-[#0d1b12] dark:text-white">{r.user.profile.full_name}</span>
+                                                    <span className="font-bold text-xs text-gray-500">{r.count} votos</span>
+                                                </div>
+                                                <div className="w-full h-2 bg-gray-100 dark:bg-black/20 rounded-full overflow-hidden">
+                                                    <div className="h-full bg-yellow-400 rounded-full" style={{ width: `${(r.count / confirmedPlayers.length) * 100}%` }}></div>
                                                 </div>
                                             </div>
-                                        ))}
-                                    </div>
+                                        </div>
+                                    ))}
                                 </div>
                             )}
                         </div>
                     )}
 
-
-                    {/* Location Card & Teams (Existing) */}
-                    <section className="rounded-2xl overflow-hidden border border-[#e7f3eb] dark:border-[#1f3b28] bg-white dark:bg-[#183020] shadow-sm">
-                        <div className="p-6">
-                            <h3 className="text-xl font-bold mb-1 text-[#0d1b12] dark:text-white">{match.location}</h3>
-                            <p className="text-gray-500 dark:text-gray-400 text-sm">Ver no Google Maps.</p>
-                        </div>
-                    </section>
-
-                    {(generatedTeams && (generatedTeams.A.length > 0 || generatedTeams.B.length > 0)) && (
-                        <section className="flex flex-col gap-4">
-                            <h2 className="text-2xl font-bold text-[#0d1b12] dark:text-white">Escalação</h2>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                <div className="bg-white dark:bg-[#183020] rounded-2xl border-t-4 border-t-[#13ec5b] shadow-sm p-4">
-                                    <h3 className="font-black text-lg text-center mb-4 text-[#0d1b12] dark:text-white uppercase tracking-wider">Time A</h3>
-                                    <div className="flex flex-col gap-2">
-                                        {generatedTeams.A.map(p => (
-                                            <div key={p.id} className="flex items-center gap-3 p-2 rounded-lg bg-gray-50 dark:bg-[#102216]">
-                                                <div className="size-8 rounded-full bg-cover bg-center bg-gray-200" style={{ backgroundImage: `url('${p.profile.avatar_url || "https://upload.wikimedia.org/wikipedia/commons/7/7c/Profile_avatar_placeholder_large.png"}')` }}></div>
-                                                <span className="font-bold text-sm text-[#0d1b12] dark:text-white">{p.profile.full_name}</span>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                                <div className="bg-white dark:bg-[#183020] rounded-2xl border-t-4 border-t-orange-500 shadow-sm p-4">
-                                    <h3 className="font-black text-lg text-center mb-4 text-[#0d1b12] dark:text-white uppercase tracking-wider">Time B</h3>
-                                    <div className="flex flex-col gap-2">
-                                        {generatedTeams.B.map(p => (
-                                            <div key={p.id} className="flex items-center gap-3 p-2 rounded-lg bg-gray-50 dark:bg-[#102216]">
-                                                <div className="size-8 rounded-full bg-cover bg-center bg-gray-200" style={{ backgroundImage: `url('${p.profile.avatar_url || "https://upload.wikimedia.org/wikipedia/commons/7/7c/Profile_avatar_placeholder_large.png"}')` }}></div>
-                                                <span className="font-bold text-sm text-[#0d1b12] dark:text-white">{p.profile.full_name}</span>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                            </div>
-                        </section>
-                    )}
 
                     {/* Roster Section */}
                     <section className="flex flex-col gap-4">
                         <div className="flex items-center justify-between">
-                            <h2 className="text-2xl font-bold text-[#0d1b12] dark:text-white">Lista de Confirmados</h2>
-                            {confirmedPlayers.length >= 2 && (
+                            <h2 className="text-2xl font-bold text-[#0d1b12] dark:text-white">Quem vai jogar</h2>
+                            <div className="flex bg-gray-100 dark:bg-[#183020] p-1 rounded-full">
+                                <button className="px-4 py-1.5 rounded-full bg-white dark:bg-[#102216] text-[#0d1b12] dark:text-white shadow-sm text-sm font-bold">Confirmados ({confirmedPlayers.length})</button>
+                                <button className="px-4 py-1.5 rounded-full text-gray-500 dark:text-gray-400 text-sm font-medium hover:text-[#0d1b12] dark:hover:text-white transition-colors">Espera (0)</button>
+                            </div>
+                        </div>
+
+                        {/* Teams Generator Button (If applicable) */}
+                        {isConfirmed && confirmedPlayers.length >= 2 && !generatedTeams && (
+                            <div className="flex justify-end">
                                 <button
                                     onClick={handleGenerateTeams}
                                     disabled={actionLoading}
-                                    className="text-sm font-bold bg-[#13ec5b] text-[#0d1b12] px-4 py-2 rounded-lg hover:bg-[#0fd652]"
+                                    className="text-sm font-bold text-[#13ec5b] hover:text-green-400 transition-colors flex items-center gap-1"
                                 >
+                                    <span className="material-symbols-outlined text-lg">shuffle</span>
                                     Sortear Times
                                 </button>
-                            )}
-                        </div>
+                            </div>
+                        )}
+
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {/* Organizer Card (Mocked for now as first player or logic needed) */}
+                            {/* Ideally identify organizer from props. Using first player as placeholder if no specific role logic yet for display */}
+
                             {confirmedPlayers.map(p => (
                                 <div key={p.id} className="flex items-center p-3 gap-3 rounded-xl bg-white dark:bg-[#183020] border border-gray-100 dark:border-gray-800">
                                     <div className="relative">
-                                        <div className="size-12 rounded-full bg-gray-300 bg-cover bg-center border-2 border-white dark:border-[#102216]" style={{ backgroundImage: `url('${p.profile.avatar_url || "https://upload.wikimedia.org/wikipedia/commons/7/7c/Profile_avatar_placeholder_large.png"}')` }}></div>
-                                        {myVote?.voted_user_id === p.user_id && (
-                                            <div className="absolute -top-1 -right-1 bg-yellow-400 text-black p-0.5 rounded-full border-2 border-white text-[10px] font-bold px-1">Seu Voto</div>
-                                        )}
+                                        <div className="size-12 rounded-full bg-gray-300 bg-cover bg-center" style={{ backgroundImage: `url('${p.profile.avatar_url || "https://upload.wikimedia.org/wikipedia/commons/7/7c/Profile_avatar_placeholder_large.png"}')` }}></div>
+                                        <div className="absolute -bottom-1 -right-1 bg-[#13ec5b] text-[#0d1b12] p-0.5 rounded-full border-2 border-white dark:border-[#102216]">
+                                            <span className="material-symbols-outlined text-[10px] block font-bold">check</span>
+                                        </div>
                                     </div>
                                     <div>
                                         <p className="font-bold text-[#0d1b12] dark:text-white">{p.profile.full_name}</p>
-                                        <p className="text-xs text-gray-500">{p.profile.position}</p>
+                                        <p className="text-xs text-gray-500 dark:text-gray-400">{p.profile.position || 'Jogador'}</p>
+                                    </div>
+                                </div>
+                            ))}
+
+                            {/* Placeholder for empty spots */}
+                            {Array.from({ length: Math.max(0, match.capacity - confirmedPlayers.length) }).slice(0, 2).map((_, i) => (
+                                <div key={`empty-${i}`} className="flex items-center p-3 gap-3 rounded-xl bg-gray-50 dark:bg-white/5 border border-dashed border-gray-200 dark:border-gray-700 opacity-60">
+                                    <div className="size-12 rounded-full bg-gray-200 dark:bg-white/10 flex items-center justify-center">
+                                        <span className="material-symbols-outlined text-gray-400">person</span>
+                                    </div>
+                                    <div>
+                                        <p className="font-bold text-gray-400">Vaga disponível</p>
+                                        <p className="text-xs text-gray-400">Convide um amigo</p>
                                     </div>
                                 </div>
                             ))}
@@ -492,24 +590,91 @@ export default function MatchDetails({ params }: { params: Promise<{ id: string 
                 {/* Right Column: Sticky Action Card (Span 4) */}
                 <div className="lg:col-span-4 relative">
                     <div className="sticky top-24 flex flex-col gap-6">
+                        {/* Status/Action Card */}
                         <div className="rounded-2xl border border-[#e7f3eb] dark:border-[#1f3b28] bg-white dark:bg-[#183020] shadow-xl shadow-green-900/5 p-6 flex flex-col gap-6">
+                            {/* Vacancy Info */}
                             <div className="flex flex-col gap-2">
-                                <span className="text-sm font-bold text-[#0d1b12] dark:text-white">{confirmedPlayers.length}/{match.capacity} Confirmados</span>
+                                <div className="flex items-center justify-between">
+                                    <span className="text-sm font-medium text-gray-500 dark:text-gray-400">Status</span>
+                                    <span className="text-sm font-bold text-[#0d1b12] dark:text-white">Confirmado {confirmedPlayers.length}/{match.capacity}</span>
+                                </div>
                                 <div className="w-full h-3 bg-[#e7f3eb] dark:bg-[#102216] rounded-full overflow-hidden">
-                                    <div className="h-full bg-[#13ec5b] rounded-full transition-all" style={{ width: `${(confirmedPlayers.length / match.capacity) * 100}%` }}></div>
+                                    <div className="h-full bg-[#13ec5b] rounded-full transition-all duration-500" style={{ width: `${(confirmedPlayers.length / match.capacity) * 100}%` }}></div>
+                                </div>
+                                {spotsLeft > 0 && spotsLeft <= 5 && (
+                                    <div className="flex items-center gap-2 text-[#4c9a66] dark:text-[#13ec5b] text-sm font-medium mt-1">
+                                        <span className="material-symbols-outlined text-lg">bolt</span>
+                                        Restam apenas {spotsLeft} vagas!
+                                    </div>
+                                )}
+                            </div>
+
+                            <hr className="border-[#e7f3eb] dark:border-white/10" />
+
+                            {/* Cost Info */}
+                            <div className="flex items-end justify-between">
+                                <div className="flex flex-col">
+                                    <span className="text-sm text-gray-500 dark:text-gray-400">Custo por pessoa</span>
+                                    <div className="flex items-baseline gap-1">
+                                        <span className="text-3xl font-black text-[#0d1b12] dark:text-white">R$ {priceMajor}</span>
+                                        <span className="text-sm font-bold text-gray-400">,{priceMinor}</span>
+                                    </div>
+                                </div>
+                                <div className="flex flex-col items-end">
+                                    <span className="text-xs text-gray-400">Pagamento via App</span>
                                 </div>
                             </div>
-                            <hr className="border-[#e7f3eb] dark:border-white/10" />
+
+                            {/* Main Actions */}
                             <div className="flex flex-col gap-3">
                                 {isConfirmed ? (
                                     <>
-                                        <button disabled className="w-full h-14 bg-green-700 text-white rounded-full font-bold">Presença Confirmada</button>
-                                        <button onClick={handleLeave} disabled={actionLoading} className="w-full h-12 border border-red-200 text-red-500 rounded-full font-bold">Desistir</button>
+                                        <button className="group relative flex w-full cursor-default items-center justify-center overflow-hidden rounded-full h-14 bg-green-700 text-white text-lg font-bold">
+                                            <span className="relative flex items-center gap-2">
+                                                <span className="material-symbols-outlined">check_circle</span>
+                                                Presença Confirmada
+                                            </span>
+                                        </button>
+                                        <button onClick={handleLeave} disabled={actionLoading} className="w-full h-12 rounded-full border border-gray-200 dark:border-gray-700 text-red-500 font-bold hover:bg-gray-50 dark:hover:bg-white/5 transition-colors">
+                                            Não posso mais ir
+                                        </button>
                                     </>
                                 ) : (
-                                    <button onClick={handleJoin} disabled={actionLoading || spotsLeft <= 0} className="w-full h-14 bg-[#13ec5b] text-[#0d1b12] rounded-full font-bold">{spotsLeft <= 0 ? 'Lotado' : 'Confirmar Presença'}</button>
+                                    <>
+                                        <button
+                                            onClick={handleJoin}
+                                            disabled={actionLoading || spotsLeft <= 0}
+                                            className="group relative flex w-full cursor-pointer items-center justify-center overflow-hidden rounded-full h-14 bg-[#13ec5b] text-[#0d1b12] text-lg font-bold shadow-lg shadow-green-400/20 hover:shadow-green-400/40 hover:scale-[1.02] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                                        >
+                                            <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300"></div>
+                                            <span className="relative flex items-center gap-2">
+                                                {spotsLeft <= 0 ? 'Lotado' : 'Confirmar Presença'}
+                                                <span className="material-symbols-outlined">arrow_forward</span>
+                                            </span>
+                                        </button>
+                                        {!isConfirmed && (
+                                            <button className="w-full h-12 rounded-full border border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 font-bold hover:bg-gray-50 dark:hover:bg-white/5 transition-colors">
+                                                Não posso ir
+                                            </button>
+                                        )}
+                                    </>
                                 )}
                             </div>
+
+                            <p className="text-xs text-center text-gray-400 dark:text-gray-500 leading-relaxed">
+                                Ao confirmar, você concorda com as regras de cancelamento (24h antes).
+                            </p>
+                        </div>
+
+                        {/* Quick Share */}
+                        <div className="p-4 rounded-2xl bg-[#13ec5b]/10 border border-[#13ec5b]/20 flex items-center justify-between">
+                            <div className="flex flex-col">
+                                <span className="font-bold text-[#0d1b12] dark:text-white text-sm">Convide amigos</span>
+                                <span className="text-xs text-gray-600 dark:text-gray-300">Faltam {Math.max(0, match.capacity - confirmedPlayers.length / 2)} pessoas!</span>
+                            </div>
+                            <button className="size-10 rounded-full bg-white dark:bg-[#102216] text-[#0d1b12] dark:text-white flex items-center justify-center shadow-sm hover:text-[#13ec5b] transition-colors">
+                                <span className="material-symbols-outlined">share</span>
+                            </button>
                         </div>
                     </div>
                 </div>

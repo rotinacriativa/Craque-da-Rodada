@@ -38,7 +38,7 @@ export default function RecuperarSenha() {
                             <div className="text-[#13ec5b] flex items-center justify-center">
                                 <span className="material-symbols-outlined text-3xl" style={{ fontVariationSettings: "'FILL' 1" }}>sports_soccer</span>
                             </div>
-                            <h2 className="text-[#0d1b12] dark:text-white text-xl font-bold tracking-tight">PelaFacil</h2>
+                            <h2 className="text-[#0d1b12] dark:text-white text-xl font-bold tracking-tight">Craque da Rodada</h2>
                         </div>
                         {/* Desktop Nav */}
                         <div className="hidden md:flex items-center gap-8">
@@ -120,7 +120,7 @@ export default function RecuperarSenha() {
                     <div className="mt-8 text-center opacity-60">
                         <p className="text-xs text-gray-500 dark:text-gray-500 flex items-center justify-center gap-1">
                             <span className="material-symbols-outlined text-sm">verified_user</span>
-                            Seguro e criptografado pela PelaFacil
+                            Seguro e criptografado pela Craque da Rodada
                         </p>
                     </div>
                 </div>

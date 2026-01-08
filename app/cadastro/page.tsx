@@ -70,7 +70,7 @@ export default function Cadastro() {
                         <div className="size-10 flex items-center justify-center rounded-full bg-[#13ec5b]/20 text-[#0eb345] dark:text-[#13ec5b]">
                             <span className="material-symbols-outlined text-2xl">sports_soccer</span>
                         </div>
-                        <h2 className="text-[#0d1b12] dark:text-white text-xl font-bold tracking-tight">PelaFacil</h2>
+                        <h2 className="text-[#0d1b12] dark:text-white text-xl font-bold tracking-tight">Craque da Rodada</h2>
                     </Link>
                     {/* Main Content Container */}
                     <div className="w-full max-w-md flex flex-col gap-8 mt-16 lg:mt-0">
@@ -207,7 +207,7 @@ export default function Cadastro() {
                                 <span className="material-symbols-outlined text-[#13ec5b] text-xl">star</span>
                             </div>
                             <blockquote className="text-white text-2xl font-bold leading-relaxed mb-4">
-                                "Nunca foi tão fácil juntar a galera. O PelaFacil acabou com a dor de cabeça de organizar lista e pagamentos."
+                                &quot;Nunca foi tão fácil juntar a galera. O Craque da Rodada acabou com a dor de cabeça de organizar lista e pagamentos.&quot;
                             </blockquote>
                             <div className="flex items-center gap-4">
                                 <div className="size-12 rounded-full overflow-hidden border-2 border-[#13ec5b]">

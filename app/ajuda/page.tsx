@@ -45,7 +45,7 @@ export default function AjudaPage() {
                                 <span className="material-icons-round text-3xl">sports_soccer</span>
                             </div>
                             <span className="font-bold text-xl tracking-tight text-gray-900 dark:text-white">
-                                PelaFacil
+                                Craque da Rodada
                             </span>
                         </Link>
                         <nav className="hidden md:flex items-center space-x-8">
@@ -135,7 +135,7 @@ export default function AjudaPage() {
                                 Primeiros Passos
                             </h3>
                             <p className="text-sm text-gray-500 dark:text-gray-400">
-                                Tudo o que você precisa saber para começar a usar o PelaFacil
+                                Tudo o que você precisa saber para começar a usar o Craque da Rodada
                                 hoje mesmo.
                             </p>
                         </Link>
@@ -207,7 +207,7 @@ export default function AjudaPage() {
                             },
                             {
                                 q: "É possível cobrar a mensalidade pelo app?",
-                                a: "Sim! O PelaFacil possui uma funcionalidade de \"Financeiro\" onde você pode registrar quem pagou ou gerar links de pagamento (Pix) para facilitar a cobrança."
+                                a: "Sim! O Craque da Rodada possui uma funcionalidade de \"Financeiro\" onde você pode registrar quem pagou ou gerar links de pagamento (Pix) para facilitar a cobrança."
                             },
                             {
                                 q: "Esqueci minha senha, como recuperar?",
@@ -279,7 +279,7 @@ export default function AjudaPage() {
                                     sports_soccer
                                 </span>
                                 <span className="font-bold text-lg text-gray-900 dark:text-white">
-                                    PelaFacil
+                                    Craque da Rodada
                                 </span>
                             </div>
                             <p className="text-sm text-gray-500 dark:text-gray-400">
@@ -383,7 +383,7 @@ export default function AjudaPage() {
                     </div>
                     <div className="border-t border-gray-200 dark:border-gray-800 pt-8 flex flex-col md:flex-row justify-between items-center gap-4">
                         <p className="text-sm text-gray-400">
-                            © 2023 PelaFacil. Todos os direitos reservados.
+                            © 2023 Craque da Rodada. Todos os direitos reservados.
                         </p>
                         <div className="flex space-x-6">
                             <Link

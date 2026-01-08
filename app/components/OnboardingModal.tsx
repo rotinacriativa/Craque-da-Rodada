@@ -72,9 +72,7 @@ export default function OnboardingModal() {
         }
     }, [birthDate]);
 
-    useEffect(() => {
-        checkProfileStatus();
-    }, []);
+
 
     const checkProfileStatus = async () => {
         const { data: { user } } = await supabase.auth.getUser();

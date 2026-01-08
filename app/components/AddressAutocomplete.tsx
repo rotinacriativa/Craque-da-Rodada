@@ -51,7 +51,7 @@ export default function AddressAutocomplete({ onSelect, onChange, placeholder = 
                 // Using OpenStreetMap Nominatim API (Free, requires User-Agent)
                 const response = await fetch(
                     `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&addressdetails=1&limit=5&countrycodes=br`,
-                    { headers: { "User-Agent": "PelaFacil matches/1.0" } }
+                    { headers: { "User-Agent": "Craque da Rodada matches/1.0" } }
                 );
                 const data = await response.json();
                 setSuggestions(data);

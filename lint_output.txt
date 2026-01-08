@@ -1,0 +1,135 @@
+
+> craque-da-rodada@0.1.0 lint
+> eslint
+
+
+D:\Programação\Craque da Rodada\app\ajuda\page.tsx
+  18:13  error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+D:\Programação\Craque da Rodada\app\ajuda\page.tsx:18:13
+  16 |         ) {
+  17 |             document.documentElement.classList.add('dark');
+> 18 |             setIsDark(true);
+     |             ^^^^^^^^^ Avoid calling setState() directly within an effect
+  19 |         } else {
+  20 |             document.documentElement.classList.remove('dark');
+  21 |             setIsDark(false);  react-hooks/set-state-in-effect
+
+D:\Programação\Craque da Rodada\app\cadastro\page.tsx
+    3:8    warning  'Image' is defined but never used                                                                                                                                                                                                                                                        @typescript-eslint/no-unused-vars
+   14:11   warning  'router' is assigned a value but never used                                                                                                                                                                                                                                              @typescript-eslint/no-unused-vars
+   53:18   warning  'error' is defined but never used                                                                                                                                                                                                                                                        @typescript-eslint/no-unused-vars
+   62:13   warning  Custom fonts not added in `pages/_document.js` will only load for a single page. This is discouraged. See: https://nextjs.org/docs/messages/no-page-custom-font                                                                                                                          @next/next/no-page-custom-font
+  190:25   warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+  210:33   error    `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`                                                                                                                                                                                                                          react/no-unescaped-entities
+  210:149  error    `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`                                                                                                                                                                                                                          react/no-unescaped-entities
+  214:37   warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+D:\Programação\Craque da Rodada\app\components\OnboardingModal.tsx
+  76:9  error  Error: Cannot access variable before it is declared
+
+`checkProfileStatus` is accessed before it is declared, which prevents the earlier access from updating when this value changes over time.
+
+D:\Programação\Craque da Rodada\app\components\OnboardingModal.tsx:76:9
+  74 |
+  75 |     useEffect(() => {
+> 76 |         checkProfileStatus();
+     |         ^^^^^^^^^^^^^^^^^^ `checkProfileStatus` accessed before it is declared
+  77 |     }, []);
+  78 |
+  79 |     const checkProfileStatus = async () => {
+
+D:\Programação\Craque da Rodada\app\components\OnboardingModal.tsx:79:5
+   77 |     }, []);
+   78 |
+>  79 |     const checkProfileStatus = async () => {
+      |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+>  80 |         const { data: { user } } = await supabase.auth.getUser();
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+>  81 |
+      …
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 112 |         setLoading(false);
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 113 |     };
+      | ^^^^^^^ `checkProfileStatus` is declared here
+  114 |
+  115 |     const handleSave = async (e: React.FormEvent) => {
+  116 |         e.preventDefault();  react-hooks/immutability
+
+D:\Programação\Craque da Rodada\app\dashboard\grupos\[id]\admin\configuracoes\page.tsx
+  25:31  warning  'error' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+D:\Programação\Craque da Rodada\app\dashboard\grupos\[id]\admin\financeiro\page.tsx
+  76:8  warning  React Hook useEffect has a missing dependency: 'fetchTransactions'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+D:\Programação\Craque da Rodada\app\dashboard\grupos\[id]\admin\membros\page.tsx
+  59:38  error    Unexpected any. Specify a different type                                                                         @typescript-eslint/no-explicit-any
+  83:8   warning  React Hook useEffect has a missing dependency: 'fetchMembers'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+D:\Programação\Craque da Rodada\app\dashboard\grupos\[id]\admin\page.tsx
+   10:40  error    Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+   16:31  warning  'error' is assigned a value but never used                                                                                                                                                                                                                                               @typescript-eslint/no-unused-vars
+  106:33  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+  107:33  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+  108:33  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+  109:33  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+D:\Programação\Craque da Rodada\app\dashboard\grupos\[id]\nova-partida\page.tsx
+  175:33  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+D:\Programação\Craque da Rodada\app\dashboard\grupos\[id]\page.tsx
+  314:0  error  Parsing error: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+
+D:\Programação\Craque da Rodada\app\dashboard\historico\page.tsx
+  1:8  warning  'Link' is defined but never used  @typescript-eslint/no-unused-vars
+
+D:\Programação\Craque da Rodada\app\dashboard\layout.tsx
+  56:13  warning  Custom fonts not added in `pages/_document.js` will only load for a single page. This is discouraged. See: https://nextjs.org/docs/messages/no-page-custom-font  @next/next/no-page-custom-font
+  74:42  error    React Hook "usePathname" cannot be called inside a callback. React Hooks must be called in a React function component or a custom React Hook function            react-hooks/rules-of-hooks
+
+D:\Programação\Craque da Rodada\app\dashboard\page.tsx
+  11:48  error    Unexpected any. Specify a different type         @typescript-eslint/no-explicit-any
+  25:47  warning  'matchError' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+D:\Programação\Craque da Rodada\app\dashboard\partidas\[id]\page.tsx
+    3:8   warning  'Link' is defined but never used                                                                                     @typescript-eslint/no-unused-vars
+   90:56  error    Unexpected any. Specify a different type                                                                             @typescript-eslint/no-explicit-any
+  143:30  error    Unexpected any. Specify a different type                                                                             @typescript-eslint/no-explicit-any
+  170:8   warning  React Hook useEffect has a missing dependency: 'calculateResults'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  175:8   warning  React Hook useEffect has a missing dependency: 'fetchData'. Either include it or remove the dependency array         react-hooks/exhaustive-deps
+  208:25  error    Unexpected any. Specify a different type                                                                             @typescript-eslint/no-explicit-any
+  227:25  error    Unexpected any. Specify a different type                                                                             @typescript-eslint/no-explicit-any
+
+D:\Programação\Craque da Rodada\app\dashboard\perfil\page.tsx
+   98:27  warning  'error' is assigned a value but never used  @typescript-eslint/no-unused-vars
+  190:25  error    Unexpected any. Specify a different type    @typescript-eslint/no-explicit-any
+
+D:\Programação\Craque da Rodada\app\login\page.tsx
+   3:8   warning  'Image' is defined but never used                                                                                                                                                                                                                                                        @typescript-eslint/no-unused-vars
+  37:18  warning  'error' is defined but never used                                                                                                                                                                                                                                                        @typescript-eslint/no-unused-vars
+  46:13  warning  Custom fonts not added in `pages/_document.js` will only load for a single page. This is discouraged. See: https://nextjs.org/docs/messages/no-page-custom-font                                                                                                                          @next/next/no-page-custom-font
+  90:33  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+  91:33  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+  92:33  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+D:\Programação\Craque da Rodada\app\page.tsx
+   2:8  warning  'Image' is defined but never used                                                                                                                                @typescript-eslint/no-unused-vars
+   8:7  warning  'notoSans' is assigned a value but never used                                                                                                                    @typescript-eslint/no-unused-vars
+  14:7  warning  Custom fonts not added in `pages/_document.js` will only load for a single page. This is discouraged. See: https://nextjs.org/docs/messages/no-page-custom-font  @next/next/no-page-custom-font
+
+D:\Programação\Craque da Rodada\app\recuperar-senha\page.tsx
+   3:8   warning  'Image' is defined but never used                                                                                                                                @typescript-eslint/no-unused-vars
+  27:13  warning  Custom fonts not added in `pages/_document.js` will only load for a single page. This is discouraged. See: https://nextjs.org/docs/messages/no-page-custom-font  @next/next/no-page-custom-font
+
+D:\Programação\Craque da Rodada\middleware.ts
+  31:58  warning  'options' is defined but never used  @typescript-eslint/no-unused-vars
+
+✖ 48 problems (14 errors, 34 warnings)
+
