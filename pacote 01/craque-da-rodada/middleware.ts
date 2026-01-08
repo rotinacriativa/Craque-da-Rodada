@@ -8,9 +8,20 @@ export async function middleware(request: NextRequest) {
         },
     })
 
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+    const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+
+    if (!supabaseUrl || !supabaseKey) {
+        console.error("Middleware: Missing Supabase environment variables");
+        // Proceeding might crash, but at least we logged it. 
+        // Best to return early if critical? But middleware must return response.
+        // Let's keep the ! assertions but maybe log if missing before crash?
+        // Actually, if they are missing, createServerClient will probably throw or fail.
+    }
+
     const supabase = createServerClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+        supabaseUrl,
+        supabaseKey,
         {
             cookies: {
                 getAll() {

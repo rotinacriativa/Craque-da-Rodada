@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { supabase } from "@/src/lib/supabaseClient";
+import { supabase } from "../../src/lib/supabaseClient";
+import { formatDateForMatchList } from "../../src/lib/utils";
 
 export default function DashboardPage() {
     const router = useRouter();
@@ -69,18 +70,6 @@ export default function DashboardPage() {
             alert('Link copiado para a área de transferência!');
             navigator.clipboard.writeText(window.location.origin);
         }
-    };
-
-    // Helper to format date
-    const formatDate = (dateString: string, timeString: string) => {
-        const date = new Date(dateString);
-        // Timezone fix
-        const userTimezoneOffset = date.getTimezoneOffset() * 60000;
-        const adjustedDate = new Date(date.getTime() + userTimezoneOffset + (12 * 60 * 60 * 1000));
-
-        const dayName = adjustedDate.toLocaleDateString('pt-BR', { weekday: 'long' });
-        const capDayName = dayName.charAt(0).toUpperCase() + dayName.slice(1);
-        return `${capDayName}, ${timeString.slice(0, 5)}h`;
     };
 
     return (
@@ -180,7 +169,7 @@ export default function DashboardPage() {
                             <div className="flex flex-col gap-1">
                                 <div className="flex items-center gap-2 text-[#13ec5b] text-sm font-bold uppercase tracking-wide">
                                     <span className="material-symbols-outlined text-lg">calendar_month</span>
-                                    {formatDate(nextMatch.date, nextMatch.start_time)}
+                                    {formatDateForMatchList(nextMatch.date, nextMatch.start_time)}
                                 </div>
                                 <h3 className="text-[#0d1b12] dark:text-white text-2xl md:text-3xl font-bold leading-tight">
                                     {nextMatch.name} - {nextMatch.groups?.name}

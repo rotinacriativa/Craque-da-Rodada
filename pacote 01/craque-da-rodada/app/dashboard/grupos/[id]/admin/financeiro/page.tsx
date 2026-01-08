@@ -2,8 +2,8 @@
 
 import { use, useState, useEffect } from "react";
 import Link from "next/link";
-import { supabase } from "@/src/lib/supabaseClient";
-import NewTransactionModal from "@/app/components/NewTransactionModal";
+import { supabase } from "../../../../../../src/lib/supabaseClient";
+import NewTransactionModal from "../../../../../components/NewTransactionModal";
 
 interface Transaction {
     id: string;

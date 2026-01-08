@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { use, useEffect, useState } from "react";
-import { supabase } from "@/src/lib/supabaseClient";
+import { supabase } from "../../../../src/lib/supabaseClient";
+import { formatDateForGroup } from "../../../../src/lib/utils";
 
 export default function GroupDashboard({ params }: { params: Promise<{ id: string }> }) {
     // Unwrap params using React.use()
@@ -11,6 +12,7 @@ export default function GroupDashboard({ params }: { params: Promise<{ id: strin
 
     const [matches, setMatches] = useState<any[]>([]);
     const [group, setGroup] = useState<any>(null);
+    const [error, setError] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
@@ -24,8 +26,7 @@ export default function GroupDashboard({ params }: { params: Promise<{ id: strin
                     .single();
 
                 if (groupError) {
-                    // console.error("Error fetching group:", groupError);
-                    // Fallback or just set null, let the UI handle it
+                    throw groupError;
                 } else {
                     setGroup(groupData);
                 }
@@ -41,8 +42,9 @@ export default function GroupDashboard({ params }: { params: Promise<{ id: strin
                 if (matchesError) throw matchesError;
                 setMatches(matchesData || []);
 
-            } catch (error) {
+            } catch (error: any) {
                 console.error("Error loading dashboard:", error);
+                setError("Erro ao carregar dados do grupo. Tente recarregar a página.");
             } finally {
                 setIsLoading(false);
             }
@@ -53,24 +55,29 @@ export default function GroupDashboard({ params }: { params: Promise<{ id: strin
         }
     }, [groupId]);
 
-    // Format date helper
-    const formatDate = (dateString: string) => {
-        const date = new Date(dateString);
-        // FORCE MIDDAY to correct timezone issues: set time to 12:00
-        const userTimezoneOffset = date.getTimezoneOffset() * 60000;
-        const adjustedDate = new Date(date.getTime() + userTimezoneOffset + (12 * 60 * 60 * 1000));
-
-        return {
-            day: adjustedDate.getDate(),
-            month: adjustedDate.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', ''),
-            full: adjustedDate.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })
-        };
-    };
-
     if (isLoading) {
         return (
             <div className="flex-1 flex flex-col items-center justify-center w-full min-h-[500px]">
                 <span className="size-10 block rounded-full border-4 border-[#13ec5b] border-r-transparent animate-spin"></span>
+                <span className="mt-4 text-sm text-gray-500 font-medium">Carregando grupo...</span>
+            </div>
+        );
+    }
+
+    if (error) {
+        return (
+            <div className="flex-1 flex flex-col items-center justify-center w-full min-h-[500px] text-center p-8">
+                <div className="bg-red-50 dark:bg-red-900/10 p-4 rounded-full mb-4">
+                    <span className="material-symbols-outlined text-3xl text-red-500">error</span>
+                </div>
+                <h3 className="text-xl font-bold text-gray-800 dark:text-white mb-2">Ops! Algo deu errado.</h3>
+                <p className="text-gray-500 mb-6">{error}</p>
+                <button
+                    onClick={() => window.location.reload()}
+                    className="px-6 py-2.5 bg-red-100 hover:bg-red-200 text-red-700 rounded-full font-bold transition-colors"
+                >
+                    Tentar Novamente
+                </button>
             </div>
         );
     }
@@ -150,7 +157,7 @@ export default function GroupDashboard({ params }: { params: Promise<{ id: strin
                         </div>
                     ) : matches.length > 0 ? (
                         matches.map((match) => {
-                            const dateInfo = formatDate(match.date);
+                            const dateInfo = formatDateForGroup(match.date);
                             return (
                                 <div key={match.id} className="bg-white dark:bg-[#183020] rounded-xl p-5 border border-[#13ec5b]/30 shadow-[0_4px_20px_-4px_rgba(19,236,91,0.15)] transition-transform hover:-translate-y-1 duration-300">
                                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">

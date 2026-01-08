@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState, use, useEffect } from "react";
-import { supabase } from "@/src/lib/supabaseClient";
+import { supabase } from "../../../../src/lib/supabaseClient";
 
 interface Match {
     id: string;
@@ -174,13 +174,28 @@ export default function MatchDetails({ params }: { params: Promise<{ id: string 
         fetchData();
     }, [matchId]);
 
+    const [errorMessage, setErrorMessage] = useState<string | null>(null);
+    const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
+    // Clear messages after 5 seconds
+    useEffect(() => {
+        if (errorMessage || successMessage) {
+            const timer = setTimeout(() => {
+                setErrorMessage(null);
+                setSuccessMessage(null);
+            }, 5000);
+            return () => clearTimeout(timer);
+        }
+    }, [errorMessage, successMessage]);
+
     // Actions
     const handleJoin = async () => {
-        if (!currentUser) return alert("Faça login para participar.");
+        if (!currentUser) return setErrorMessage("Faça login para participar.");
         const spotsLeft = match ? match.capacity - (participants.filter(p => p.status === 'confirmed').length) : 0;
-        if (spotsLeft <= 0) return alert("Partida lotada!");
+        if (spotsLeft <= 0) return setErrorMessage("Partida lotada! Entre na lista de espera (em breve).");
 
         setActionLoading(true);
+        setErrorMessage(null);
         const myParticipant = participants.find(p => p.user_id === currentUser);
         try {
             if (myParticipant) {
@@ -189,9 +204,10 @@ export default function MatchDetails({ params }: { params: Promise<{ id: string 
                 await supabase.from('match_participants').insert({ match_id: matchId, user_id: currentUser, status: 'confirmed' });
             }
             fetchData();
-        } catch (error) {
+            setSuccessMessage("Presença confirmada!");
+        } catch (error: any) {
             console.error(error);
-            alert("Erro ao confirmar.");
+            setErrorMessage("Erro ao confirmar presença: " + (error.message || "Tente novamente."));
         } finally {
             setActionLoading(false);
         }
@@ -200,14 +216,17 @@ export default function MatchDetails({ params }: { params: Promise<{ id: string 
     const handleLeave = async () => {
         const myParticipant = participants.find(p => p.user_id === currentUser);
         if (!myParticipant) return;
-        if (!confirm("Tem certeza que vai fura? 🐔")) return;
+        if (!confirm("Tem certeza que vai furar? 🐔")) return;
 
         setActionLoading(true);
+        setErrorMessage(null);
         try {
             await supabase.from('match_participants').delete().eq('id', myParticipant.id);
             fetchData();
-        } catch (error) {
+            setSuccessMessage("Você saiu da partida.");
+        } catch (error: any) {
             console.error(error);
+            setErrorMessage("Erro ao sair da partida.");
         } finally {
             setActionLoading(false);
         }
@@ -215,9 +234,10 @@ export default function MatchDetails({ params }: { params: Promise<{ id: string 
 
     const handleGenerateTeams = async () => {
         const confirmedPlayers = participants.filter(p => p.status === 'confirmed');
-        if (confirmedPlayers.length < 2) return alert("Precisa de pelo menos 2 jogadores para sortear.");
+        if (confirmedPlayers.length < 2) return setErrorMessage("Precisa de pelo menos 2 jogadores para sortear.");
 
         setActionLoading(true);
+        setErrorMessage(null);
         const shuffled = [...confirmedPlayers].sort(() => Math.random() - 0.5);
         const teamA: Participant[] = [];
         const teamB: Participant[] = [];
@@ -232,11 +252,11 @@ export default function MatchDetails({ params }: { params: Promise<{ id: string 
             for (const p of teamB) await supabase.from('match_participants').update({ team: 'B' }).eq('id', p.id);
 
             setGeneratedTeams({ A: teamA, B: teamB });
-            alert("Times sorteados com sucesso!");
+            setSuccessMessage("Times sorteados com sucesso!");
             fetchData();
         } catch (error) {
             console.error("Error saving teams:", error);
-            alert("Erro ao salvar times.");
+            setErrorMessage("Erro ao salvar times no banco.");
         } finally {
             setActionLoading(false);
         }
@@ -245,6 +265,7 @@ export default function MatchDetails({ params }: { params: Promise<{ id: string 
     const handleVote = async (targetUserId: string) => {
         if (!currentUser) return;
         setActionLoading(true);
+        setErrorMessage(null);
         try {
             const { error } = await supabase.from('match_votes').insert({
                 match_id: matchId,
@@ -254,22 +275,26 @@ export default function MatchDetails({ params }: { params: Promise<{ id: string 
             });
 
             if (error) {
-                if (error.code === '23505') alert("Você já votou!"); // Unique constraint
+                if (error.code === '23505') setErrorMessage("Você já votou!");
                 else throw error;
             } else {
                 setMyVote({ voted_user_id: targetUserId, category: 'craque' });
-                alert("Voto computado! ⭐");
+                setSuccessMessage("Voto computado! ⭐");
             }
         } catch (error) {
             console.error(error);
-            alert("Erro ao votar.");
+            setErrorMessage("Erro ao votar.");
         } finally {
             setActionLoading(false);
         }
     };
 
 
-    if (loading) return <div className="p-12 text-center text-slate-500">Carregando partida...</div>;
+    if (loading) return (
+        <div className="flex items-center justify-center min-h-screen">
+            <span className="size-10 block rounded-full border-4 border-[#13ec5b] border-r-transparent animate-spin"></span>
+        </div>
+    );
     if (!match) return <div className="p-12 text-center text-slate-500">Partida não encontrada.</div>;
 
     const confirmedPlayers = participants.filter(p => p.status === 'confirmed');
@@ -285,6 +310,22 @@ export default function MatchDetails({ params }: { params: Promise<{ id: string 
 
     return (
         <div className="flex-1 w-full max-w-7xl mx-auto px-4 py-8 md:px-8">
+            {/* Notifications */}
+            <div className="fixed top-24 right-4 z-50 flex flex-col gap-2 max-w-xs w-full">
+                {errorMessage && (
+                    <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl shadow-lg animate-in slide-in-from-right fade-in duration-300">
+                        <strong className="font-bold block text-sm">Erro!</strong>
+                        <span className="block sm:inline text-sm">{errorMessage}</span>
+                    </div>
+                )}
+                {successMessage && (
+                    <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-xl shadow-lg animate-in slide-in-from-right fade-in duration-300">
+                        <strong className="font-bold block text-sm">Sucesso!</strong>
+                        <span className="block sm:inline text-sm">{successMessage}</span>
+                    </div>
+                )}
+            </div>
+
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
                 {/* Left Column: Details (Span 8) */}
                 <div className="lg:col-span-8 flex flex-col gap-8">

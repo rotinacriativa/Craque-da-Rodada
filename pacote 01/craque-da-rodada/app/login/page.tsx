@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Lexend } from "next/font/google";
 import { useState } from "react";
-import { supabase } from "@/src/lib/supabaseClient";
+import { supabase } from "../../src/lib/supabaseClient";
 
 const lexend = Lexend({ subsets: ["latin"] });
 

@@ -5,7 +5,8 @@ import Link from "next/link";
 import { Lexend } from "next/font/google";
 import { usePathname, useRouter } from "next/navigation";
 import OnboardingModal from "../components/OnboardingModal";
-import { supabase } from "@/src/lib/supabaseClient";
+import { supabase } from "../../src/lib/supabaseClient";
+import { cn } from "../../src/lib/utils";
 
 const lexend = Lexend({ subsets: ["latin"] });
 
@@ -68,41 +69,59 @@ export default function DashboardLayout({
                 </div>
                 {/* Navigation Links */}
                 <nav className="flex-1 px-4 flex flex-col gap-2 mt-2">
-                    {/* Active Link */}
-                    <Link className="flex items-center gap-3 px-4 py-3 bg-[#13ec5b] text-[#0d1b12] rounded-full font-bold shadow-md shadow-[#13ec5b]/20 transition-all hover:scale-[1.02]" href="/dashboard">
-                        <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>dashboard</span>
-                        <span>Dashboard</span>
-                    </Link>
-                    {/* Normal Link */}
-                    <Link className="flex items-center gap-3 px-4 py-3 text-[#0d1b12] dark:text-white hover:bg-[#e7f3eb] dark:hover:bg-[#2a4535] rounded-full font-medium transition-colors" href="/dashboard/entrar-grupo">
-                        <span className="material-symbols-outlined">groups</span>
-                        <span>Grupos</span>
-                    </Link>
-                    {/* Normal Link */}
-                    <Link className="flex items-center gap-3 px-4 py-3 text-[#0d1b12] dark:text-white hover:bg-[#e7f3eb] dark:hover:bg-[#2a4535] rounded-full font-medium transition-colors" href="/dashboard/ranking">
-                        <span className="material-symbols-outlined">emoji_events</span>
-                        <span>Ranking</span>
-                    </Link>
-                    {/* Normal Link */}
-                    <Link className="flex items-center gap-3 px-4 py-3 text-[#0d1b12] dark:text-white hover:bg-[#e7f3eb] dark:hover:bg-[#2a4535] rounded-full font-medium transition-colors" href="/dashboard/explorar">
-                        <span className="material-symbols-outlined">explore</span>
-                        <span>Explorar</span>
-                    </Link>
-                    {/* Normal Link */}
-                    <Link className="flex items-center gap-3 px-4 py-3 text-[#0d1b12] dark:text-white hover:bg-[#e7f3eb] dark:hover:bg-[#2a4535] rounded-full font-medium transition-colors" href="/dashboard/perfil">
-                        <span className="material-symbols-outlined">person</span>
-                        <span>Perfil</span>
-                    </Link>
-                    {/* Normal Link */}
-                    <Link className="flex items-center gap-3 px-4 py-3 text-[#0d1b12] dark:text-white hover:bg-[#e7f3eb] dark:hover:bg-[#2a4535] rounded-full font-medium transition-colors" href="/dashboard/configuracoes">
-                        <span className="material-symbols-outlined">settings</span>
-                        <span>Configurações</span>
-                    </Link>
-                    {/* Logout Link */}
-                    <button onClick={handleSignOut} className="flex items-center gap-3 px-4 py-3 text-[#0d1b12] dark:text-white hover:bg-red-50 dark:hover:bg-red-900/10 hover:text-red-500 dark:hover:text-red-400 rounded-full font-medium transition-colors mt-auto mb-2 w-full text-left">
-                        <span className="material-symbols-outlined">logout</span>
-                        <span>Sair</span>
-                    </button>
+                    {/* Helper to determine if link is active */}
+                    {(() => {
+                        const pathname = usePathname();
+                        const isActive = (path: string) => pathname === path || (path !== '/dashboard' && pathname?.startsWith(path));
+
+                        const linkClass = (path: string) => cn(
+                            "flex items-center gap-3 px-4 py-3 rounded-full transition-all",
+                            isActive(path)
+                                ? "bg-[#13ec5b] text-[#0d1b12] font-bold shadow-md shadow-[#13ec5b]/20 hover:scale-[1.02]"
+                                : "text-[#0d1b12] dark:text-white font-medium hover:bg-[#e7f3eb] dark:hover:bg-[#2a4535]"
+                        );
+
+                        const iconStyle = (path: string) => isActive(path) ? { fontVariationSettings: "'FILL' 1" } : {};
+
+                        return (
+                            <>
+                                <Link className={linkClass("/dashboard")} href="/dashboard">
+                                    <span className="material-symbols-outlined" style={iconStyle("/dashboard")}>dashboard</span>
+                                    <span>Dashboard</span>
+                                </Link>
+
+                                <Link className={linkClass("/dashboard/entrar-grupo")} href="/dashboard/entrar-grupo">
+                                    <span className="material-symbols-outlined" style={iconStyle("/dashboard/entrar-grupo")}>groups</span>
+                                    <span>Grupos</span>
+                                </Link>
+
+                                <Link className={linkClass("/dashboard/ranking")} href="/dashboard/ranking">
+                                    <span className="material-symbols-outlined" style={iconStyle("/dashboard/ranking")}>emoji_events</span>
+                                    <span>Ranking</span>
+                                </Link>
+
+                                <Link className={linkClass("/dashboard/explorar")} href="/dashboard/explorar">
+                                    <span className="material-symbols-outlined" style={iconStyle("/dashboard/explorar")}>explore</span>
+                                    <span>Explorar</span>
+                                </Link>
+
+                                <Link className={linkClass("/dashboard/perfil")} href="/dashboard/perfil">
+                                    <span className="material-symbols-outlined" style={iconStyle("/dashboard/perfil")}>person</span>
+                                    <span>Perfil</span>
+                                </Link>
+
+                                <Link className={linkClass("/dashboard/configuracoes")} href="/dashboard/configuracoes">
+                                    <span className="material-symbols-outlined" style={iconStyle("/dashboard/configuracoes")}>settings</span>
+                                    <span>Configurações</span>
+                                </Link>
+
+                                <button onClick={handleSignOut} className="flex items-center gap-3 px-4 py-3 text-[#0d1b12] dark:text-white hover:bg-red-50 dark:hover:bg-red-900/10 hover:text-red-500 dark:hover:text-red-400 rounded-full font-medium transition-colors mt-auto mb-2 w-full text-left">
+                                    <span className="material-symbols-outlined">logout</span>
+                                    <span>Sair</span>
+                                </button>
+                            </>
+                        );
+                    })()}
                 </nav>
                 {/* Sidebar CTA */}
                 <div className="p-6 border-t border-[#e7f3eb] dark:border-[#2a4535]">
