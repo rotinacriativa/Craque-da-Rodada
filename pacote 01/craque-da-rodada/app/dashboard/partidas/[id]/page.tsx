@@ -1,155 +1,449 @@
 "use client";
 
 import Link from "next/link";
-import { useState, use } from "react";
+import { useState, use, useEffect } from "react";
+import { supabase } from "@/src/lib/supabaseClient";
+
+interface Match {
+    id: string;
+    name: string;
+    date: string;
+    start_time: string;
+    end_time: string;
+    location: string;
+    price: number;
+    capacity: number;
+    group_id: string;
+}
+
+interface Participant {
+    id: string; // match_participants.id
+    user_id: string;
+    status: 'confirmed' | 'waitlist' | 'declined';
+    team: 'A' | 'B' | null;
+    profile: {
+        full_name: string;
+        avatar_url: string;
+        position: string;
+        skill_level: string;
+    };
+}
+
+interface Vote {
+    voted_user_id: string;
+    category: 'craque' | 'bagre';
+}
 
 export default function MatchDetails({ params }: { params: Promise<{ id: string }> }) {
-    // Unwrap params using React.use()
     const { id } = use(params);
     const matchId = id;
-    const [status, setStatus] = useState<"confirming" | "confirmed" | null>(null);
 
-    const handleConfirm = () => {
-        setStatus("confirming");
-        setTimeout(() => setStatus("confirmed"), 1000); // Simulate API call
+    const [match, setMatch] = useState<Match | null>(null);
+    const [participants, setParticipants] = useState<Participant[]>([]);
+    const [currentUser, setCurrentUser] = useState<string | null>(null);
+    const [loading, setLoading] = useState(true);
+    const [actionLoading, setActionLoading] = useState(false);
+    const [generatedTeams, setGeneratedTeams] = useState<{ A: Participant[], B: Participant[] } | null>(null);
+
+    // Voting State
+    const [myVote, setMyVote] = useState<Vote | null>(null);
+    const [showVoting, setShowVoting] = useState(false);
+    const [voteResults, setVoteResults] = useState<{ userId: string; count: number; user: Participant }[] | null>(null);
+
+    // Fetch Data
+    const fetchData = async () => {
+        setLoading(true);
+        try {
+            // 1. Get User
+            const { data: { user } } = await supabase.auth.getUser();
+            setCurrentUser(user?.id || null);
+
+            // 2. Get Match
+            const { data: matchData, error: matchError } = await supabase
+                .from('matches')
+                .select('*')
+                .eq('id', matchId)
+                .single();
+
+            if (matchError) throw matchError;
+            setMatch(matchData);
+
+            // 3. Get Participants
+            const { data: partData, error: partError } = await supabase
+                .from('match_participants')
+                .select(`
+                    id,
+                    user_id,
+                    status,
+                    team,
+                    profile:profiles (
+                        full_name,
+                        avatar_url,
+                        position,
+                        skill_level
+                    )
+                `)
+                .eq('match_id', matchId);
+
+            if (partError) throw partError;
+
+            const formattedParticipants = (partData as any[]).map(p => ({
+                id: p.id,
+                user_id: p.user_id,
+                status: p.status,
+                team: p.team,
+                profile: p.profile || { full_name: 'Usuário', avatar_url: null, position: '-', skill_level: '' }
+            }));
+
+            setParticipants(formattedParticipants);
+
+            // Check teams
+            const teamA = formattedParticipants.filter((p: Participant) => p.team === 'A');
+            const teamB = formattedParticipants.filter((p: Participant) => p.team === 'B');
+            if (teamA.length > 0 || teamB.length > 0) {
+                setGeneratedTeams({ A: teamA, B: teamB });
+            }
+
+            // 4. Get Votes (Check if I voted and Get Results)
+            if (user) {
+                const { data: myVoteData } = await supabase
+                    .from('match_votes')
+                    .select('*')
+                    .eq('match_id', matchId)
+                    .eq('voter_id', user.id)
+                    .eq('category', 'craque')
+                    .maybeSingle(); // Use maybeSingle to avoid 406 error if no rows
+
+                if (myVoteData) {
+                    setMyVote({ voted_user_id: myVoteData.voted_user_id, category: 'craque' });
+                    // If I voted, assume voting is open/done, so let's fetch results? 
+                    // Or keep voting open. Let's show results only if user voted.
+                    calculateResults();
+                }
+            }
+
+        } catch (error) {
+            console.error("Error loading match:", error);
+        } finally {
+            setLoading(false);
+        }
     };
+
+    const calculateResults = async () => {
+        const { data: allVotes } = await supabase
+            .from('match_votes')
+            .select('voted_user_id')
+            .eq('match_id', matchId)
+            .eq('category', 'craque');
+
+        if (!allVotes) return;
+
+        // Count votes
+        const counts: Record<string, number> = {};
+        allVotes.forEach((v: any) => {
+            counts[v.voted_user_id] = (counts[v.voted_user_id] || 0) + 1;
+        });
+
+        // Map to users
+        const results = Object.entries(counts).map(([uid, count]) => {
+            const participant = participants.find(p => p.user_id === uid); // Access state participants carefully. 
+            // NOTE: State 'participants' might not be fresh inside this closure if not using refs, but normally valid after mount.
+            // Better to re-find from current scope or fetched data.
+            // For now, let's rely on it being available or use formattedParticipants passed if we refactor.
+            // ACTUALLY: `participants` here is stale closure from when `calculateResults` was defined? No, it's component scope.
+            // But since I call `calculateResults` inside fetchData which setsParticipants... race condition?
+            // Let's safe guard: I'll use participants from state, but wait for next render?
+            // Easier: Just fetch participants in calculateResults or trust React.
+            return { userId: uid, count, user: participant };
+        })
+            .filter(r => r.user) // Filter out unknown users
+            .sort((a, b) => b.count - a.count) as { userId: string; count: number; user: Participant }[];
+
+        setVoteResults(results);
+    };
+
+    // Fix: Ensure vote results can find participants. Use useEffect dependencies.
+    useEffect(() => {
+        if (myVote && participants.length > 0) {
+            calculateResults();
+        }
+    }, [myVote, participants.length]);
+
+
+    useEffect(() => {
+        fetchData();
+    }, [matchId]);
+
+    // Actions
+    const handleJoin = async () => {
+        if (!currentUser) return alert("Faça login para participar.");
+        const spotsLeft = match ? match.capacity - (participants.filter(p => p.status === 'confirmed').length) : 0;
+        if (spotsLeft <= 0) return alert("Partida lotada!");
+
+        setActionLoading(true);
+        const myParticipant = participants.find(p => p.user_id === currentUser);
+        try {
+            if (myParticipant) {
+                await supabase.from('match_participants').update({ status: 'confirmed' }).eq('id', myParticipant.id);
+            } else {
+                await supabase.from('match_participants').insert({ match_id: matchId, user_id: currentUser, status: 'confirmed' });
+            }
+            fetchData();
+        } catch (error) {
+            console.error(error);
+            alert("Erro ao confirmar.");
+        } finally {
+            setActionLoading(false);
+        }
+    };
+
+    const handleLeave = async () => {
+        const myParticipant = participants.find(p => p.user_id === currentUser);
+        if (!myParticipant) return;
+        if (!confirm("Tem certeza que vai fura? 🐔")) return;
+
+        setActionLoading(true);
+        try {
+            await supabase.from('match_participants').delete().eq('id', myParticipant.id);
+            fetchData();
+        } catch (error) {
+            console.error(error);
+        } finally {
+            setActionLoading(false);
+        }
+    };
+
+    const handleGenerateTeams = async () => {
+        const confirmedPlayers = participants.filter(p => p.status === 'confirmed');
+        if (confirmedPlayers.length < 2) return alert("Precisa de pelo menos 2 jogadores para sortear.");
+
+        setActionLoading(true);
+        const shuffled = [...confirmedPlayers].sort(() => Math.random() - 0.5);
+        const teamA: Participant[] = [];
+        const teamB: Participant[] = [];
+
+        shuffled.forEach((p, index) => {
+            if (index % 2 === 0) teamA.push(p);
+            else teamB.push(p);
+        });
+
+        try {
+            for (const p of teamA) await supabase.from('match_participants').update({ team: 'A' }).eq('id', p.id);
+            for (const p of teamB) await supabase.from('match_participants').update({ team: 'B' }).eq('id', p.id);
+
+            setGeneratedTeams({ A: teamA, B: teamB });
+            alert("Times sorteados com sucesso!");
+            fetchData();
+        } catch (error) {
+            console.error("Error saving teams:", error);
+            alert("Erro ao salvar times.");
+        } finally {
+            setActionLoading(false);
+        }
+    };
+
+    const handleVote = async (targetUserId: string) => {
+        if (!currentUser) return;
+        setActionLoading(true);
+        try {
+            const { error } = await supabase.from('match_votes').insert({
+                match_id: matchId,
+                voter_id: currentUser,
+                voted_user_id: targetUserId,
+                category: 'craque'
+            });
+
+            if (error) {
+                if (error.code === '23505') alert("Você já votou!"); // Unique constraint
+                else throw error;
+            } else {
+                setMyVote({ voted_user_id: targetUserId, category: 'craque' });
+                alert("Voto computado! ⭐");
+            }
+        } catch (error) {
+            console.error(error);
+            alert("Erro ao votar.");
+        } finally {
+            setActionLoading(false);
+        }
+    };
+
+
+    if (loading) return <div className="p-12 text-center text-slate-500">Carregando partida...</div>;
+    if (!match) return <div className="p-12 text-center text-slate-500">Partida não encontrada.</div>;
+
+    const confirmedPlayers = participants.filter(p => p.status === 'confirmed');
+    const myParticipant = participants.find(p => p.user_id === currentUser);
+    const isConfirmed = myParticipant?.status === 'confirmed';
+    const spotsLeft = match.capacity - confirmedPlayers.length;
+
+    // Check if match is "finished" for voting context.
+    // For DEMO: If user clicks "Avaliar Partida" or if generated teams exist we enable it.
+    // Let's toggle voting with a button "Iniciar Votação" (visible to everyone for simplicity or admin)
+
+    const dateStr = new Date(match.date).toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' });
 
     return (
         <div className="flex-1 w-full max-w-7xl mx-auto px-4 py-8 md:px-8">
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
                 {/* Left Column: Details (Span 8) */}
                 <div className="lg:col-span-8 flex flex-col gap-8">
-                    {/* Header Section */}
+                    {/* Header */}
                     <div className="flex flex-col gap-4">
                         <div className="flex flex-wrap items-center gap-3">
-                            <span className="inline-flex items-center gap-1.5 rounded-full bg-[#13ec5b]/20 px-3 py-1 text-sm font-bold text-green-800 dark:text-green-300">
-                                <span className="size-2 rounded-full bg-[#13ec5b] animate-pulse"></span>
-                                Vagas Abertas
-                            </span>
-                            <span className="inline-flex items-center rounded-full bg-gray-100 dark:bg-gray-800 px-3 py-1 text-sm font-medium text-gray-600 dark:text-gray-400">
-                                Competitivo
-                            </span>
+                            {spotsLeft > 0 ? (
+                                <span className="inline-flex items-center gap-1.5 rounded-full bg-[#13ec5b]/20 px-3 py-1 text-sm font-bold text-green-800 dark:text-green-300">
+                                    <span className="size-2 rounded-full bg-[#13ec5b] animate-pulse"></span>
+                                    {spotsLeft} Vagas Abertas
+                                </span>
+                            ) : (
+                                <span className="inline-flex items-center gap-1.5 rounded-full bg-red-100 px-3 py-1 text-sm font-bold text-red-800">
+                                    Lotado
+                                </span>
+                            )}
                         </div>
                         <div>
                             <h1 className="text-3xl md:text-5xl font-black leading-tight tracking-tight text-[#0d1b12] dark:text-white mb-2">
-                                Pelada de Terça - Arena Point
+                                {match.name}
                             </h1>
-                            <p className="text-lg md:text-xl text-[#4c9a66] dark:text-[#13ec5b] font-medium flex items-center gap-2">
+                            <p className="text-lg md:text-xl text-[#4c9a66] dark:text-[#13ec5b] font-medium flex items-center gap-2 capitalize">
                                 <span className="material-symbols-outlined">calendar_month</span>
-                                Segunda-feira, 24 de Outubro • 20:00 - 22:00
+                                {dateStr} • {match.start_time.slice(0, 5)} - {match.end_time?.slice(0, 5)}
                             </p>
                         </div>
                     </div>
 
-                    {/* Location Card */}
-                    <section className="rounded-2xl overflow-hidden border border-[#e7f3eb] dark:border-[#1f3b28] bg-white dark:bg-[#183020] shadow-sm">
-                        <div className="h-48 w-full bg-gray-200 relative">
-                            {/* Map Placeholder */}
-                            <div className="absolute inset-0 bg-cover bg-center opacity-80"
-                                style={{ backgroundImage: "url('https://lh3.googleusercontent.com/aida-public/AB6AXuAXN2pk8LXHs1dsBLfAhgFB3zKlTTOOymcoK9-htdI6HJe7H_tFy3FbZy719E3qzsI-He-8AQwruCn5QbrQJ7SxwfefiaS04MlhIsAVPnOVYNabWFI6V45Wcs36gRxsCgZaPXs6zZmGFDTXEr5Vf_0YlWd3YotfGAOZiy0Ol2bt_4qg5e9p702ISVP8a_Iy9cWU3QLsBvrgSj1PG5OYJ1hOPgv27H0Ul9GyDljiyNB9jfQf2TdoORZL8uPnfPumx8pclO8jzirPwIY')" }}>
+                    {/* VOTING SECTION (New) */}
+                    {isConfirmed && (
+                        <div className="rounded-2xl border border-yellow-200 bg-yellow-50 dark:bg-yellow-900/10 p-6 flex flex-col gap-4">
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                    <span className="material-symbols-outlined text-yellow-600">stars</span>
+                                    <h3 className="font-bold text-lg text-[#0d1b12] dark:text-white">Craque da Rodada</h3>
+                                </div>
+                                {!showVoting && !myVote && (
+                                    <button
+                                        onClick={() => setShowVoting(true)}
+                                        className="text-sm font-bold bg-yellow-400 hover:bg-yellow-500 text-[#0d1b12] px-4 py-2 rounded-lg transition-colors shadow-sm"
+                                    >
+                                        Votar Agora
+                                    </button>
+                                )}
                             </div>
-                            <button className="absolute bottom-4 right-4 bg-white dark:bg-[#102216] text-[#0d1b12] dark:text-white px-4 py-2 rounded-full text-sm font-bold shadow-lg flex items-center gap-2 hover:scale-105 transition-transform">
-                                <span className="material-symbols-outlined text-[#13ec5b]">map</span>
-                                Ver no Mapa
-                            </button>
+
+                            {/* VOTING LIST */}
+                            {showVoting && !myVote && (
+                                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 animate-in fade-in slide-in-from-top-2">
+                                    {confirmedPlayers.filter(p => p.user_id !== currentUser).map(p => (
+                                        <button
+                                            key={p.id}
+                                            onClick={() => handleVote(p.user_id)}
+                                            disabled={actionLoading}
+                                            className="flex items-center gap-2 p-3 rounded-xl bg-white dark:bg-[#1a2c22] border border-yellow-200 hover:border-yellow-400 transition-all text-left group"
+                                        >
+                                            <div className="size-10 rounded-full bg-cover bg-center bg-gray-200 shrink-0" style={{ backgroundImage: `url('${p.profile.avatar_url || "https://upload.wikimedia.org/wikipedia/commons/7/7c/Profile_avatar_placeholder_large.png"}')` }}></div>
+                                            <div className="min-w-0">
+                                                <p className="font-bold text-sm text-[#0d1b12] dark:text-white truncate group-hover:text-yellow-600 transition-colors">{p.profile.full_name}</p>
+                                                <p className="text-[10px] text-gray-500">Votar</p>
+                                            </div>
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
+
+                            {/* RESULTS (After voting) */}
+                            {myVote && voteResults && (
+                                <div className="flex flex-col gap-4 bg-white dark:bg-[#1a2c22] rounded-xl p-4 border border-yellow-100 dark:border-white/5">
+                                    <p className="text-sm text-center text-gray-500">Você votou! Resultados parciais:</p>
+                                    <div className="flex flex-col gap-3">
+                                        {voteResults.slice(0, 3).map((r, i) => (
+                                            <div key={r.userId} className="flex items-center gap-3">
+                                                <span className={`font-black text-lg w-6 text-center ${i === 0 ? 'text-yellow-500' : 'text-gray-400'}`}>{i + 1}º</span>
+                                                <div className="flex-1">
+                                                    <div className="flex items-center justify-between mb-1">
+                                                        <span className="font-bold text-sm text-[#0d1b12] dark:text-white">{r.user.profile.full_name}</span>
+                                                        <span className="font-bold text-xs text-gray-500">{r.count} votos</span>
+                                                    </div>
+                                                    <div className="w-full h-2 bg-gray-100 dark:bg-black/20 rounded-full overflow-hidden">
+                                                        <div className="h-full bg-yellow-400 rounded-full" style={{ width: `${(r.count / confirmedPlayers.length) * 100}%` }}></div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
                         </div>
+                    )}
+
+
+                    {/* Location Card & Teams (Existing) */}
+                    <section className="rounded-2xl overflow-hidden border border-[#e7f3eb] dark:border-[#1f3b28] bg-white dark:bg-[#183020] shadow-sm">
                         <div className="p-6">
-                            <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-6">
-                                <div className="flex-1">
-                                    <h3 className="text-xl font-bold mb-1 text-[#0d1b12] dark:text-white">Arena Soccer Point</h3>
-                                    <p className="text-gray-500 dark:text-gray-400 mb-4">Rua das Flores, 123 - Centro. Campo Society 7.</p>
-                                    {/* Amenities */}
-                                    <div className="flex flex-wrap gap-4 mt-4">
-                                        <div className="flex items-center gap-2 text-sm font-medium text-gray-600 dark:text-gray-300 bg-gray-50 dark:bg-white/5 px-3 py-2 rounded-lg">
-                                            <span className="material-symbols-outlined text-[#13ec5b]">local_parking</span>
-                                            Estacionamento
-                                        </div>
-                                        <div className="flex items-center gap-2 text-sm font-medium text-gray-600 dark:text-gray-300 bg-gray-50 dark:bg-white/5 px-3 py-2 rounded-lg">
-                                            <span className="material-symbols-outlined text-[#13ec5b]">shower</span>
-                                            Vestiário
-                                        </div>
-                                        <div className="flex items-center gap-2 text-sm font-medium text-gray-600 dark:text-gray-300 bg-gray-50 dark:bg-white/5 px-3 py-2 rounded-lg">
-                                            <span className="material-symbols-outlined text-[#13ec5b]">sports_bar</span>
-                                            Bar
-                                        </div>
+                            <h3 className="text-xl font-bold mb-1 text-[#0d1b12] dark:text-white">{match.location}</h3>
+                            <p className="text-gray-500 dark:text-gray-400 text-sm">Ver no Google Maps.</p>
+                        </div>
+                    </section>
+
+                    {(generatedTeams && (generatedTeams.A.length > 0 || generatedTeams.B.length > 0)) && (
+                        <section className="flex flex-col gap-4">
+                            <h2 className="text-2xl font-bold text-[#0d1b12] dark:text-white">Escalação</h2>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div className="bg-white dark:bg-[#183020] rounded-2xl border-t-4 border-t-[#13ec5b] shadow-sm p-4">
+                                    <h3 className="font-black text-lg text-center mb-4 text-[#0d1b12] dark:text-white uppercase tracking-wider">Time A</h3>
+                                    <div className="flex flex-col gap-2">
+                                        {generatedTeams.A.map(p => (
+                                            <div key={p.id} className="flex items-center gap-3 p-2 rounded-lg bg-gray-50 dark:bg-[#102216]">
+                                                <div className="size-8 rounded-full bg-cover bg-center bg-gray-200" style={{ backgroundImage: `url('${p.profile.avatar_url || "https://upload.wikimedia.org/wikipedia/commons/7/7c/Profile_avatar_placeholder_large.png"}')` }}></div>
+                                                <span className="font-bold text-sm text-[#0d1b12] dark:text-white">{p.profile.full_name}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                                <div className="bg-white dark:bg-[#183020] rounded-2xl border-t-4 border-t-orange-500 shadow-sm p-4">
+                                    <h3 className="font-black text-lg text-center mb-4 text-[#0d1b12] dark:text-white uppercase tracking-wider">Time B</h3>
+                                    <div className="flex flex-col gap-2">
+                                        {generatedTeams.B.map(p => (
+                                            <div key={p.id} className="flex items-center gap-3 p-2 rounded-lg bg-gray-50 dark:bg-[#102216]">
+                                                <div className="size-8 rounded-full bg-cover bg-center bg-gray-200" style={{ backgroundImage: `url('${p.profile.avatar_url || "https://upload.wikimedia.org/wikipedia/commons/7/7c/Profile_avatar_placeholder_large.png"}')` }}></div>
+                                                <span className="font-bold text-sm text-[#0d1b12] dark:text-white">{p.profile.full_name}</span>
+                                            </div>
+                                        ))}
                                     </div>
                                 </div>
                             </div>
-                        </div>
-                    </section>
+                        </section>
+                    )}
 
                     {/* Roster Section */}
                     <section className="flex flex-col gap-4">
                         <div className="flex items-center justify-between">
-                            <h2 className="text-2xl font-bold text-[#0d1b12] dark:text-white">Quem vai jogar</h2>
-                            <div className="flex bg-gray-100 dark:bg-[#183020] p-1 rounded-full">
-                                <button className="px-4 py-1.5 rounded-full bg-white dark:bg-[#102216] text-[#0d1b12] dark:text-white shadow-sm text-sm font-bold">Confirmados (12)</button>
-                                <button className="px-4 py-1.5 rounded-full text-gray-500 dark:text-gray-400 text-sm font-medium hover:text-[#0d1b12] dark:hover:text-white transition-colors">Espera (0)</button>
-                            </div>
+                            <h2 className="text-2xl font-bold text-[#0d1b12] dark:text-white">Lista de Confirmados</h2>
+                            {confirmedPlayers.length >= 2 && (
+                                <button
+                                    onClick={handleGenerateTeams}
+                                    disabled={actionLoading}
+                                    className="text-sm font-bold bg-[#13ec5b] text-[#0d1b12] px-4 py-2 rounded-lg hover:bg-[#0fd652]"
+                                >
+                                    Sortear Times
+                                </button>
+                            )}
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            {/* Organizer Card */}
-                            <div className="flex items-center p-3 gap-3 rounded-xl bg-[#13ec5b]/10 border border-[#13ec5b]/20">
-                                <div className="relative">
-                                    <div className="size-12 rounded-full bg-gray-300 bg-cover bg-center border-2 border-white dark:border-[#102216]" style={{ backgroundImage: "url('https://lh3.googleusercontent.com/aida-public/AB6AXuB8yDXKUjUPl4l1CmkrintPceWHlOfhy8hN7APbdMYU9DETHkZlq2bvxKObjZ1VBI2ErrxAR6EoaeQzGFNIh_oJ4Gx5_PCmMCE0-E6eLcyBXihXMmFeZXm98ZsO0CviRl9MbyoQ6atXPDhDMB4xpiXRbIHeyWPSzRwMJ9HYwOQDJh9UMZZUBmuMyV7tXg_zdlNrJKgIdthiNcIFrh4d0cAVUfiuekCTdspkQIAqKFZnvJUy_wGfRFziP4qZNYnirsjxbpgw675eo8c')" }}></div>
-                                    <div className="absolute -bottom-1 -right-1 bg-yellow-400 text-black p-0.5 rounded-full border-2 border-white dark:border-[#102216]">
-                                        <span className="material-symbols-outlined text-[12px] block font-bold">star</span>
+                            {confirmedPlayers.map(p => (
+                                <div key={p.id} className="flex items-center p-3 gap-3 rounded-xl bg-white dark:bg-[#183020] border border-gray-100 dark:border-gray-800">
+                                    <div className="relative">
+                                        <div className="size-12 rounded-full bg-gray-300 bg-cover bg-center border-2 border-white dark:border-[#102216]" style={{ backgroundImage: `url('${p.profile.avatar_url || "https://upload.wikimedia.org/wikipedia/commons/7/7c/Profile_avatar_placeholder_large.png"}')` }}></div>
+                                        {myVote?.voted_user_id === p.user_id && (
+                                            <div className="absolute -top-1 -right-1 bg-yellow-400 text-black p-0.5 rounded-full border-2 border-white text-[10px] font-bold px-1">Seu Voto</div>
+                                        )}
+                                    </div>
+                                    <div>
+                                        <p className="font-bold text-[#0d1b12] dark:text-white">{p.profile.full_name}</p>
+                                        <p className="text-xs text-gray-500">{p.profile.position}</p>
                                     </div>
                                 </div>
-                                <div>
-                                    <p className="font-bold text-[#0d1b12] dark:text-white">Carlos Silva</p>
-                                    <p className="text-xs font-bold text-[#0ea841] dark:text-[#13ec5b] uppercase tracking-wide">Organizador</p>
-                                </div>
-                            </div>
-                            {/* Regular Player 1 */}
-                            <div className="flex items-center p-3 gap-3 rounded-xl bg-white dark:bg-[#183020] border border-gray-100 dark:border-gray-800">
-                                <div className="relative">
-                                    <div className="size-12 rounded-full bg-gray-300 bg-cover bg-center border-2 border-white dark:border-[#102216]" style={{ backgroundImage: "url('https://lh3.googleusercontent.com/aida-public/AB6AXuDaOLueCTB8m4zg9PunhpVeMtPhoHtNMsc_-BbDnYllppggqNVChvMfeOeTAaZKz2_PqfC_ubJLemBFrIVDVflYNqTQ94TvNiBi6ne9zoxYJpAxQdvOYZrSm33Q9oPUY1ZmBAbam91Xu26w7pELfbSQxBF2DC-yF3NywFUtttK2f1wpTL-rpITX4qCEbpRFIP_HdM0sqf4VXyODi_b7pI0MLOENWpXH_Pu2NguZQBDX5pu7sMSFjGQcAcFtFx8z35ONi3tu7Vehtw8')" }}></div>
-                                    <div className="absolute -bottom-1 -right-1 bg-[#13ec5b] text-[#0d1b12] p-0.5 rounded-full border-2 border-white dark:border-[#102216]">
-                                        <span className="material-symbols-outlined text-[12px] block font-bold">check</span>
-                                    </div>
-                                </div>
-                                <div>
-                                    <p className="font-bold text-[#0d1b12] dark:text-white">André Santos</p>
-                                    <p className="text-xs text-gray-500">Zagueiro</p>
-                                </div>
-                            </div>
-                            {/* Regular Player 2 */}
-                            <div className="flex items-center p-3 gap-3 rounded-xl bg-white dark:bg-[#183020] border border-gray-100 dark:border-gray-800">
-                                <div className="relative">
-                                    <div className="size-12 rounded-full bg-gray-300 bg-cover bg-center border-2 border-white dark:border-[#102216]" style={{ backgroundImage: "url('https://lh3.googleusercontent.com/aida-public/AB6AXuBbP8E_ASGWUMZn3djg4gnANrsBYhK4GWiAWjqBmQMn9J1xP8zwiru6--JiaNsVytoKzeLEhNxtir5CNi6xd499KyIaPmotU2Mp_gXx-iyG6IpaPBoWsFzdaLx7d1HryayhGfCNukMqnGcMj75wFJ9-Sd_R4d7fJ7ANmIQ5RekBKasOgUyrEKEsuNL3tTBVxFzGDIXVo0jBY1f6bsbXmmCibYLrH0fkc2FGxrV7b7CJWvq6105vyKw0ds652xoYu0t1-DHgwPqzP-0')" }}></div>
-                                    <div className="absolute -bottom-1 -right-1 bg-[#13ec5b] text-[#0d1b12] p-0.5 rounded-full border-2 border-white dark:border-[#102216]">
-                                        <span className="material-symbols-outlined text-[12px] block font-bold">check</span>
-                                    </div>
-                                </div>
-                                <div>
-                                    <p className="font-bold text-[#0d1b12] dark:text-white">Mariana Costa</p>
-                                    <p className="text-xs text-gray-500">Meia</p>
-                                </div>
-                            </div>
-                            {/* Regular Player 3 */}
-                            <div className="flex items-center p-3 gap-3 rounded-xl bg-white dark:bg-[#183020] border border-gray-100 dark:border-gray-800">
-                                <div className="relative">
-                                    <div className="size-12 rounded-full bg-gray-300 bg-cover bg-center border-2 border-white dark:border-[#102216]" style={{ backgroundImage: "url('https://lh3.googleusercontent.com/aida-public/AB6AXuCuWjwCd81O_u8vBkUOVCTTgIsTwO0lEMnAEw5RBlMsQDiX6c5uXs98zpvGKAVZ8KiDug2LGS8dWCrqAXxY015F_2s7b4NUu2UWbzwN1c6Y44BVBLXSLjdQ_K_z03Mj83EEA2wer7iJu3fTx-Yzqtuc-qCh_ejmRaGgTQ1VpgHlqbg2rxMmXBt1eC5HvsV6rCEtKCxcobTWyQO5FDWxjxlA4bUhdJjxPR569i__cXkVSoKNsPyQIsD4h2pxl0emDGGd7johBuiy9dM')" }}></div>
-                                    <div className="absolute -bottom-1 -right-1 bg-[#13ec5b] text-[#0d1b12] p-0.5 rounded-full border-2 border-white dark:border-[#102216]">
-                                        <span className="material-symbols-outlined text-[12px] block font-bold">check</span>
-                                    </div>
-                                </div>
-                                <div>
-                                    <p className="font-bold text-[#0d1b12] dark:text-white">João Pedro</p>
-                                    <p className="text-xs text-gray-500">Goleiro</p>
-                                </div>
-                            </div>
-                            {/* Additional placeholder players */}
-                            <div className="flex items-center p-3 gap-3 rounded-xl bg-white dark:bg-[#183020] border border-gray-100 dark:border-gray-800 opacity-60">
-                                <div className="size-12 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center text-gray-400 font-bold text-sm">
-                                    +8
-                                </div>
-                                <div>
-                                    <p className="font-bold text-[#0d1b12] dark:text-white">Outros jogadores</p>
-                                    <p className="text-xs text-gray-500">Ver lista completa</p>
-                                </div>
-                            </div>
+                            ))}
                         </div>
                     </section>
                 </div>
@@ -157,68 +451,24 @@ export default function MatchDetails({ params }: { params: Promise<{ id: string 
                 {/* Right Column: Sticky Action Card (Span 4) */}
                 <div className="lg:col-span-4 relative">
                     <div className="sticky top-24 flex flex-col gap-6">
-                        {/* Status/Action Card */}
                         <div className="rounded-2xl border border-[#e7f3eb] dark:border-[#1f3b28] bg-white dark:bg-[#183020] shadow-xl shadow-green-900/5 p-6 flex flex-col gap-6">
-                            {/* Vacancy Info */}
                             <div className="flex flex-col gap-2">
-                                <div className="flex items-center justify-between">
-                                    <span className="text-sm font-medium text-gray-500 dark:text-gray-400">Status</span>
-                                    <span className="text-sm font-bold text-[#0d1b12] dark:text-white">Confirmado 12/14</span>
-                                </div>
+                                <span className="text-sm font-bold text-[#0d1b12] dark:text-white">{confirmedPlayers.length}/{match.capacity} Confirmados</span>
                                 <div className="w-full h-3 bg-[#e7f3eb] dark:bg-[#102216] rounded-full overflow-hidden">
-                                    <div className="h-full bg-[#13ec5b] rounded-full transition-all duration-500" style={{ width: "85%" }}></div>
-                                </div>
-                                <div className="flex items-center gap-2 text-[#4c9a66] dark:text-[#13ec5b] text-sm font-medium mt-1">
-                                    <span className="material-symbols-outlined text-lg">bolt</span>
-                                    Restam apenas 2 vagas!
+                                    <div className="h-full bg-[#13ec5b] rounded-full transition-all" style={{ width: `${(confirmedPlayers.length / match.capacity) * 100}%` }}></div>
                                 </div>
                             </div>
                             <hr className="border-[#e7f3eb] dark:border-white/10" />
-                            {/* Cost Info */}
-                            <div className="flex items-end justify-between">
-                                <div className="flex flex-col">
-                                    <span className="text-sm text-gray-500 dark:text-gray-400">Custo por pessoa</span>
-                                    <div className="flex items-baseline gap-1">
-                                        <span className="text-3xl font-black text-[#0d1b12] dark:text-white">R$ 25</span>
-                                        <span className="text-sm font-bold text-gray-400">,00</span>
-                                    </div>
-                                </div>
-                                <div className="flex flex-col items-end">
-                                    <span className="text-xs text-gray-400">Pagamento via App</span>
-                                </div>
-                            </div>
-                            {/* Main Actions */}
                             <div className="flex flex-col gap-3">
-                                <button
-                                    onClick={handleConfirm}
-                                    disabled={status === "confirmed"}
-                                    className={`group relative flex w-full cursor-pointer items-center justify-center overflow-hidden rounded-full h-14 ${status === "confirmed" ? "bg-green-700 cursor-default" : "bg-[#13ec5b] hover:shadow-green-400/40 hover:scale-[1.02]"} text-[#0d1b12] text-lg font-bold shadow-lg shadow-green-400/20 transition-all`}
-                                >
-                                    {!status && <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300"></div>}
-                                    <span className="relative flex items-center gap-2">
-                                        {status === "confirming" ? "Confirmando..." : status === "confirmed" ? "Presença Confirmada!" : "Confirmar Presença"}
-                                        {!status && <span className="material-symbols-outlined">arrow_forward</span>}
-                                        {status === "confirmed" && <span className="material-symbols-outlined">check</span>}
-                                    </span>
-                                </button>
-                                <button className="w-full h-12 rounded-full border border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 font-bold hover:bg-gray-50 dark:hover:bg-white/5 transition-colors">
-                                    Não posso ir
-                                </button>
+                                {isConfirmed ? (
+                                    <>
+                                        <button disabled className="w-full h-14 bg-green-700 text-white rounded-full font-bold">Presença Confirmada</button>
+                                        <button onClick={handleLeave} disabled={actionLoading} className="w-full h-12 border border-red-200 text-red-500 rounded-full font-bold">Desistir</button>
+                                    </>
+                                ) : (
+                                    <button onClick={handleJoin} disabled={actionLoading || spotsLeft <= 0} className="w-full h-14 bg-[#13ec5b] text-[#0d1b12] rounded-full font-bold">{spotsLeft <= 0 ? 'Lotado' : 'Confirmar Presença'}</button>
+                                )}
                             </div>
-                            {/* Footer note */}
-                            <p className="text-xs text-center text-gray-400 dark:text-gray-500 leading-relaxed">
-                                Ao confirmar, você concorda com as regras de cancelamento (24h antes).
-                            </p>
-                        </div>
-                        {/* Quick Share */}
-                        <div className="p-4 rounded-2xl bg-[#13ec5b]/10 border border-[#13ec5b]/20 flex items-center justify-between">
-                            <div className="flex flex-col">
-                                <span className="font-bold text-[#0d1b12] dark:text-white text-sm">Convide amigos</span>
-                                <span className="text-xs text-gray-600 dark:text-gray-300">Faltam 2 goleiros!</span>
-                            </div>
-                            <button className="size-10 rounded-full bg-white dark:bg-[#102216] text-[#0d1b12] dark:text-white flex items-center justify-center shadow-sm hover:text-[#13ec5b] transition-colors">
-                                <span className="material-symbols-outlined">share</span>
-                            </button>
                         </div>
                     </div>
                 </div>

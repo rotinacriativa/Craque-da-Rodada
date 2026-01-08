@@ -7,360 +7,250 @@ import AddressAutocomplete from "@/app/components/AddressAutocomplete";
 import { supabase } from "@/src/lib/supabaseClient";
 
 export default function CreateMatch({ params }: { params: Promise<{ id: string }> }) {
-    // Unwrap params using React.use()
     const { id } = use(params);
     const groupId = id;
     const router = useRouter();
 
     const [isLoading, setIsLoading] = useState(false);
     const [formData, setFormData] = useState({
-        name: "",
         date: "",
-        dayOfWeek: "",
         startTime: "",
-        endTime: "",
-        gender: "",
         location: "",
         lat: "",
         lon: "",
-        capacity: "",
-        price: "",
-        isRecurring: false
+        capacity: "14", // Default from visual
+        price: "25,00", // Default from visual
     });
 
-    const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-        const { name, value, type } = e.target;
-
-        setFormData(prev => {
-            let updates = { ...prev };
-
-            if (type === 'checkbox') {
-                const checked = (e.target as HTMLInputElement).checked;
-                updates = { ...updates, [name]: checked };
-            } else {
-                updates = { ...updates, [name]: value };
-
-                // Auto-detect day of week from date
-                if (name === 'date' && value) {
-                    const days = ['domingo', 'segunda', 'terca', 'quarta', 'quinta', 'sexta', 'sabado'];
-                    // Force midday to avoid timezone shifts when creating Date object
-                    const d = new Date(value + 'T12:00:00');
-                    updates.dayOfWeek = days[d.getDay()];
-                }
-            }
-            return updates;
-        });
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const { name, value } = e.target;
+        setFormData(prev => ({ ...prev, [name]: value }));
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-
-        // Manual validation
-        const requiredFields = [
-            { key: 'name', label: 'Nome da Pelada' },
-            { key: 'date', label: 'Data' },
-            { key: 'dayOfWeek', label: 'Dia da Semana' },
-            { key: 'startTime', label: 'Horário de Início' },
-            { key: 'endTime', label: 'Horário de Fim' },
-            { key: 'gender', label: 'Gênero' },
-            { key: 'location', label: 'Local' },
-            { key: 'capacity', label: 'Número de vagas' },
-            { key: 'price', label: 'Valor por pessoa' }
-        ];
-
-        for (const field of requiredFields) {
-            // @ts-ignore
-            if (!formData[field.key]) {
-                alert(`O campo "${field.label}" é obrigatório.`);
-                return;
-            }
-        }
-
         setIsLoading(true);
 
         try {
+            // Basic validation
+            if (!formData.date || !formData.startTime || !formData.location) {
+                alert("Por favor, preencha todos os campos obrigatórios.");
+                setIsLoading(false);
+                return;
+            }
+
+            // Derive name and end time (default 1h or 1.5h later?)
+            // For now, simpler implementation as per design
+            const matchName = `Futebol de ${new Date(formData.date).toLocaleDateString('pt-BR', { weekday: 'long' })}`;
+
+            // Calculate end_time (defaulting to 1.5 hours after start_time)
+            let endMatchTime = "00:00";
+            if (formData.startTime) {
+                const [hours, minutes] = formData.startTime.split(':').map(Number);
+                const date = new Date();
+                date.setHours(hours, minutes);
+                date.setMinutes(date.getMinutes() + 90); // Add 90 minutes
+                endMatchTime = date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+            }
+
             const { error } = await supabase
                 .from('matches')
                 .insert([
                     {
                         group_id: groupId,
-                        name: formData.name,
+                        name: matchName,
                         date: formData.date,
-                        day_of_week: formData.dayOfWeek,
                         start_time: formData.startTime,
-                        end_time: formData.endTime,
+                        end_time: endMatchTime,
                         location: formData.location,
                         latitude: formData.lat ? parseFloat(formData.lat) : null,
                         longitude: formData.lon ? parseFloat(formData.lon) : null,
                         capacity: parseInt(formData.capacity),
-                        price: parseFloat(formData.price.replace(',', '.')), // Handle potential comma
-                        gender: formData.gender,
-                        recurring: formData.isRecurring
+                        price: parseFloat(formData.price.replace(',', '.'))
                     }
                 ]);
 
             if (error) throw error;
 
-            alert(`Pelada "${formData.name}" criada com sucesso!`);
+            alert("Partida criada com sucesso!");
             router.push(`/dashboard/grupos/${groupId}`);
-
         } catch (error) {
-            console.error('Erro ao criar pelada:', error);
-            alert('Erro ao criar pelada. Verifique o console ou tente novamente.');
+            console.error("Error creating match:", JSON.stringify(error, null, 2));
+            alert("Erro ao criar partida. Verifique o console.");
         } finally {
             setIsLoading(false);
         }
     };
 
     return (
-        <div className="flex-1 overflow-y-auto bg-[#f6f8f6] dark:bg-[#102216] relative">
-            <div className="h-full flex flex-col items-center justify-center p-4 md:p-10 relative">
-                {/* Decorative Background */}
-                <div className="absolute top-10 right-10 opacity-10 dark:opacity-5 pointer-events-none">
-                    <span className="material-symbols-outlined text-[200px] text-[#13ec5b]">sports_soccer</span>
+        <div className="flex-1 flex flex-col h-full overflow-y-auto relative z-10 bg-[#f6f8f6] dark:bg-[#102216]">
+            {/* Breadcrumbs / Top Bar */}
+            <header className="w-full px-6 py-5 md:px-10 md:py-8">
+                <div className="max-w-4xl mx-auto w-full">
+                    <nav className="flex flex-wrap items-center gap-2 text-sm md:text-base">
+                        <Link className="text-slate-400 hover:text-[#13ec5b] transition-colors font-medium" href="/dashboard">Dashboard</Link>
+                        <span className="material-symbols-outlined text-slate-300 text-[16px]">chevron_right</span>
+                        <Link className="text-slate-400 hover:text-[#13ec5b] transition-colors font-medium" href={`/dashboard/grupos/${groupId}`}>Meu Grupo</Link>
+                        <span className="material-symbols-outlined text-slate-300 text-[16px]">chevron_right</span>
+                        <span className="text-slate-900 dark:text-white font-medium bg-white dark:bg-[#1a2c22] px-3 py-1 rounded-full shadow-sm border border-slate-100 dark:border-slate-800">Nova Partida</span>
+                    </nav>
                 </div>
-                <div className="absolute bottom-10 left-10 opacity-10 dark:opacity-5 pointer-events-none">
-                    <span className="material-symbols-outlined text-[150px] text-[#13ec5b]">stadium</span>
-                </div>
+            </header>
 
-                <div className="w-full max-w-[720px] flex flex-col mb-10 md:mb-0">
-                    <Link
-                        href={`/dashboard/grupos/${groupId}`}
-                        className="inline-flex items-center gap-1 text-[#4c9a66] dark:text-[#8fcba5] hover:text-[#13ec5b] dark:hover:text-[#13ec5b] mb-6 transition-colors self-start text-sm font-medium"
-                    >
-                        <span className="material-symbols-outlined text-lg">arrow_back</span>
-                        Voltar para o Painel do Grupo
-                    </Link>
-
-                    <div className="flex flex-col gap-4 mb-8">
-                        <div className="flex items-center gap-4">
-                            <div className="size-14 rounded-2xl bg-[#13ec5b]/10 dark:bg-[#13ec5b]/20 flex items-center justify-center text-[#13ec5b]">
-                                <span className="material-symbols-outlined text-3xl">add_circle</span>
-                            </div>
-                            <div className="flex flex-col">
-                                <h1 className="text-[#0d1b12] dark:text-white text-3xl md:text-4xl font-black leading-tight tracking-tight">
-                                    Criar nova Pelada
-                                </h1>
-                                <p className="text-[#4c9a66] dark:text-[#8fcba5] text-base font-normal">
-                                    Defina os detalhes da próxima partida para a galera.
-                                </p>
-                            </div>
+            {/* Page Content */}
+            <div className="flex-1 px-6 pb-12 md:px-10">
+                <div className="max-w-4xl mx-auto w-full flex flex-col gap-8">
+                    {/* Page Heading */}
+                    <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
+                        <div className="flex flex-col gap-2">
+                            <h2 className="text-3xl md:text-4xl font-black tracking-tight text-slate-900 dark:text-white">Agendar Nova Pelada</h2>
+                            <p className="text-slate-500 dark:text-slate-400 text-lg">Preencha os dados abaixo para convidar a galera.</p>
                         </div>
+                        {/* Optional top action */}
+                        <button className="hidden md:flex items-center gap-2 text-[#13ec5b] hover:text-[#0fd652] font-semibold bg-[#13ec5b]/10 px-4 py-2 rounded-lg transition-colors">
+                            <span className="material-symbols-outlined text-[20px]">help</span>
+                            <span>Ajuda</span>
+                        </button>
                     </div>
 
-                    <div className="bg-white dark:bg-[#183020] rounded-3xl p-6 md:p-8 shadow-xl shadow-gray-200/50 dark:shadow-black/20 border border-[#e7f3eb] dark:border-[#1f3b29]">
-                        <form onSubmit={handleSubmit} className="flex flex-col gap-5">
-                            {/* Match Name */}
-                            <label className="flex flex-col gap-2 w-full">
-                                <span className="text-[#0d1b12] dark:text-white text-sm font-bold ml-4">Nome da Pelada</span>
-                                <div className="relative group">
-                                    <div className="absolute inset-y-0 left-0 pl-5 flex items-center pointer-events-none">
-                                        <span className="material-symbols-outlined text-[#4c9a66] dark:text-[#8fcba5] group-focus-within:text-[#13ec5b] transition-colors">edit</span>
-                                    </div>
+                    {/* Main Form Card */}
+                    <form onSubmit={handleSubmit} className="bg-white dark:bg-[#1a2c22] p-6 md:p-8 rounded-xl shadow-lg border border-slate-100 dark:border-slate-800 flex flex-col gap-8">
+                        {/* Row 1: Date & Time */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <label className="flex flex-col gap-2 group">
+                                <span className="text-slate-700 dark:text-slate-300 font-semibold pl-1">Data do Jogo</span>
+                                <div className="relative flex items-center">
                                     <input
-                                        name="name"
-                                        value={formData.name}
+                                        name="date"
+                                        value={formData.date}
                                         onChange={handleChange}
-                                        className="w-full h-14 pl-12 pr-6 rounded-full bg-[#f8fcf9] dark:bg-[#102216] border-2 border-[#cfe7d7] dark:border-[#2a4a35] text-[#0d1b12] dark:text-white placeholder:text-[#4c9a66]/50 dark:placeholder:text-[#8fcba5]/50 focus:border-[#13ec5b] focus:ring-0 focus:outline-none transition-all font-medium"
-                                        placeholder="Ex: Pelada de Terça - Arena Point"
-                                        type="text"
+                                        className="w-full h-14 pl-12 pr-4 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#13ec5b]/50 focus:border-[#13ec5b] transition-all font-medium appearance-none"
+                                        type="date"
                                     />
+                                    <span className="material-symbols-outlined absolute left-4 text-[#13ec5b] pointer-events-none">calendar_today</span>
+                                </div>
+                            </label>
+                            <label className="flex flex-col gap-2 group">
+                                <span className="text-slate-700 dark:text-slate-300 font-semibold pl-1">Horário</span>
+                                <div className="relative flex items-center">
+                                    <input
+                                        name="startTime"
+                                        value={formData.startTime}
+                                        onChange={handleChange}
+                                        className="w-full h-14 pl-12 pr-4 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#13ec5b]/50 focus:border-[#13ec5b] transition-all font-medium appearance-none"
+                                        type="time"
+                                    />
+                                    <span className="material-symbols-outlined absolute left-4 text-[#13ec5b] pointer-events-none">schedule</span>
+                                </div>
+                            </label>
+                        </div>
+
+                        {/* Row 2: Location */}
+                        <div className="grid grid-cols-1 gap-6">
+                            <label className="flex flex-col gap-2 group">
+                                <span className="text-slate-700 dark:text-slate-300 font-semibold pl-1">Local / Quadra</span>
+                                <div className="relative flex items-center z-20">
+                                    <div className="absolute left-4 top-1/2 -translate-y-1/2 z-10 pointer-events-none">
+                                        <span className="material-symbols-outlined text-[#13ec5b]">location_on</span>
+                                    </div>
+                                    <AddressAutocomplete
+                                        value={formData.location}
+                                        onChange={(val) => setFormData(prev => ({ ...prev, location: val }))}
+                                        onSelect={(address, lat, lon) => setFormData(prev => ({ ...prev, location: address, lat, lon }))}
+                                        // Custom styling for AddressAutocomplete input to match the design
+                                        className="w-full h-14 pl-12 pr-12 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#13ec5b]/50 focus:border-[#13ec5b] transition-all font-medium"
+                                        placeholder="Ex: Arena Soccer - Campo 2"
+                                    />
+                                    <div className="absolute right-2 top-2 h-10 w-10 flex items-center justify-center bg-white dark:bg-slate-800 rounded-full border border-slate-100 dark:border-slate-700 shadow-sm cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors z-20" title="Ver no mapa">
+                                        <span className="material-symbols-outlined text-slate-400 text-[20px]">map</span>
+                                    </div>
                                 </div>
                             </label>
 
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                                <label className="flex flex-col gap-2 w-full">
-                                    <span className="text-[#0d1b12] dark:text-white text-sm font-bold ml-4">Data</span>
-                                    <div className="relative group">
-                                        <div className="absolute inset-y-0 left-0 pl-5 flex items-center pointer-events-none">
-                                            <span className="material-symbols-outlined text-[#4c9a66] dark:text-[#8fcba5] group-focus-within:text-[#13ec5b] transition-colors">calendar_month</span>
-                                        </div>
-                                        <input
-                                            name="date"
-                                            value={formData.date}
-                                            onChange={handleChange}
-                                            className="w-full h-14 pl-12 pr-6 rounded-full bg-[#f8fcf9] dark:bg-[#102216] border-2 border-[#cfe7d7] dark:border-[#2a4a35] text-[#0d1b12] dark:text-white placeholder:text-[#4c9a66]/50 dark:placeholder:text-[#8fcba5]/50 focus:border-[#13ec5b] focus:ring-0 focus:outline-none transition-all font-medium appearance-none"
-                                            type="date"
-                                        />
-                                    </div>
-                                </label>
-                                <label className="flex flex-col gap-2 w-full">
-                                    <span className="text-[#0d1b12] dark:text-white text-sm font-bold ml-4">Dia da Semana</span>
-                                    <div className="relative group">
-                                        <div className="absolute inset-y-0 left-0 pl-5 flex items-center pointer-events-none">
-                                            <span className="material-symbols-outlined text-[#4c9a66] dark:text-[#8fcba5] group-focus-within:text-[#13ec5b] transition-colors">today</span>
-                                        </div>
-                                        <select
-                                            name="dayOfWeek"
-                                            value={formData.dayOfWeek}
-                                            onChange={handleChange}
-                                            className="w-full h-14 pl-12 pr-10 rounded-full bg-[#f8fcf9] dark:bg-[#102216] border-2 border-[#cfe7d7] dark:border-[#2a4a35] text-[#0d1b12] dark:text-white placeholder:text-[#4c9a66]/50 dark:placeholder:text-[#8fcba5]/50 focus:border-[#13ec5b] focus:ring-0 focus:outline-none transition-all font-medium appearance-none cursor-pointer"
-                                        >
-                                            <option value="" disabled>Selecione o dia</option>
-                                            <option value="segunda">Segunda-feira</option>
-                                            <option value="terca">Terça-feira</option>
-                                            <option value="quarta">Quarta-feira</option>
-                                            <option value="quinta">Quinta-feira</option>
-                                            <option value="sexta">Sexta-feira</option>
-                                            <option value="sabado">Sábado</option>
-                                            <option value="domingo">Domingo</option>
-                                        </select>
-                                        <div className="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none">
-                                            <span className="material-symbols-outlined text-[#4c9a66] dark:text-[#8fcba5]">expand_more</span>
-                                        </div>
-                                    </div>
-                                </label>
-                            </div>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                                <label className="flex flex-col gap-2 w-full">
-                                    <span className="text-[#0d1b12] dark:text-white text-sm font-bold ml-4">Horário de Início</span>
-                                    <div className="relative group">
-                                        <div className="absolute inset-y-0 left-0 pl-5 flex items-center pointer-events-none">
-                                            <span className="material-symbols-outlined text-[#4c9a66] dark:text-[#8fcba5] group-focus-within:text-[#13ec5b] transition-colors">schedule</span>
-                                        </div>
-                                        <input
-                                            name="startTime"
-                                            value={formData.startTime}
-                                            onChange={handleChange}
-                                            className="w-full h-14 pl-12 pr-6 rounded-full bg-[#f8fcf9] dark:bg-[#102216] border-2 border-[#cfe7d7] dark:border-[#2a4a35] text-[#0d1b12] dark:text-white placeholder:text-[#4c9a66]/50 dark:placeholder:text-[#8fcba5]/50 focus:border-[#13ec5b] focus:ring-0 focus:outline-none transition-all font-medium appearance-none"
-                                            type="time"
-                                        />
-                                    </div>
-                                </label>
-                                <label className="flex flex-col gap-2 w-full">
-                                    <span className="text-[#0d1b12] dark:text-white text-sm font-bold ml-4">Horário de Fim</span>
-                                    <div className="relative group">
-                                        <div className="absolute inset-y-0 left-0 pl-5 flex items-center pointer-events-none">
-                                            <span className="material-symbols-outlined text-[#4c9a66] dark:text-[#8fcba5] group-focus-within:text-[#13ec5b] transition-colors">timer_off</span>
-                                        </div>
-                                        <input
-                                            name="endTime"
-                                            value={formData.endTime}
-                                            onChange={handleChange}
-                                            className="w-full h-14 pl-12 pr-6 rounded-full bg-[#f8fcf9] dark:bg-[#102216] border-2 border-[#cfe7d7] dark:border-[#2a4a35] text-[#0d1b12] dark:text-white placeholder:text-[#4c9a66]/50 dark:placeholder:text-[#8fcba5]/50 focus:border-[#13ec5b] focus:ring-0 focus:outline-none transition-all font-medium appearance-none"
-                                            type="time"
-                                        />
-                                    </div>
-                                </label>
-                            </div>
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-                                <label className="flex flex-col gap-2 w-full">
-                                    <span className="text-[#0d1b12] dark:text-white text-sm font-bold ml-4">Gênero</span>
-                                    <div className="relative group">
-                                        <div className="absolute inset-y-0 left-0 pl-5 flex items-center pointer-events-none">
-                                            <span className="material-symbols-outlined text-[#4c9a66] dark:text-[#8fcba5] group-focus-within:text-[#13ec5b] transition-colors">wc</span>
-                                        </div>
-                                        <select
-                                            name="gender"
-                                            value={formData.gender}
-                                            onChange={handleChange}
-                                            className="w-full h-14 pl-12 pr-10 rounded-full bg-[#f8fcf9] dark:bg-[#102216] border-2 border-[#cfe7d7] dark:border-[#2a4a35] text-[#0d1b12] dark:text-white placeholder:text-[#4c9a66]/50 dark:placeholder:text-[#8fcba5]/50 focus:border-[#13ec5b] focus:ring-0 focus:outline-none transition-all font-medium appearance-none cursor-pointer"
-                                        >
-                                            <option value="" disabled>Selecione</option>
-                                            <option value="masculino">Masculino</option>
-                                            <option value="feminino">Feminino</option>
-                                            <option value="misto">Misto</option>
-                                        </select>
-                                        <div className="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none">
-                                            <span className="material-symbols-outlined text-[#4c9a66] dark:text-[#8fcba5]">expand_more</span>
-                                        </div>
-                                    </div>
-                                </label>
-                                <label className="flex flex-col gap-2 w-full md:col-span-2">
-                                    <span className="text-[#0d1b12] dark:text-white text-sm font-bold ml-4">Local</span>
-                                    <div className="relative group">
-                                        <div className="absolute inset-y-0 left-0 pl-5 flex items-center pointer-events-none z-10">
-                                            <span className="material-symbols-outlined text-[#4c9a66] dark:text-[#8fcba5] group-focus-within:text-[#13ec5b] transition-colors">location_on</span>
-                                        </div>
-                                        <AddressAutocomplete
-                                            placeholder="Ex: Arena Soccer Society"
-                                            value={formData.location}
-                                            className="w-full h-14 pl-12 pr-6 rounded-full bg-[#f8fcf9] dark:bg-[#102216] border-2 border-[#cfe7d7] dark:border-[#2a4a35] text-[#0d1b12] dark:text-white placeholder:text-[#4c9a66]/50 dark:placeholder:text-[#8fcba5]/50 focus:border-[#13ec5b] focus:ring-0 focus:outline-none transition-all font-medium"
-                                            onChange={(val) => {
-                                                setFormData(prev => ({ ...prev, location: val }));
-                                            }}
-                                            onSelect={(address, lat, lon) => {
-                                                setFormData(prev => ({
-                                                    ...prev,
-                                                    location: address,
-                                                    lat: lat,
-                                                    lon: lon
-                                                }));
-                                            }}
-                                        />
-                                    </div>
-                                </label>
-                            </div>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                                <label className="flex flex-col gap-2 w-full">
-                                    <span className="text-[#0d1b12] dark:text-white text-sm font-bold ml-4">Número de vagas</span>
-                                    <div className="relative group">
-                                        <div className="absolute inset-y-0 left-0 pl-5 flex items-center pointer-events-none">
-                                            <span className="material-symbols-outlined text-[#4c9a66] dark:text-[#8fcba5] group-focus-within:text-[#13ec5b] transition-colors">group</span>
-                                        </div>
-                                        <input
-                                            name="capacity"
-                                            value={formData.capacity}
-                                            onChange={handleChange}
-                                            className="w-full h-14 pl-12 pr-6 rounded-full bg-[#f8fcf9] dark:bg-[#102216] border-2 border-[#cfe7d7] dark:border-[#2a4a35] text-[#0d1b12] dark:text-white placeholder:text-[#4c9a66]/50 dark:placeholder:text-[#8fcba5]/50 focus:border-[#13ec5b] focus:ring-0 focus:outline-none transition-all font-medium"
-                                            placeholder="Ex: 14"
-                                            type="number"
-                                        />
-                                    </div>
-                                </label>
-                                <label className="flex flex-col gap-2 w-full">
-                                    <span className="text-[#0d1b12] dark:text-white text-sm font-bold ml-4">Valor por pessoa</span>
-                                    <div className="relative group">
-                                        <div className="absolute inset-y-0 left-0 pl-5 flex items-center pointer-events-none">
-                                            <span className="material-symbols-outlined text-[#4c9a66] dark:text-[#8fcba5] group-focus-within:text-[#13ec5b] transition-colors">attach_money</span>
-                                        </div>
-                                        <input
-                                            name="price"
-                                            value={formData.price}
-                                            onChange={handleChange}
-                                            className="w-full h-14 pl-12 pr-6 rounded-full bg-[#f8fcf9] dark:bg-[#102216] border-2 border-[#cfe7d7] dark:border-[#2a4a35] text-[#0d1b12] dark:text-white placeholder:text-[#4c9a66]/50 dark:placeholder:text-[#8fcba5]/50 focus:border-[#13ec5b] focus:ring-0 focus:outline-none transition-all font-medium"
-                                            placeholder="Ex: 25,00"
-                                            type="text"
-                                        />
-                                    </div>
-                                </label>
-                            </div>
-
-                            {/* Recurring Match Toggle */}
-                            <div className="flex items-center justify-between p-4 rounded-2xl border border-[#e7f3eb] dark:border-[#1f3b29] hover:bg-[#f8fcf9] dark:hover:bg-[#102216]/50 transition-colors">
-                                <div className="flex flex-col">
-                                    <span className="text-[#0d1b12] dark:text-white font-bold flex items-center gap-2">
-                                        <span className="material-symbols-outlined text-[#13ec5b]">update</span>
-                                        Repetir toda semana
-                                    </span>
-                                    <span className="text-[#4c9a66] dark:text-[#8fcba5] text-sm">Cria automaticamente a partida para as próximas semanas.</span>
+                            {/* Small map preview */}
+                            <div className="w-full h-32 rounded-lg overflow-hidden relative group cursor-pointer border border-slate-200 dark:border-slate-700">
+                                <div className="absolute inset-0 bg-slate-900/10 group-hover:bg-slate-900/5 transition-colors z-10 flex items-center justify-center">
+                                    <span className="bg-white/90 dark:bg-slate-900/90 px-4 py-2 rounded-full text-xs font-bold shadow-sm backdrop-blur-sm text-slate-700 dark:text-slate-200">Selecionar no mapa</span>
                                 </div>
-                                <label className="relative inline-flex items-center cursor-pointer">
-                                    <input
-                                        name="isRecurring"
-                                        checked={formData.isRecurring}
-                                        onChange={handleChange}
-                                        className="sr-only peer"
-                                        type="checkbox"
-                                    />
-                                    <div className="w-12 h-7 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[4px] after:left-[4px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#13ec5b] shadow-inner"></div>
-                                </label>
+                                <img
+                                    className="w-full h-full object-cover grayscale opacity-60"
+                                    src="https://lh3.googleusercontent.com/aida-public/AB6AXuAZVMHR10KMRFCngofLGNzgd0-6R6vpXrf9_VI6ciE6TN9qLWnCtGhnlAJpoAP-Hd5QyR6IO-xwuIaDKFoUIQvipqVc9bTOETeERSaZ18I6jd68SOK8bqetsvtXm_EqPM4kVM550kO_X6XpU3WCMdoOL1U4XSjd1tWIu40nCecERqEs7MBiMFvkVeZvKhBN5FpW1WOmuxw4oGFUCqq-l_nLylVe5mUsqcZsrmVJDLC-yKkPasMeo25Mt5UyeJucrOixWMJB86EDPgY"
+                                    alt="Map preview"
+                                />
                             </div>
+                        </div>
 
-                            <button type="submit" disabled={isLoading} className="flex w-full cursor-pointer items-center justify-center overflow-hidden rounded-full h-14 px-8 bg-[#13ec5b] hover:bg-[#0fd650] text-[#0d1b12] disabled:opacity-50 disabled:cursor-not-allowed text-lg font-bold leading-normal tracking-wide transition-all transform active:scale-[0.98] shadow-lg shadow-[#13ec5b]/25 mt-4">
+                        {/* Row 3: Spots & Price */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <label className="flex flex-col gap-2 group">
+                                <span className="text-slate-700 dark:text-slate-300 font-semibold pl-1">Limite de Jogadores (Vagas)</span>
+                                <div className="relative flex items-center">
+                                    <input
+                                        name="capacity"
+                                        value={formData.capacity}
+                                        onChange={handleChange}
+                                        className="w-full h-14 pl-12 pr-4 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#13ec5b]/50 focus:border-[#13ec5b] transition-all font-medium appearance-none"
+                                        type="number"
+                                        min="10"
+                                        max="50"
+                                    />
+                                    <span className="material-symbols-outlined absolute left-4 text-[#13ec5b] pointer-events-none">groups</span>
+                                    <div className="absolute right-4 flex gap-1 pointer-events-none text-slate-400 text-xs font-bold uppercase tracking-wider">
+                                        Jogadores
+                                    </div>
+                                </div>
+                            </label>
+                            <label className="flex flex-col gap-2 group">
+                                <span className="text-slate-700 dark:text-slate-300 font-semibold pl-1">Valor por Pessoa</span>
+                                <div className="relative flex items-center">
+                                    <input
+                                        name="price"
+                                        value={formData.price}
+                                        onChange={handleChange}
+                                        className="w-full h-14 pl-12 pr-4 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#13ec5b]/50 focus:border-[#13ec5b] transition-all font-medium"
+                                        type="text"
+                                        placeholder="0,00"
+                                    />
+                                    <span className="material-symbols-outlined absolute left-4 text-[#13ec5b] pointer-events-none">attach_money</span>
+                                    <div className="absolute right-4 text-slate-400 font-bold">R$</div>
+                                </div>
+                            </label>
+                        </div>
+
+                        <div className="border-t border-slate-100 dark:border-slate-800 my-2"></div>
+
+                        {/* Actions */}
+                        <div className="flex flex-col-reverse md:flex-row gap-4 md:items-center justify-end">
+                            <button
+                                type="button"
+                                onClick={() => router.back()}
+                                className="px-8 py-4 rounded-full text-slate-600 dark:text-slate-400 font-bold hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                type="submit"
+                                disabled={isLoading}
+                                className="group relative px-8 py-4 bg-[#13ec5b] hover:bg-[#0fd652] active:scale-[0.98] rounded-full text-slate-900 font-bold shadow-lg shadow-[#13ec5b]/30 transition-all flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
                                 {isLoading ? (
                                     <>
-                                        <span className="size-5 border-2 border-[#0d1b12] border-r-transparent rounded-full animate-spin mr-2"></span>
+                                        <span className="size-5 border-2 border-[#0d1b12] border-r-transparent rounded-full animate-spin"></span>
                                         <span>Criando...</span>
                                     </>
                                 ) : (
                                     <>
-                                        <span className="truncate">Criar Pelada</span>
-                                        <span className="material-symbols-outlined ml-2 text-xl font-bold">sports_soccer</span>
+                                        <span>Criar Partida</span>
+                                        <span className="material-symbols-outlined transition-transform group-hover:translate-x-1">arrow_forward</span>
                                     </>
                                 )}
                             </button>
-                        </form>
+                        </div>
+                    </form>
+
+                    {/* Decorative footer text */}
+                    <div className="text-center text-slate-400 text-sm">
+                        <p>O convite será enviado automaticamente para o grupo do WhatsApp.</p>
                     </div>
                 </div>
             </div>
