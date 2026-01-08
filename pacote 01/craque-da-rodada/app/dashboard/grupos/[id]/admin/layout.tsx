@@ -2,7 +2,7 @@
 
 import { use, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { supabase } from "../../../../../src/lib/supabaseClient";
+import { supabase } from "../../../../../src/lib/client";
 
 export default function GroupAdminLayout({
     children,

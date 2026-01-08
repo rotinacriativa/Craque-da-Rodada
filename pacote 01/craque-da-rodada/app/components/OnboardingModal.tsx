@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { supabase } from "../../src/lib/supabaseClient";
+import { supabase } from "../../src/lib/client";
 import { useRouter } from "next/navigation";
 
 interface IBGEUF {

@@ -5,7 +5,7 @@ import Link from "next/link";
 import { Lexend } from "next/font/google";
 import { usePathname, useRouter } from "next/navigation";
 import OnboardingModal from "../components/OnboardingModal";
-import { supabase } from "../../src/lib/supabaseClient";
+import { supabase } from "../../src/lib/client";
 import { cn } from "../../src/lib/utils";
 
 const lexend = Lexend({ subsets: ["latin"] });

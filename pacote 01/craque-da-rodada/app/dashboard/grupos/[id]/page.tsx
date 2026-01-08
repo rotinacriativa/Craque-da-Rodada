@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { use, useEffect, useState } from "react";
-import { supabase } from "../../../../src/lib/supabaseClient";
+import { supabase } from "../../../../src/lib/client";
 import { formatDateForGroup } from "../../../../src/lib/utils";
 
 export default function GroupDashboard({ params }: { params: Promise<{ id: string }> }) {

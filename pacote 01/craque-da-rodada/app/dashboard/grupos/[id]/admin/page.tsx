@@ -2,7 +2,7 @@
 
 import { use, useEffect, useState } from "react";
 import Link from "next/link";
-import { supabase } from "../../../../../src/lib/supabaseClient";
+import { supabase } from "../../../../../src/lib/client";
 
 export default function GroupAdminDashboard({ params }: { params: Promise<{ id: string }> }) {
     const { id } = use(params);

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { supabase } from "../../../src/lib/supabaseClient";
+import { supabase } from "../../../src/lib/client";
 
 interface IBGEUF {
     id: number;

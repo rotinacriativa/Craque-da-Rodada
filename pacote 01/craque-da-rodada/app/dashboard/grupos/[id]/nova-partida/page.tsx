@@ -4,7 +4,7 @@ import { useState, use } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import AddressAutocomplete from "../../../../components/AddressAutocomplete";
-import { supabase } from "../../../../../src/lib/supabaseClient";
+import { supabase } from "../../../../../src/lib/client";
 
 export default function CreateMatch({ params }: { params: Promise<{ id: string }> }) {
     const { id } = use(params);

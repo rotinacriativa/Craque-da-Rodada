@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Lexend, Noto_Sans } from "next/font/google";
 import { useState } from "react";
-import { supabase } from "../../src/lib/supabaseClient"; // Fixed import path
+import { supabase } from "../../src/lib/client";
 
 const lexend = Lexend({ subsets: ["latin"] });
 const notoSans = Noto_Sans({ subsets: ["latin"], weight: ["400", "500", "700"] });

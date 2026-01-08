@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { supabase } from "../../src/lib/supabaseClient";
+import { supabase } from "../../src/lib/client";
 import { formatDateForMatchList } from "../../src/lib/utils";
 
 export default function DashboardPage() {
