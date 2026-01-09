@@ -44,6 +44,9 @@ function CreateMatchContent() {
         selectedDays: [] as string[]
     });
 
+    // Map State
+    const [isMapOpen, setIsMapOpen] = useState(false);
+
     // Auth Loading State
     if (authLoading) {
         return (
