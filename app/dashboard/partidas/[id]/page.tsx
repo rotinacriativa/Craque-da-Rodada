@@ -541,8 +541,8 @@ export default function MatchDetails({ params }: { params: Promise<{ id: string 
                                 <div className="flex items-center gap-2">
                                     <span className="material-symbols-outlined text-yellow-600">stars</span>
                                     <div>
-                                        <h3 className="font-bold text-lg text-[#0d1b12] dark:text-white">Craque da Rodada</h3>
-                                        <p className="text-xs text-gray-500 dark:text-gray-400">Vote no melhor jogador do jogo</p>
+                                        <h3 className="font-bold text-lg text-[#0d1b12] dark:text-white">Quem foi o Craque?</h3>
+                                        <p className="text-xs text-gray-500 dark:text-gray-400">Vote no melhor em campo e ajude a montar o ranking da pelada.</p>
                                     </div>
                                 </div>
                                 {!showVoting && !myVote && (
@@ -625,6 +625,27 @@ export default function MatchDetails({ params }: { params: Promise<{ id: string 
                                 >
                                     <span className="material-symbols-outlined text-lg">shuffle</span>
                                     Sortear Times
+                                </button>
+                            </div>
+                        )}
+
+                        {confirmedPlayers.length === 0 && (
+                            <div className="bg-white dark:bg-[#183020] rounded-xl p-8 border-2 border-dashed border-[#e7f3eb] dark:border-[#2a4535] flex flex-col items-center justify-center text-center">
+                                <div className="bg-gray-100 dark:bg-[#102216] p-4 rounded-full mb-4">
+                                    <span className="material-symbols-outlined text-gray-400 text-3xl">person_off</span>
+                                </div>
+                                <h3 className="font-bold text-lg text-[#0d1b12] dark:text-white mb-2">Ninguém confirmou ainda</h3>
+                                <p className="text-gray-500 dark:text-gray-400 text-sm max-w-xs mb-6">Mande o link no grupo do WhatsApp para a galera confirmar a presença.</p>
+                                <button
+                                    onClick={() => {
+                                        // Quick copy logic similar to parent page or just scroll to share
+                                        navigator.clipboard.writeText(window.location.href);
+                                        setSuccessMessage("Link copiado!");
+                                    }}
+                                    className="px-6 py-2.5 bg-[#13ec5b] hover:bg-[#0fd650] text-[#0d1b12] rounded-full font-bold transition-colors shadow-lg shadow-[#13ec5b]/20 flex items-center gap-2"
+                                >
+                                    <span className="material-symbols-outlined">share</span>
+                                    Convidar Galera
                                 </button>
                             </div>
                         )}
