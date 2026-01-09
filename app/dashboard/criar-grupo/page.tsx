@@ -158,7 +158,7 @@ export default function CreateGroupPage() {
                                 <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#e7f3eb] text-[#0d1b12] dark:bg-[#2a4533] dark:text-white">
                                     <span className="material-symbols-outlined text-lg">info</span>
                                 </div>
-                                <h3 className="text-lg font-bold text-[#0d1b12] dark:text-white">Informações Básicas</h3>
+                                <h3 className="text-lg font-bold text-[#0d1b12] dark:text-white">Informações da Pelada</h3> {/* Updated text */}
                             </div>
                             <div className="flex flex-col gap-6">
                                 <div className="flex flex-col-reverse gap-6 sm:flex-row">
@@ -192,22 +192,22 @@ export default function CreateGroupPage() {
                                     {/* Text Inputs */}
                                     <div className="flex flex-1 flex-col gap-4">
                                         <div className="flex flex-col gap-2">
-                                            <label className="text-sm font-medium text-[#0d1b12] dark:text-white">Nome do Grupo</label>
+                                            <label className="text-sm font-medium text-[#0d1b12] dark:text-white">Nome da Pelada</label> {/* Updated text */}
                                             <input
                                                 value={name}
                                                 onChange={(e) => setName(e.target.value)}
                                                 className="h-12 w-full rounded-xl border border-[#cfe7d7] bg-white px-4 text-base outline-none focus:border-[#13ec5b] focus:ring-1 focus:ring-[#13ec5b] dark:border-gray-600 dark:bg-[#1a3322] dark:text-white dark:placeholder-gray-500"
-                                                placeholder="Ex: Pelada de Quinta"
+                                                placeholder="Ex: Futebol de Quinta" // Updated text
                                                 type="text"
                                             />
                                         </div>
                                         <div className="flex flex-col gap-2 h-full">
-                                            <label className="text-sm font-medium text-[#0d1b12] dark:text-white">Descrição Curta</label>
+                                            <label className="text-sm font-medium text-[#0d1b12] dark:text-white">Resenha (Descrição)</label> {/* Updated text */}
                                             <textarea
                                                 value={description}
                                                 onChange={(e) => setDescription(e.target.value)}
                                                 className="h-full min-h-[120px] w-full resize-none rounded-xl border border-[#cfe7d7] bg-white px-4 py-3 text-base outline-none focus:border-[#13ec5b] focus:ring-1 focus:ring-[#13ec5b] dark:border-gray-600 dark:bg-[#1a3322] dark:text-white dark:placeholder-gray-500"
-                                                placeholder="O lema do time, nível de jogo, etc."
+                                                placeholder="Regras, horários, nível da galera..." // Updated text
                                             ></textarea>
                                         </div>
                                     </div>

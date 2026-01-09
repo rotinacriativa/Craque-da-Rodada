@@ -106,7 +106,7 @@ export default function DashboardPage() {
                 {/* Card 1 */}
                 <div className="flex flex-col gap-2 rounded-xl p-6 bg-white dark:bg-[#1a2c20] border border-[#cfe7d7] dark:border-[#2a4535] shadow-[0_2px_8px_rgba(0,0,0,0.04)] hover:shadow-[0_4px_12px_rgba(19,236,91,0.15)] transition-shadow group">
                     <div className="flex justify-between items-start">
-                        <p className="text-[#4c9a66] text-sm font-bold uppercase tracking-wider">Grupos Criados</p>
+                        <p className="text-[#4c9a66] text-sm font-bold uppercase tracking-wider">Peladas Organizadas</p>
                         <div className="p-2 bg-[#e7f3eb] dark:bg-[#22382b] text-[#13ec5b] rounded-lg group-hover:bg-[#13ec5b] group-hover:text-[#0d1b12] transition-colors">
                             <span className="material-symbols-outlined text-xl">stadium</span>
                         </div>
@@ -194,7 +194,7 @@ export default function DashboardPage() {
                                     onClick={() => router.push(`/dashboard/grupos/${nextMatch.group_id}`)}
                                     className="flex-1 min-w-[120px] cursor-pointer items-center justify-center overflow-hidden rounded-full h-12 px-6 bg-[#13ec5b] text-[#0d1b12] text-sm font-bold leading-normal tracking-[0.015em] hover:bg-[#0fd651] transition-colors shadow-lg shadow-[#13ec5b]/20"
                                 >
-                                    <span className="truncate">Ver Detalhes do Grupo</span>
+                                    <span className="truncate">Ver Detalhes da Pelada</span>
                                 </button>
                                 <button
                                     onClick={handleShare}

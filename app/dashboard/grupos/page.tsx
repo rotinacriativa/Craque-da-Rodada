@@ -58,8 +58,8 @@ export default function GroupsPage() {
         <div className="w-full flex flex-col gap-8">
             <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
                 <div>
-                    <h1 className="text-3xl md:text-4xl font-black text-[#0d1b12] dark:text-white tracking-tight mb-2">Meus Grupos</h1>
-                    <p className="text-[#4c9a66] dark:text-[#8baaa0]">Gerencie suas peladas ou entre em uma nova.</p>
+                    <h1 className="text-3xl md:text-4xl font-black text-[#0d1b12] dark:text-white tracking-tight mb-2">Minhas Peladas</h1>
+                    <p className="text-[#4c9a66] dark:text-[#8baaa0]">Gerencie seus jogos ou entre em uma nova turma.</p>
                 </div>
 
                 <div className="flex gap-3">
@@ -68,14 +68,14 @@ export default function GroupsPage() {
                         className="h-12 px-6 rounded-full border-2 border-[#e7f3eb] dark:border-[#2a4535] text-[#0d1b12] dark:text-white font-bold flex items-center gap-2 hover:bg-[#f6f8f6] dark:hover:bg-[#1a2c20] transition-colors"
                     >
                         <span className="material-symbols-outlined">group_add</span>
-                        Entrar em Grupo
+                        Entrar na Pelada
                     </Link>
                     <Link
                         href="/dashboard/criar-grupo"
                         className="h-12 px-6 rounded-full bg-[#13ec5b] hover:bg-[#0fd650] text-[#0d1b12] font-bold flex items-center gap-2 transition-all shadow-lg shadow-[#13ec5b]/20"
                     >
                         <span className="material-symbols-outlined">add_circle</span>
-                        Criar Grupo
+                        Criar Pelada
                     </Link>
                 </div>
             </div>
@@ -114,16 +114,16 @@ export default function GroupsPage() {
                     <div className="bg-[#13ec5b]/10 p-6 rounded-full mb-6 animate-pulse">
                         <span className="material-symbols-outlined text-5xl text-[#0ea841] dark:text-[#13ec5b]">sports_soccer</span>
                     </div>
-                    <h2 className="text-2xl font-black text-[#0d1b12] dark:text-white mb-3">Você ainda não tem grupos</h2>
+                    <h2 className="text-2xl font-black text-[#0d1b12] dark:text-white mb-3">Você ainda não tem peladas</h2>
                     <p className="text-[#4c9a66] dark:text-[#8baaa0] mb-8 max-w-sm text-lg">
-                        Crie seu primeiro grupo para organizar partidas ou entre em um existente com um código de convite.
+                        Crie sua primeira pelada para organizar os jogos ou entre em uma turma com um código de convite.
                     </p>
                     <Link
                         href="/dashboard/criar-grupo"
                         className="h-14 px-8 rounded-full bg-[#13ec5b] hover:bg-[#0fd650] text-[#0d1b12] font-bold flex items-center gap-2 transition-all shadow-xl shadow-[#13ec5b]/20 hover:scale-105"
                     >
                         <span className="material-symbols-outlined">add_circle</span>
-                        Criar meu Primeiro Grupo
+                        Criar minha Primeira Pelada
                     </Link>
                 </div>
             )}

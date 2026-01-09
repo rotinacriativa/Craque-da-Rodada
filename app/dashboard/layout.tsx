@@ -91,7 +91,7 @@ export default function DashboardLayout({
 
                 <Link className={linkClass("/dashboard/grupos")} href="/dashboard/grupos" onClick={onLinkClick}>
                     <span className="material-symbols-outlined" style={iconStyle("/dashboard/grupos")}>groups</span>
-                    <span>Meus Grupos</span>
+                    <span>Minhas Peladas</span>
                 </Link>
 
                 <Link className={linkClass("/dashboard/ranking")} href="/dashboard/ranking" onClick={onLinkClick}>
