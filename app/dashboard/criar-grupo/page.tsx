@@ -23,6 +23,10 @@ export default function CreateGroupPage() {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
+    // Image Upload
+    const [logoUrl, setLogoUrl] = useState<string | null>(null);
+    const [uploadingLogo, setUploadingLogo] = useState(false);
+
     const handleCreateGroup = async () => {
         setLoading(true);
         setError(null);
@@ -31,9 +35,9 @@ export default function CreateGroupPage() {
             const { data: { user } } = await supabase.auth.getUser();
             if (!user) throw new Error("Usuário não autenticado");
 
-            if (!name || !location) {
-                throw new Error("Preencha os campos obrigatórios.");
-            }
+            if (!name) throw new Error("Por favor, preencha o Nome do Grupo.");
+            if (!location) throw new Error("Por favor, preencha a Cidade/Bairro.");
+            if (!description) throw new Error("Por favor, adicione uma Descrição Curta.");
 
             // Prepare payload
             const payload: any = {
@@ -45,6 +49,7 @@ export default function CreateGroupPage() {
                 max_members: defaultMaxMembers ? parseInt(defaultMaxMembers) : 20,
                 default_day: defaultDay || null,
                 default_time_start: defaultTimeStart || null,
+                logo_url: logoUrl,
             };
 
             // 1. Create Group
@@ -71,8 +76,9 @@ export default function CreateGroupPage() {
             router.refresh();
 
         } catch (err: any) {
-            console.error("Error creating group:", err);
-            setError(err.message || "Erro ao criar grupo.");
+            console.error("Error creating group:", JSON.stringify(err, null, 2));
+            console.error("Error details:", err);
+            setError(err.message || err.details || "Erro ao criar grupo.");
         } finally {
             setLoading(false);
         }
@@ -85,6 +91,33 @@ export default function CreateGroupPage() {
             quinta: "Qui", sexta: "Sex", sabado: "Sáb"
         };
         return days[day] || day.substring(0, 3);
+    };
+
+    const handleLogoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+        try {
+            if (!event.target.files || event.target.files.length === 0) return;
+            setUploadingLogo(true);
+            const file = event.target.files[0];
+            const fileExt = file.name.split('.').pop();
+            const fileName = `group-${Date.now()}.${fileExt}`;
+            const filePath = `${fileName}`;
+
+            // Upload to Supabase Storage (using 'group-logos' bucket)
+            const { error: uploadError } = await supabase.storage
+                .from('group-logos')
+                .upload(filePath, file);
+
+            if (uploadError) throw uploadError;
+
+            const { data: { publicUrl } } = supabase.storage.from('group-logos').getPublicUrl(filePath);
+            setLogoUrl(publicUrl);
+
+        } catch (error: any) {
+            console.error("Error uploading logo:", error);
+            setError("Erro ao fazer upload da imagem. Verifique se o bucket 'group-logos' existe.");
+        } finally {
+            setUploadingLogo(false);
+        }
     };
 
     return (
@@ -132,12 +165,28 @@ export default function CreateGroupPage() {
                                     {/* Logo Upload */}
                                     <div className="flex flex-col gap-2 sm:w-1/3">
                                         <label className="text-sm font-medium text-[#0d1b12] dark:text-white">Escudo do Time</label>
-                                        <div className="group relative flex aspect-square w-full cursor-pointer flex-col items-center justify-center rounded-full border-2 border-dashed border-[#cfe7d7] bg-[#f8fcf9] hover:border-[#13ec5b] hover:bg-[#f0fdf4] dark:border-gray-600 dark:bg-[#1a3322] dark:hover:border-[#13ec5b] dark:hover:bg-[#1a3322] transition-all">
-                                            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white shadow-sm group-hover:scale-110 transition-transform dark:bg-[#2a4533]">
-                                                <span className="material-symbols-outlined text-[#4c9a66] group-hover:text-[#13ec5b] dark:text-gray-400">add_a_photo</span>
-                                            </div>
-                                            <p className="mt-2 text-center text-xs text-[#4c9a66] dark:text-gray-400">Clique para upload</p>
-                                            <input class="absolute inset-0 opacity-0 cursor-pointer" type="file" />
+                                        <div className="group relative flex aspect-square w-full cursor-pointer flex-col items-center justify-center rounded-full border-2 border-dashed border-[#cfe7d7] bg-[#f8fcf9] hover:border-[#13ec5b] hover:bg-[#f0fdf4] dark:border-gray-600 dark:bg-[#1a3322] dark:hover:border-[#13ec5b] dark:hover:bg-[#1a3322] transition-all overflow-hidden">
+                                            {logoUrl ? (
+                                                <img src={logoUrl} alt="Logo Preview" className="absolute inset-0 w-full h-full object-cover" />
+                                            ) : (
+                                                <>
+                                                    <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white shadow-sm group-hover:scale-110 transition-transform dark:bg-[#2a4533]">
+                                                        {uploadingLogo ? (
+                                                            <span className="size-5 border-2 border-[#13ec5b] border-t-transparent rounded-full animate-spin"></span>
+                                                        ) : (
+                                                            <span className="material-symbols-outlined text-[#4c9a66] group-hover:text-[#13ec5b] dark:text-gray-400">add_a_photo</span>
+                                                        )}
+                                                    </div>
+                                                    <p className="mt-2 text-center text-xs text-[#4c9a66] dark:text-gray-400">{uploadingLogo ? "Enviando..." : "Clique para upload"}</p>
+                                                </>
+                                            )}
+                                            <input
+                                                className="absolute inset-0 opacity-0 cursor-pointer disabled:cursor-not-allowed"
+                                                type="file"
+                                                onChange={handleLogoUpload}
+                                                accept="image/*"
+                                                disabled={uploadingLogo}
+                                            />
                                         </div>
                                     </div>
                                     {/* Text Inputs */}
@@ -303,8 +352,12 @@ export default function CreateGroupPage() {
                                 <div className="relative z-10 flex flex-col gap-4">
                                     <h4 className="text-sm font-semibold uppercase tracking-wider opacity-90">Preview do Card</h4>
                                     <div className="flex items-center gap-4">
-                                        <div className="flex h-16 w-16 items-center justify-center rounded-full bg-white/20 backdrop-blur-sm border border-white/30">
-                                            <span className="material-symbols-outlined text-3xl">add_a_photo</span>
+                                        <div className="flex h-16 w-16 items-center justify-center rounded-full bg-white/20 backdrop-blur-sm border border-white/30 overflow-hidden">
+                                            {logoUrl ? (
+                                                <img src={logoUrl} alt="Logo" className="w-full h-full object-cover" />
+                                            ) : (
+                                                <span className="material-symbols-outlined text-3xl">add_a_photo</span>
+                                            )}
                                         </div>
                                         <div>
                                             <h3 className="text-xl font-bold truncate max-w-[180px]">{name || "Nome do Grupo"}</h3>

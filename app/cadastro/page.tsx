@@ -47,8 +47,26 @@ export default function Cadastro() {
                 setErrorMessage("Erro ao criar conta: " + error.message);
                 setLoading(false);
             } else {
-                setSuccessMessage("Cadastro realizado com sucesso! Verifique seu email para confirmar a conta.");
-                setLoading(false);
+                // Attempt Auto-Login
+                try {
+                    const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+                        email,
+                        password,
+                    });
+
+                    if (signInData.session) {
+                        // Login Successful - Redirect to Dashboard
+                        router.push("/dashboard");
+                    } else {
+                        // Email confirmation may be required
+                        setSuccessMessage("Cadastro realizado! Verifique seu email para confirmar e fazer login.");
+                        setLoading(false);
+                    }
+                } catch (loginErr) {
+                    // Fallback if auto-login fails for any reason
+                    setSuccessMessage("Cadastro realizado! Faça login para continuar.");
+                    setLoading(false);
+                }
             }
         } catch (error) {
             setErrorMessage("Ocorreu um erro inesperado.");

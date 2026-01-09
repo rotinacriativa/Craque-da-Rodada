@@ -14,21 +14,29 @@ export default function GroupsPage() {
                 const { data: { user } } = await supabase.auth.getUser();
                 if (!user) return;
 
-                // Fetch groups created by me (simplest for now)
-                // Ideally we'd also fetch groups I'm a member of via join table
+                // Fetch groups I am a member of (including created ones)
+                const { data: membershipData, error: memberError } = await supabase
+                    .from('group_members')
+                    .select('group_id')
+                    .eq('user_id', user.id)
+                    .eq('status', 'active');
 
-                // Fetch groups I created
-                const { data: myGroups, error } = await supabase
-                    .from('groups')
-                    .select('*')
-                    .eq('created_by', user.id)
-                    .order('created_at', { ascending: false });
+                if (memberError) throw memberError;
 
-                if (error) throw error;
+                const groupIds = membershipData?.map(m => m.group_id) || [];
 
-                // TODO: Combine with groups where I am a member (once membership is fully implemented)
+                if (groupIds.length > 0) {
+                    const { data: groupsData, error: groupsError } = await supabase
+                        .from('groups')
+                        .select('*')
+                        .in('id', groupIds)
+                        .order('created_at', { ascending: false });
 
-                setGroups(myGroups || []);
+                    if (groupsError) throw groupsError;
+                    setGroups(groupsData || []);
+                } else {
+                    setGroups([]);
+                }
             } catch (err) {
                 console.error("Error fetching groups:", err);
             } finally {

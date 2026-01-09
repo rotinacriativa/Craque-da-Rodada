@@ -274,7 +274,7 @@ export default function GroupDashboard({ params }: { params: Promise<{ id: strin
 
                     <div className="relative z-10 flex flex-col md:flex-row gap-6 md:items-center justify-between">
                         <div className="flex flex-col md:flex-row gap-6 md:items-center">
-                            <div className="bg-center bg-no-repeat bg-cover rounded-full w-24 h-24 md:w-32 md:h-32 border-4 border-white dark:border-[#2a4031] shadow-lg shrink-0" style={{ backgroundImage: "url('https://lh3.googleusercontent.com/aida-public/AB6AXuBAWsYSD4QUg5Dl-clEdk83X_QgSxSVG2WM3lkat68NIljcbUgzR7QiKtjxf7IrPN4Eq8cyxdXgBBDkXPwk7TUO9yobssnmmpHaDRjy-iJNy8GieFaqF9w4jVQ8IHZp2w91KUGbPWHPtyG6yDl6q1ZEOyc55gfkZq6_y5BOGhmnoJsbBX0i29wJyfIyIseLT2r2cTFMwOoLpQXjBtuGSzPxjnLfaEIEswJNEkZqVkvIFlSae6e_G8XoeyBTjua-r32qNHn5FvWE-Mw')" }}></div>
+                            <div className="bg-center bg-no-repeat bg-cover rounded-full w-24 h-24 md:w-32 md:h-32 border-4 border-white dark:border-[#2a4031] shadow-lg shrink-0" style={{ backgroundImage: `url('${group.logo_url || "https://lh3.googleusercontent.com/aida-public/AB6AXuBAWsYSD4QUg5Dl-clEdk83X_QgSxSVG2WM3lkat68NIljcbUgzR7QiKtjxf7IrPN4Eq8cyxdXgBBDkXPwk7TUO9yobssnmmpHaDRjy-iJNy8GieFaqF9w4jVQ8IHZp2w91KUGbPWHPtyG6yDl6q1ZEOyc55gfkZq6_y5BOGhmnoJsbBX0i29wJyfIyIseLT2r2cTFMwOoLpQXjBtuGSzPxjnLfaEIEswJNEkZqVkvIFlSae6e_G8XoeyBTjua-r32qNHn5FvWE-Mw"}')` }}></div>
                             <div className="flex flex-col gap-1">
                                 <div className="flex items-center gap-3 flex-wrap">
                                     <h1 className="text-2xl md:text-3xl font-bold text-[#0d1b12] dark:text-white tracking-tight">{group.name}</h1>
@@ -297,8 +297,8 @@ export default function GroupDashboard({ params }: { params: Promise<{ id: strin
                                     <button
                                         onClick={handleInvite}
                                         className={`flex items-center gap-2 px-4 py-2.5 rounded-full font-bold transition-all ${inviteCopied
-                                                ? "bg-green-600 text-white shadow-lg scale-105"
-                                                : "bg-gray-100 hover:bg-gray-200 dark:bg-[#2a4031] dark:hover:bg-[#35503d] text-[#0d1b12] dark:text-white"
+                                            ? "bg-green-600 text-white shadow-lg scale-105"
+                                            : "bg-gray-100 hover:bg-gray-200 dark:bg-[#2a4031] dark:hover:bg-[#35503d] text-[#0d1b12] dark:text-white"
                                             }`}
                                     >
                                         <span className="material-symbols-outlined text-lg">

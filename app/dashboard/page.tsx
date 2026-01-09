@@ -18,32 +18,42 @@ export default function DashboardPage() {
                 const { data: { user } } = await supabase.auth.getUser();
                 if (!user) return;
 
-                // 1. Fetch Next Match (Future)
-                // In a real app we'd join with user_groups, but for now let's just show ANY future match
-                // or matches from groups the user created/is in.
-                // Simple approach: Get the next upcoming match from DB (LIMIT 1)
-                const { data: matches, error: matchError } = await supabase
-                    .from('matches')
-                    .select('*, groups(name)') // Join with groups to get name
-                    .gte('date', new Date().toISOString().split('T')[0])
-                    .order('date', { ascending: true })
-                    .limit(1);
+                // 1. Get User's Group IDs
+                const { data: userGroups } = await supabase
+                    .from('group_members')
+                    .select('group_id')
+                    .eq('user_id', user.id)
+                    .eq('status', 'active');
 
-                if (matches && matches.length > 0) {
-                    setNextMatch(matches[0]);
+                const groupIds = userGroups?.map(g => g.group_id) || [];
+
+                // 2. Fetch Next Match (Only from my groups)
+                let nextMatchData = null;
+                if (groupIds.length > 0) {
+                    const { data: matches } = await supabase
+                        .from('matches')
+                        .select('*, groups(name)')
+                        .in('group_id', groupIds) // Filter by my groups
+                        .gte('date', new Date().toISOString().split('T')[0])
+                        .order('date', { ascending: true })
+                        .limit(1);
+
+                    if (matches && matches.length > 0) {
+                        nextMatchData = matches[0];
+                    }
                 }
+                setNextMatch(nextMatchData);
 
-                // 2. Fetch Stats (Mockish logic based on available tables)
-                // Organized: Groups created by me? Or Matches created?
-                // For now, let's count groups created by user
-                const { count: groupsCount } = await supabase
+                // 3. Fetch Stats
+                // Organized: Groups created by me
+                const { count: groupsCreated } = await supabase
                     .from('groups')
                     .select('*', { count: 'exact', head: true })
                     .eq('created_by', user.id);
 
                 setStats({
-                    organized: groupsCount || 0,
-                    participated: 0 // No participation table yet
+                    organized: groupsCreated || 0,
+                    participated: 0
                 });
 
             } catch (error) {

@@ -34,6 +34,7 @@ export default function UserProfile() {
     const [age, setAge] = useState<number | null>(null);
     const [maritalStatus, setMaritalStatus] = useState("Solteiro");
     const [hasChildren, setHasChildren] = useState(false);
+    const [emailVerified, setEmailVerified] = useState(false);
 
     // Location State
     const [ufs, setUfs] = useState<IBGEUF[]>([]);
@@ -95,6 +96,7 @@ export default function UserProfile() {
                 }
                 setUserId(user.id);
                 setEmail(user.email || "");
+                setEmailVerified(!!user.email_confirmed_at);
 
                 const { data, error } = await supabase
                     .from('profiles')
@@ -292,7 +294,20 @@ export default function UserProfile() {
                                 </button>
                             </div>
                             <h2 className="text-2xl font-bold text-center text-[#0d1b12] dark:text-white">{fullName || "Nome do Jogador"}</h2>
-                            <p className="text-[#4c9a66] text-sm font-medium mb-4">{email}</p>
+                            <div className="flex items-center justify-center gap-2 mb-4">
+                                <p className="text-[#4c9a66] text-sm font-medium">{email}</p>
+                                {emailVerified ? (
+                                    <div className="flex items-center gap-1 bg-green-100 dark:bg-green-900/30 px-2 py-0.5 rounded-full" title="Email Confirmado">
+                                        <span className="material-symbols-outlined text-green-600 dark:text-green-400 text-[14px]">verified</span>
+                                        <span className="text-[10px] font-bold text-green-700 dark:text-green-300 uppercase">Verificado</span>
+                                    </div>
+                                ) : (
+                                    <div className="flex items-center gap-1 bg-amber-100 dark:bg-amber-900/30 px-2 py-0.5 rounded-full" title="Email Pendente">
+                                        <span className="material-symbols-outlined text-amber-600 dark:text-amber-400 text-[14px]">warning</span>
+                                        <span className="text-[10px] font-bold text-amber-700 dark:text-amber-300 uppercase">Pendente</span>
+                                    </div>
+                                )}
+                            </div>
 
                             {/* Simple Stats for Visual Appeal */}
                             <div className="w-full grid grid-cols-3 gap-2 border-t border-[#e7f3eb] dark:border-[#2a4032] pt-6 mt-2">

@@ -5,6 +5,7 @@ import { useState, use, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "../../../../src/lib/client";
 import ConfirmationModal from "../../../components/ConfirmationModal";
+import AddPlayerModal from "../../../components/AddPlayerModal";
 
 interface Match {
     id: string;
@@ -58,6 +59,9 @@ export default function MatchDetails({ params }: { params: Promise<{ id: string 
     // Cancel Match State
     const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
     const [isCanceling, setIsCanceling] = useState(false);
+
+    // Add Player Modal
+    const [isAddPlayerOpen, setIsAddPlayerOpen] = useState(false);
 
     const handleCancelMatch = () => {
         setIsCancelModalOpen(true);
@@ -592,13 +596,20 @@ export default function MatchDetails({ params }: { params: Promise<{ id: string 
                             </div>
                         </div>
 
-                        {/* Teams Generator Button (If applicable) */}
+                        {/* Teams Generator & Add Player Buttons */}
                         {isConfirmed && confirmedPlayers.length >= 2 && !generatedTeams && (
-                            <div className="flex justify-end">
+                            <div className="flex justify-end gap-3">
+                                <button
+                                    onClick={() => setIsAddPlayerOpen(true)}
+                                    className="text-sm font-bold bg-[#13ec5b]/10 text-[#13ec5b] hover:bg-[#13ec5b]/20 px-4 py-2 rounded-full transition-colors flex items-center gap-1"
+                                >
+                                    <span className="material-symbols-outlined text-lg">person_add</span>
+                                    Adicionar Jogador
+                                </button>
                                 <button
                                     onClick={handleGenerateTeams}
                                     disabled={actionLoading}
-                                    className="text-sm font-bold text-[#13ec5b] hover:text-green-400 transition-colors flex items-center gap-1"
+                                    className="text-sm font-bold bg-white dark:bg-[#102216] text-[#0d1b12] dark:text-white border border-gray-200 dark:border-gray-700 hover:border-[#13ec5b] px-4 py-2 rounded-full transition-colors flex items-center gap-1"
                                 >
                                     <span className="material-symbols-outlined text-lg">shuffle</span>
                                     Sortear Times
@@ -744,6 +755,17 @@ export default function MatchDetails({ params }: { params: Promise<{ id: string 
                 type="danger"
                 isLoading={isCanceling}
             />
+
+            {match && (
+                <AddPlayerModal
+                    isOpen={isAddPlayerOpen}
+                    onClose={() => setIsAddPlayerOpen(false)}
+                    matchId={matchId}
+                    groupId={match.group_id}
+                    existingPlayerIds={participants.map(p => p.user_id)}
+                    onAdd={fetchData}
+                />
+            )}
         </div>
     );
 }
