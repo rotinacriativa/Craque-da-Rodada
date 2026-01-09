@@ -219,7 +219,7 @@ export default function ExplorePage() {
                         onClick={() => router.push('/dashboard/criar-grupo')}
                         className="w-full bg-[#13ec5b] hover:bg-[#0fd650] text-[#0d1b12] font-bold py-3 rounded-xl transition-all shadow-lg shadow-[#13ec5b]/20"
                     >
-                        Criar Grupo
+                        Criar Pelada
                     </button>
                 </article>
             </div>

@@ -214,7 +214,7 @@ export default function GroupDashboard({ params }: { params: Promise<{ id: strin
         return (
             <div className="flex-1 flex flex-col items-center justify-center w-full min-h-[500px]">
                 <span className="size-10 block rounded-full border-4 border-[#13ec5b] border-r-transparent animate-spin"></span>
-                <span className="mt-4 text-sm text-gray-500 font-medium">Carregando grupo...</span>
+                <span className="mt-4 text-sm text-gray-500 font-medium">Carregando pelada...</span>
             </div>
         );
     }
@@ -243,8 +243,8 @@ export default function GroupDashboard({ params }: { params: Promise<{ id: strin
                 <div className="bg-gray-100 dark:bg-[#1f3b29] p-4 rounded-full mb-4">
                     <span className="material-symbols-outlined text-3xl text-gray-500 dark:text-gray-400">search_off</span>
                 </div>
-                <h3 className="text-xl font-bold text-[#0d1b12] dark:text-white mb-2">Grupo não encontrado</h3>
-                <p className="text-gray-500 dark:text-gray-400 mb-6 max-w-xs mx-auto">Não encontramos nenhum grupo com este link. Verifique o endereço ou peça um novo convite.</p>
+                <h3 className="text-xl font-bold text-[#0d1b12] dark:text-white mb-2">Pelada não encontrada</h3>
+                <p className="text-gray-500 dark:text-gray-400 mb-6 max-w-xs mx-auto">Não encontramos nenhuma pelada com este link. Verifique o endereço ou peça um novo convite.</p>
                 <Link
                     href="/dashboard"
                     className="px-6 py-2.5 bg-[#13ec5b] hover:bg-[#0fd650] text-[#0d1b12] rounded-full font-bold transition-colors shadow-lg shadow-[#13ec5b]/20"
@@ -262,7 +262,7 @@ export default function GroupDashboard({ params }: { params: Promise<{ id: strin
                 <div className="flex items-center gap-2 text-sm">
                     <Link className="text-gray-500 hover:text-[#13ec5b] transition-colors" href="/dashboard">Home</Link>
                     <span className="text-gray-400">/</span>
-                    <span className="text-gray-500 hover:text-[#13ec5b] transition-colors cursor-pointer">Meus Grupos</span>
+                    <span className="text-gray-500 hover:text-[#13ec5b] transition-colors cursor-pointer">Minhas Peladas</span>
                     <span className="text-gray-400">/</span>
                     <span className="text-[#0d1b12] dark:text-white font-medium">{group.name}</span>
                 </div>
@@ -335,7 +335,7 @@ export default function GroupDashboard({ params }: { params: Promise<{ id: strin
                                 className="group flex items-center justify-center gap-2 h-10 px-5 rounded-full bg-red-50 hover:bg-red-100 text-red-600 dark:bg-red-900/20 dark:hover:bg-red-900/30 dark:text-red-400 font-semibold text-sm transition-all w-full md:w-auto"
                             >
                                 <span className="material-symbols-outlined text-lg">logout</span>
-                                <span>Sair do Grupo</span>
+                                <span>Sair da Pelada</span>
                             </button>
                         </div>
                     </div>
@@ -346,7 +346,7 @@ export default function GroupDashboard({ params }: { params: Promise<{ id: strin
                     {/* Left Column: Matches (Main Focus) */}
                     <div className="lg:col-span-2 flex flex-col gap-6">
                         <div className="flex items-center justify-between">
-                            <h2 className="text-xl font-bold text-[#0d1b12] dark:text-white">Próximas Partidas</h2>
+                            <h2 className="text-xl font-bold text-[#0d1b12] dark:text-white">Próximos Jogos</h2>
                             <span className="text-sm font-medium text-gray-400 cursor-not-allowed" title="Em breve">Ver histórico</span>
                         </div>
 
@@ -438,11 +438,11 @@ export default function GroupDashboard({ params }: { params: Promise<{ id: strin
                         <div className="bg-white dark:bg-[#183020] rounded-xl p-5 border border-[#e7f3eb] dark:border-[#1f3b29]">
                             <h3 className="font-bold text-lg text-[#0d1b12] dark:text-white mb-4 flex items-center gap-2">
                                 <span className="material-symbols-outlined text-[#13ec5b]">info</span>
-                                Sobre o Grupo
+                                Sobre a Pelada
                             </h3>
                             <div className="prose prose-sm dark:prose-invert text-gray-600 dark:text-gray-300">
                                 <p className="mb-3 text-sm leading-relaxed">
-                                    {group.description || "O administrador ainda não adicionou uma descrição para este grupo."}
+                                    {group.description || "O administrador ainda não adicionou uma descrição para esta pelada."}
                                 </p>
                             </div>
                         </div>
@@ -452,7 +452,7 @@ export default function GroupDashboard({ params }: { params: Promise<{ id: strin
                             <div className="flex items-center justify-between mb-4">
                                 <h3 className="font-bold text-lg text-[#0d1b12] dark:text-white flex items-center gap-2">
                                     <span className="material-symbols-outlined text-[#13ec5b]">groups</span>
-                                    Membros ({members.length})
+                                    Jogadores ({members.length})
                                 </h3>
                                 {isAdmin ? (
                                     <Link className="text-xs font-bold text-[#0ea841] dark:text-[#13ec5b] hover:underline" href={`/dashboard/grupos/${groupId}/admin/membros`}>Ver todos</Link>
@@ -506,9 +506,9 @@ export default function GroupDashboard({ params }: { params: Promise<{ id: strin
                 isOpen={isLeaveModalOpen}
                 onClose={() => setIsLeaveModalOpen(false)}
                 onConfirm={confirmLeaveGroup}
-                title="Sair do Grupo"
-                message={`Tem certeza que deseja sair do grupo "${group?.name}"? Você perderá acesso às partidas e histórico.`}
-                confirmText="Sair do Grupo"
+                title="Sair da Pelada"
+                message={`Tem certeza que deseja sair de "${group?.name}"? Você perderá acesso aos jogos e histórico.`}
+                confirmText="Sair da Pelada"
                 cancelText="Ficar"
                 type="danger"
                 isLoading={isLeaving}

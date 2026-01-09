@@ -150,7 +150,7 @@ function CreateMatchContent() {
                         <span className="material-symbols-outlined">arrow_back</span>
                     </Link>
                     <div>
-                        <h1 className="text-3xl md:text-4xl font-black text-slate-900 dark:text-white tracking-tight">Nova Partida</h1>
+                        <h1 className="text-3xl md:text-4xl font-black text-slate-900 dark:text-white tracking-tight">Marcar Jogo</h1>
                         <p className="text-slate-500 dark:text-slate-400 font-medium">Agende o próximo jogo da galera</p>
                     </div>
                 </div>
@@ -389,7 +389,7 @@ function CreateMatchContent() {
                                 disabled={isLoading}
                                 className="group relative px-8 py-4 bg-[#13ec5b] hover:bg-[#0fd652] active:scale-[0.98] rounded-full text-[#0d1b12] font-bold shadow-lg shadow-[#13ec5b]/30 transition-all flex items-center justify-center gap-3 disabled:opacity-70 disabled:cursor-not-allowed"
                             >
-                                <span>{isLoading ? "Criando..." : "Criar Partida"}</span>
+                                <span>{isLoading ? "Criando..." : "Marcar Jogo"}</span>
                                 <span className="material-symbols-outlined transition-transform group-hover:translate-x-1">arrow_forward</span>
                             </button>
                         </div>

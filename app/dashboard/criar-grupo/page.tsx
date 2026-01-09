@@ -127,7 +127,7 @@ export default function CreateGroupPage() {
                 <div className="flex flex-col gap-6">
                     <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
                         <div>
-                            <h2 className="text-3xl font-bold tracking-tight text-[#0d1b12] dark:text-white">Criar Novo Grupo</h2>
+                            <h2 className="text-3xl font-bold tracking-tight text-[#0d1b12] dark:text-white">Criar Nova Pelada</h2>
                             <p className="mt-1 text-[#4c9a66] dark:text-gray-400">Configure sua nova pelada em poucos passos</p>
                         </div>
                         {/* Stepper Indicators */}
@@ -388,7 +388,7 @@ export default function CreateGroupPage() {
                                         <span className="w-6 h-6 border-2 border-[#0d1b12] border-t-transparent rounded-full animate-spin"></span>
                                     ) : (
                                         <>
-                                            <span>Criar Grupo</span>
+                                            <span>Criar Pelada</span>
                                             <span className="material-symbols-outlined text-xl">arrow_forward</span>
                                         </>
                                     )}
@@ -423,7 +423,7 @@ export default function CreateGroupPage() {
                                 disabled={loading}
                                 className="flex w-full items-center justify-center gap-2 rounded-full bg-[#13ec5b] px-6 py-4 text-base font-bold text-[#0d1b12] shadow-lg shadow-[#13ec5b]/25 disabled:opacity-70 disabled:cursor-not-allowed"
                             >
-                                {loading ? "Criando..." : "Criar Grupo"}
+                                {loading ? "Criando..." : "Criar Pelada"}
                             </button>
                             <Link href="/dashboard/grupos" className="flex items-center justify-center w-full rounded-full px-6 py-3 text-sm font-medium text-[#4c9a66]">
                                 Cancelar
