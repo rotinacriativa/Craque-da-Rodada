@@ -82,13 +82,13 @@ export default function MatchDetails({ params }: { params: Promise<{ id: string 
 
             if (error) throw error;
 
-            setSuccessMessage("Partida cancelada com sucesso.");
+            setSuccessMessage("Jogo cancelado com sucesso.");
             // Slight delay or immediate redirect
             router.push(match?.group_id ? `/dashboard/grupos/${match.group_id}` : '/dashboard');
             router.refresh();
         } catch (error: any) {
             console.error(error);
-            setErrorMessage("Erro ao cancelar partida: " + (error?.message || "Erro desconhecido"));
+            setErrorMessage("Erro ao cancelar jogo: " + (error?.message || "Erro desconhecido"));
             setIsCanceling(false);
             setIsCancelModalOpen(false);
         }
@@ -266,7 +266,7 @@ export default function MatchDetails({ params }: { params: Promise<{ id: string 
     const handleJoin = async () => {
         if (!currentUser) return setErrorMessage("Faça login para participar.");
         const spotsLeft = match ? match.capacity - (participants.filter(p => p.status === 'confirmed').length) : 0;
-        if (spotsLeft <= 0) return setErrorMessage("Partida lotada! Entre na lista de espera (em breve).");
+        if (spotsLeft <= 0) return setErrorMessage("Jogo lotado! Entre na lista de espera (em breve).");
 
         setActionLoading(true);
         setErrorMessage(null);
@@ -297,10 +297,10 @@ export default function MatchDetails({ params }: { params: Promise<{ id: string 
         try {
             await supabase.from('match_participants').delete().eq('id', myParticipant.id);
             fetchData();
-            setSuccessMessage("Você saiu da partida.");
+            setSuccessMessage("Você saiu do jogo.");
         } catch (error: any) {
             console.error(error);
-            setErrorMessage("Erro ao sair da partida.");
+            setErrorMessage("Erro ao sair do jogo.");
         } finally {
             setActionLoading(false);
         }
@@ -369,7 +369,7 @@ export default function MatchDetails({ params }: { params: Promise<{ id: string 
             <span className="size-10 block rounded-full border-4 border-[#13ec5b] border-r-transparent animate-spin"></span>
         </div>
     );
-    if (!match) return <div className="p-12 text-center text-slate-500">Partida não encontrada.</div>;
+    if (!match) return <div className="p-12 text-center text-slate-500">Jogo não encontrado.</div>;
 
     const confirmedPlayers = participants.filter(p => p.status === 'confirmed');
     const myParticipant = participants.find(p => p.user_id === currentUser);
@@ -530,7 +530,7 @@ export default function MatchDetails({ params }: { params: Promise<{ id: string 
                                     <span className="material-symbols-outlined text-yellow-600">stars</span>
                                     <div>
                                         <h3 className="font-bold text-lg text-[#0d1b12] dark:text-white">Craque da Rodada</h3>
-                                        <p className="text-xs text-gray-500 dark:text-gray-400">Vote no melhor jogador da partida</p>
+                                        <p className="text-xs text-gray-500 dark:text-gray-400">Vote no melhor jogador do jogo</p>
                                     </div>
                                 </div>
                                 {!showVoting && !myVote && (
@@ -749,9 +749,9 @@ export default function MatchDetails({ params }: { params: Promise<{ id: string 
                 isOpen={isCancelModalOpen}
                 onClose={() => setIsCancelModalOpen(false)}
                 onConfirm={confirmCancelMatch}
-                title="Cancelar Partida"
-                message={`Tem certeza que deseja cancelar a partida "${match.name}"? Isso removerá o evento e notificará os jogadores.`}
-                confirmText="Sim, Cancelar Partida"
+                title="Cancelar Jogo"
+                message={`Tem certeza que deseja cancelar o jogo "${match.name}"? Isso removerá o evento e notificará os jogadores.`}
+                confirmText="Sim, Cancelar Jogo"
                 type="danger"
                 isLoading={isCanceling}
             />
