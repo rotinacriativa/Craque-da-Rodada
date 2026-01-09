@@ -34,6 +34,31 @@ export default function LiveMatchPage({ params }: { params: Promise<{ id: string
     const [teams, setTeams] = useState<{ A: any[], B: any[] }>({ A: [], B: [] });
     const [loading, setLoading] = useState(true);
 
+    // Team Colors
+    const [colorA, setColorA] = useState('red');
+    const [colorB, setColorB] = useState('blue');
+
+    // Modal State
+    const [isEventModalOpen, setIsEventModalOpen] = useState(false);
+    const [modalAction, setModalAction] = useState<MatchEvent['type'] | null>(null);
+    const [modalTeam, setModalTeam] = useState<'A' | 'B'>('A');
+    const [modalStep, setModalStep] = useState<'scorer' | 'assister' | 'player'>('player');
+    const [tempScorer, setTempScorer] = useState<{ id: string, name: string } | null>(null);
+    const [searchTerm, setSearchTerm] = useState("");
+
+    // Vest Color State
+    const [isColorPickerOpen, setIsColorPickerOpen] = useState<{ team: 'A' | 'B' } | null>(null);
+
+    const colors = [
+        { name: 'Vermelho', class: 'red' },
+        { name: 'Azul', class: 'blue' },
+        { name: 'Verde', class: 'green' },
+        { name: 'Amarelo', class: 'yellow' },
+        { name: 'Laranja', class: 'orange' },
+        { name: 'Preto', class: 'black' },
+        { name: 'Branco', class: 'white' },
+    ];
+
     // Initial Fetch
     useEffect(() => {
         fetchMatchDetails();
@@ -58,6 +83,8 @@ export default function LiveMatchPage({ params }: { params: Promise<{ id: string
                     id, 
                     team, 
                     user_id,
+                    goals,
+                    assists,
                     profile:profiles(full_name, avatar_url)
                 `)
                 .eq('match_id', matchId)
@@ -70,8 +97,13 @@ export default function LiveMatchPage({ params }: { params: Promise<{ id: string
             const teamB: any[] = [];
 
             participants?.forEach((p: any) => {
-                if (p.team === 'A') teamA.push(p);
-                else if (p.team === 'B') teamB.push(p);
+                const formatted = {
+                    ...p,
+                    full_name: p.profile?.full_name || 'Jogador',
+                    avatar_url: p.profile?.avatar_url
+                };
+                if (p.team === 'A') teamA.push(formatted);
+                else if (p.team === 'B') teamB.push(formatted);
             });
 
             setTeams({ A: teamA, B: teamB });
@@ -107,24 +139,47 @@ export default function LiveMatchPage({ params }: { params: Promise<{ id: string
     const resetTimer = () => {
         setIsRunning(false);
         setSeconds(0);
-        // Also add event "Início de Jogo" or similar logic if needed
     };
 
     // Actions
-    const handleAction = (type: MatchEvent['type'], team: 'A' | 'B') => {
-        // In a real app, this would open a modal to select the player
-        // For prototype, we'll pick a random player or "Desconhecido"
-        const teamPlayers = teams[team];
-        const randomPlayer = teamPlayers.length > 0
-            ? teamPlayers[Math.floor(Math.random() * teamPlayers.length)].profile.full_name
-            : "Jogador Desconhecido";
+    const handleActionClick = (type: MatchEvent['type'], team: 'A' | 'B') => {
+        setModalAction(type);
+        setModalTeam(team);
+        setModalStep(type === 'goal' ? 'scorer' : 'player');
+        setTempScorer(null);
+        setSearchTerm("");
+        setIsEventModalOpen(true);
+    };
+
+    const handlePlayerSelect = async (player: any) => {
+        if (modalAction === 'goal' && modalStep === 'scorer') {
+            setTempScorer({ id: player.id, name: player.full_name });
+            setModalStep('assister');
+            setSearchTerm("");
+            return;
+        }
+
+        // Finalize event
+        await createMatchEvent(player, modalAction!, modalTeam, modalAction === 'goal' ? tempScorer : null);
+    };
+
+    const skipAssistance = async () => {
+        await createMatchEvent(null, 'goal', modalTeam, tempScorer);
+    };
+
+    const createMatchEvent = async (player: any, type: MatchEvent['type'], team: 'A' | 'B', scorer?: { id: string, name: string } | null) => {
+        const playerName = type === 'goal' ? scorer!.name : player.full_name;
+        const playerId = type === 'goal' ? scorer!.id : player.id;
+        const assistName = type === 'goal' && player ? player.full_name : null;
+        const assistId = type === 'goal' && player ? player.id : null;
 
         const newEvent: MatchEvent = {
             id: Math.random().toString(36).substr(2, 9),
             type,
             team,
             time: formatTime(seconds),
-            player_name: randomPlayer
+            player_name: assistName ? `${playerName} (Assist: ${assistName})` : playerName,
+            player_id: playerId
         };
 
         setEvents((prev) => [newEvent, ...prev]);
@@ -133,9 +188,49 @@ export default function LiveMatchPage({ params }: { params: Promise<{ id: string
             if (team === 'A') setScoreA(s => s + 1);
             else setScoreB(s => s + 1);
         }
+
+        setIsEventModalOpen(false);
+
+        // PERSISTENCE IN DB
+        try {
+            // 1. Update Participant Stats (Goals/Assists)
+            if (type === 'goal') {
+                // Increment Scorer Goals
+                const { data: scorerData } = await supabase.from('match_participants').select('goals').eq('id', playerId).single();
+                await supabase.from('match_participants').update({ goals: (scorerData?.goals || 0) + 1 }).eq('id', playerId);
+
+                // Increment Assister Assists if exists
+                if (assistId) {
+                    const { data: assisterData } = await supabase.from('match_participants').select('assists').eq('id', assistId).single();
+                    await supabase.from('match_participants').update({ assists: (assisterData?.assists || 0) + 1 }).eq('id', assistId);
+                }
+            }
+            // Add to a match_events table if you had one, for now we just keep local log or we could have a table.
+            // But user asked to "computa automaticamente", which likely means updating the match_participants totals we added earlier.
+        } catch (err) {
+            console.error("Error updating stats:", err);
+        }
+    };
+
+    const teamAColor = colors.find(c => c.class === colorA) || colors[0];
+    const teamBColor = colors.find(c => c.class === colorB) || colors[1];
+
+    const colorClasses: Record<string, any> = {
+        red: { bg: 'from-red-600 to-red-800', border: 'border-red-500/30', shadow: 'shadow-red-900/50', text: 'text-red-500', btn: 'bg-red-50 text-red-600 border-red-500' },
+        blue: { bg: 'from-blue-600 to-blue-800', border: 'border-blue-500/30', shadow: 'shadow-blue-900/50', text: 'text-blue-500', btn: 'bg-blue-50 text-blue-600 border-blue-500' },
+        green: { bg: 'from-green-600 to-green-800', border: 'border-green-500/30', shadow: 'shadow-green-900/50', text: 'text-green-500', btn: 'bg-green-50 text-green-600 border-green-500' },
+        yellow: { bg: 'from-yellow-500 to-yellow-700', border: 'border-yellow-400/30', shadow: 'shadow-yellow-900/50', text: 'text-yellow-500', btn: 'bg-yellow-50 text-yellow-600 border-yellow-500' },
+        orange: { bg: 'from-orange-500 to-orange-700', border: 'border-orange-400/30', shadow: 'shadow-orange-900/50', text: 'text-orange-500', btn: 'bg-orange-50 text-orange-600 border-orange-500' },
+        black: { bg: 'from-neutral-800 to-black', border: 'border-neutral-700/30', shadow: 'shadow-black/50', text: 'text-neutral-400', btn: 'bg-neutral-900 text-neutral-400 border-neutral-700' },
+        white: { bg: 'from-neutral-100 to-neutral-300', border: 'border-white/30', shadow: 'shadow-neutral-400/20', text: 'text-neutral-600', btn: 'bg-neutral-50 text-neutral-600 border-neutral-300' },
     };
 
     if (loading) return <div className="p-10 text-center">Carregando cronômetro...</div>;
+
+    const modalPlayers = teams[modalTeam].filter(p =>
+        p.full_name.toLowerCase().includes(searchTerm.toLowerCase()) &&
+        (modalStep === 'assister' ? p.id !== tempScorer?.id : true)
+    );
 
     return (
         <div className="flex-1 flex flex-col h-full bg-slate-50 dark:bg-[#0d1612]">
@@ -169,14 +264,16 @@ export default function LiveMatchPage({ params }: { params: Promise<{ id: string
                         {/* Team A */}
                         <div className="md:col-span-4 flex flex-col md:flex-row items-center justify-between gap-4 md:pl-8">
                             <div className="flex items-center gap-4">
-                                <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-red-600 to-red-800 flex items-center justify-center text-white font-black text-xl shadow-lg shadow-red-900/50 border-2 border-red-500/30">
+                                <button
+                                    onClick={() => setIsColorPickerOpen({ team: 'A' })}
+                                    className={`w-16 h-16 rounded-2xl bg-gradient-to-br transition-all hover:scale-110 ${colorClasses[colorA].bg} flex items-center justify-center text-white font-black text-xl shadow-lg ${colorClasses[colorA].shadow} border-2 ${colorClasses[colorA].border}`}>
                                     A
-                                </div>
+                                </button>
                                 <div className="text-center md:text-left">
                                     <h2 className="text-white font-bold text-xl md:text-2xl tracking-tight">Time A</h2>
                                 </div>
                             </div>
-                            <div className="text-5xl md:text-7xl font-black text-red-500 tabular-nums tracking-tighter drop-shadow-sm">
+                            <div className={`text-5xl md:text-7xl font-black tabular-nums tracking-tighter drop-shadow-sm transition-colors ${colorClasses[colorA].text}`}>
                                 {scoreA.toString().padStart(2, '0')}
                             </div>
                         </div>
@@ -188,16 +285,18 @@ export default function LiveMatchPage({ params }: { params: Promise<{ id: string
 
                         {/* Team B */}
                         <div className="md:col-span-4 flex flex-col-reverse md:flex-row items-center justify-between gap-4 md:pr-8">
-                            <div className="text-5xl md:text-7xl font-black text-blue-500 tabular-nums tracking-tighter drop-shadow-sm">
+                            <div className={`text-5xl md:text-7xl font-black tabular-nums tracking-tighter drop-shadow-sm transition-colors ${colorClasses[colorB].text}`}>
                                 {scoreB.toString().padStart(2, '0')}
                             </div>
                             <div className="flex flex-row-reverse md:flex-row items-center gap-4">
                                 <div className="text-center md:text-right">
                                     <h2 className="text-white font-bold text-xl md:text-2xl tracking-tight">Time B</h2>
                                 </div>
-                                <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-600 to-blue-800 flex items-center justify-center text-white font-black text-xl shadow-lg shadow-blue-900/50 border-2 border-blue-500/30">
+                                <button
+                                    onClick={() => setIsColorPickerOpen({ team: 'B' })}
+                                    className={`w-16 h-16 rounded-2xl bg-gradient-to-br transition-all hover:scale-110 ${colorClasses[colorB].bg} flex items-center justify-center text-white font-black text-xl shadow-lg ${colorClasses[colorB].shadow} border-2 ${colorClasses[colorB].border}`}>
                                     B
-                                </div>
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -208,12 +307,12 @@ export default function LiveMatchPage({ params }: { params: Promise<{ id: string
                         {/* Team A Actions */}
                         <div className="lg:col-span-3 flex flex-col gap-3 order-2 lg:order-1">
                             <div className="flex items-center gap-2 mb-2 px-2">
-                                <span className="w-2 h-2 rounded-full bg-red-500"></span>
+                                <span className={`w-2 h-2 rounded-full ${colorClasses[colorA].text.replace('text-', 'bg-')}`}></span>
                                 <h3 className="text-slate-500 dark:text-slate-400 text-xs font-bold uppercase tracking-wider">Ações Time A</h3>
                             </div>
-                            <ActionButton onClick={() => handleAction('goal', 'A')} icon="sports_soccer" label="Gol" colorClass="text-red-500 border-red-500" bgClass="bg-red-50 text-red-600" />
-                            <ActionButton onClick={() => handleAction('card_yellow', 'A')} icon="style" label="Cartão" colorClass="text-amber-500 border-amber-500" bgClass="bg-amber-50 text-amber-600" />
-                            <ActionButton onClick={() => handleAction('foul', 'A')} icon="pan_tool" label="Falta" colorClass="text-slate-500 border-slate-500" bgClass="bg-slate-100 text-slate-600" />
+                            <ActionButton onClick={() => handleActionClick('goal', 'A')} icon="sports_soccer" label="Gol" colorClass={colorClasses[colorA].text} bgClass={colorClasses[colorA].btn} />
+                            <ActionButton onClick={() => handleActionClick('card_yellow', 'A')} icon="style" label="Cartão" colorClass="text-amber-500 border-amber-500" bgClass="bg-amber-50 text-amber-600" />
+                            <ActionButton onClick={() => handleActionClick('foul', 'A')} icon="pan_tool" label="Falta" colorClass="text-slate-500 border-slate-500" bgClass="bg-slate-100 text-slate-600" />
                         </div>
 
                         {/* Timer Center */}
@@ -255,11 +354,11 @@ export default function LiveMatchPage({ params }: { params: Promise<{ id: string
                         <div className="lg:col-span-3 flex flex-col gap-3 order-3">
                             <div className="flex items-center justify-end gap-2 mb-2 px-2">
                                 <h3 className="text-slate-500 dark:text-slate-400 text-xs font-bold uppercase tracking-wider">Ações Time B</h3>
-                                <span className="w-2 h-2 rounded-full bg-blue-500"></span>
+                                <span className={`w-2 h-2 rounded-full ${colorClasses[colorB].text.replace('text-', 'bg-')}`}></span>
                             </div>
-                            <ActionButton onClick={() => handleAction('goal', 'B')} icon="sports_soccer" label="Gol" colorClass="text-blue-500 border-blue-500" bgClass="bg-blue-50 text-blue-600" reverse />
-                            <ActionButton onClick={() => handleAction('card_yellow', 'B')} icon="style" label="Cartão" colorClass="text-amber-500 border-amber-500" bgClass="bg-amber-50 text-amber-600" reverse />
-                            <ActionButton onClick={() => handleAction('foul', 'B')} icon="pan_tool" label="Falta" colorClass="text-slate-500 border-slate-500" bgClass="bg-slate-100 text-slate-600" reverse />
+                            <ActionButton onClick={() => handleActionClick('goal', 'B')} icon="sports_soccer" label="Gol" colorClass={colorClasses[colorB].text} bgClass={colorClasses[colorB].btn} reverse />
+                            <ActionButton onClick={() => handleActionClick('card_yellow', 'B')} icon="style" label="Cartão" colorClass="text-amber-500 border-amber-500" bgClass="bg-amber-50 text-amber-600" reverse />
+                            <ActionButton onClick={() => handleActionClick('foul', 'B')} icon="pan_tool" label="Falta" colorClass="text-slate-500 border-slate-500" bgClass="bg-slate-100 text-slate-600" reverse />
                         </div>
                     </div>
 
@@ -275,7 +374,7 @@ export default function LiveMatchPage({ params }: { params: Promise<{ id: string
                             <div className="relative pl-6 border-l-2 border-slate-100 dark:border-slate-800 space-y-6">
                                 {events.map((event) => (
                                     <div key={event.id} className="relative animate-in slide-in-from-left fade-in duration-300">
-                                        <span className={`absolute -left-[29px] top-1 w-4 h-4 rounded-full border-2 border-white dark:border-[#1a2c22] shadow-sm ${event.type === 'goal' ? (event.team === 'A' ? 'bg-red-500' : 'bg-blue-500') :
+                                        <span className={`absolute -left-[29px] top-1 w-4 h-4 rounded-full border-2 border-white dark:border-[#1a2c22] shadow-sm ${event.type === 'goal' ? (event.team === 'A' ? colorClasses[colorA].text.replace('text-', 'bg-') : colorClasses[colorB].text.replace('text-', 'bg-')) :
                                             event.type.includes('card') ? 'bg-amber-400' : 'bg-slate-400'
                                             }`}></span>
                                         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
@@ -304,6 +403,88 @@ export default function LiveMatchPage({ params }: { params: Promise<{ id: string
                     </div>
                 </div>
             </div>
+
+            {/* EVENT MODAL */}
+            {isEventModalOpen && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+                    <div className="bg-white dark:bg-[#1a2c22] w-full max-w-md rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+                        <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
+                            <div>
+                                <h3 className="text-xl font-bold text-[#0d1b12] dark:text-white">
+                                    {modalAction === 'goal'
+                                        ? (modalStep === 'scorer' ? 'Quem fez o gol?' : 'Quem deu a assistência?')
+                                        : 'Selecione o jogador'}
+                                </h3>
+                                <p className="text-sm text-slate-500">Time {modalTeam}</p>
+                            </div>
+                            <button onClick={() => setIsEventModalOpen(false)} className="size-10 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center justify-center text-slate-400">
+                                <span className="material-symbols-outlined">close</span>
+                            </button>
+                        </div>
+                        <div className="p-4">
+                            <div className="relative mb-4">
+                                <input
+                                    type="text"
+                                    placeholder="Buscar jogador..."
+                                    value={searchTerm}
+                                    onChange={(e) => setSearchTerm(e.target.value)}
+                                    className="w-full h-12 pl-12 pr-4 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#13ec5b] dark:text-white"
+                                />
+                                <span className="material-symbols-outlined absolute left-4 top-3 text-slate-400">search</span>
+                            </div>
+                            <div className="max-h-80 overflow-y-auto space-y-2 pr-2 custom-scrollbar">
+                                {modalPlayers.map((player: any) => (
+                                    <button
+                                        key={player.id}
+                                        onClick={() => handlePlayerSelect(player)}
+                                        className="w-full flex items-center gap-3 p-3 rounded-2xl hover:bg-slate-50 dark:hover:bg-[#13ec5b]/10 transition-colors text-left group border border-transparent hover:border-slate-200 dark:hover:border-[#13ec5b]/20"
+                                    >
+                                        <div className="size-10 rounded-full bg-slate-200 bg-cover bg-center" style={{ backgroundImage: `url('${player.avatar_url || "https://upload.wikimedia.org/wikipedia/commons/7/7c/Profile_avatar_placeholder_large.png"}')` }}></div>
+                                        <span className="font-bold text-slate-700 dark:text-slate-200 group-hover:text-[#13ec5b]">{player.full_name}</span>
+                                        <span className="material-symbols-outlined ml-auto text-slate-300 opacity-0 group-hover:opacity-100 transition-opacity">chevron_right</span>
+                                    </button>
+                                ))}
+                                {modalStep === 'assister' && (
+                                    <button
+                                        onClick={skipAssistance}
+                                        className="w-full flex items-center justify-center gap-2 p-4 rounded-2xl border-2 border-dashed border-slate-200 dark:border-slate-700 text-slate-500 font-bold hover:bg-slate-50 dark:hover:bg-white/5 transition-all"
+                                    >
+                                        <span className="material-symbols-outlined">block</span>
+                                        Sem assistência
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* COLOR PICKER MODAL */}
+            {isColorPickerOpen && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setIsColorPickerOpen(null)}>
+                    <div className="bg-white dark:bg-[#1a2c22] w-full max-w-sm rounded-3xl shadow-2xl p-6 animate-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
+                        <h3 className="text-xl font-bold text-[#0d1b12] dark:text-white mb-6">Cor do colete (Time {isColorPickerOpen.team})</h3>
+                        <div className="grid grid-cols-2 gap-3">
+                            {colors.map(c => (
+                                <button
+                                    key={c.class}
+                                    onClick={() => {
+                                        if (isColorPickerOpen.team === 'A') setColorA(c.class);
+                                        else setColorB(c.class);
+                                        setIsColorPickerOpen(null);
+                                    }}
+                                    className={`flex items-center gap-3 p-3 rounded-xl border border-slate-100 dark:border-slate-800 hover:scale-105 transition-all
+                                        ${(isColorPickerOpen.team === 'A' ? colorA : colorB) === c.class ? 'bg-slate-50 dark:bg-slate-800 ring-2 ring-[#13ec5b]' : 'bg-white dark:bg-slate-900'}
+                                    `}
+                                >
+                                    <div className={`size-8 rounded-lg bg-gradient-to-br ${colorClasses[c.class].bg}`}></div>
+                                    <span className="text-sm font-bold dark:text-white">{c.name}</span>
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
@@ -315,10 +496,10 @@ function ActionButton({ onClick, icon, label, colorClass, bgClass, reverse = fal
             onClick={onClick}
             className={`group flex items-center justify-between p-4 bg-white dark:bg-[#1a2c22] border border-slate-200 dark:border-slate-800 hover:border-current rounded-2xl shadow-sm transition-all active:scale-95 ${reverse ? 'flex-row-reverse' : ''} ${colorClass}`}>
             <div className={`flex items-center gap-3 ${reverse ? 'flex-row-reverse' : ''}`}>
-                <span className={`w-10 h-10 rounded-full flex items-center justify-center material-symbols-outlined ${bgClass}`}>{icon}</span>
+                <span className={`w-10 h-10 rounded-full flex items-center justify-center material-symbols-outlined shadow-sm ${bgClass}`}>{icon}</span>
                 <span className="font-bold text-slate-800 dark:text-slate-200 group-hover:text-current transition-colors">{label}</span>
             </div>
-            <span className="material-symbols-outlined text-slate-300 group-hover:text-current">add</span>
+            <span className="material-symbols-outlined text-slate-300 group-hover:text-current opacity-40">add</span>
         </button>
     );
 }

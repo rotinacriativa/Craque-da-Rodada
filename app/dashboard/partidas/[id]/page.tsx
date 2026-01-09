@@ -465,15 +465,22 @@ export default function MatchDetails({ params }: { params: Promise<{ id: string 
                                         onClick={handleCancelMatch}
                                         className="inline-flex items-center gap-1 px-3 py-1 bg-red-50 hover:bg-red-100 rounded-full text-xs font-bold text-red-600 transition-colors"
                                     >
-                                        <span className="material-symbols-outlined text-[16px]">cancel</span>
-                                        Cancelar
+                                        <span className="material-symbols-outlined text-[16px]">delete</span>
+                                        Excluir
                                     </button>
+                                    <Link
+                                        href={`/dashboard/partidas/${matchId}/editar`}
+                                        className="inline-flex items-center gap-1 px-3 py-1 bg-gray-100 hover:bg-gray-200 dark:bg-white/10 dark:hover:bg-white/20 rounded-full text-xs font-bold text-gray-700 dark:text-gray-300 transition-colors"
+                                    >
+                                        <span className="material-symbols-outlined text-[16px]">edit</span>
+                                        Editar
+                                    </Link>
                                     <Link
                                         href={`/dashboard/grupos/${match.group_id}/admin`}
                                         className="inline-flex items-center gap-1 px-3 py-1 bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/20 rounded-full text-xs font-bold text-[#0d1b12] dark:text-white transition-colors"
                                     >
                                         <span className="material-symbols-outlined text-[16px]">settings</span>
-                                        Gerenciar
+                                        Painel
                                     </Link>
                                     <Link
                                         href={`/dashboard/partidas/${matchId}/em-andamento`}
