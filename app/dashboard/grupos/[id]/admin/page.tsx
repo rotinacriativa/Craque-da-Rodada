@@ -315,6 +315,8 @@ export default function GroupAdminDashboard({ params }: { params: Promise<{ id: 
                         </div>
                     </div>
                 </div>
+
+
             </div>
 
             {/* Recent Activity Section */}

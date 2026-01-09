@@ -242,7 +242,7 @@ export default function GroupFinancePage({ params }: { params: Promise<{ id: str
                     <div className="lg:col-span-2 flex flex-col gap-6">
                         <div className="flex items-center justify-between">
                             <h3 className="text-xl font-bold text-[#0d1b12] dark:text-white">Transações Recentes</h3>
-                            <button className="text-[#13ec5b] hover:text-[#0fd652] text-sm font-semibold flex items-center gap-1 transition-colors">
+                            <button disabled className="text-[#13ec5b] opacity-50 cursor-not-allowed text-sm font-semibold flex items-center gap-1 transition-colors" title="Em breve">
                                 Ver tudo <span className="material-symbols-outlined text-[18px]">arrow_forward</span>
                             </button>
                         </div>
@@ -361,8 +361,8 @@ export default function GroupFinancePage({ params }: { params: Promise<{ id: str
                         </div>
 
                         {/* Export Button */}
-                        <button className="flex items-center justify-center gap-2 w-full py-4 rounded-xl border border-dashed border-gray-300 dark:border-gray-600 text-gray-500 hover:text-[#13ec5b] hover:border-[#13ec5b] hover:bg-[#13ec5b]/5 transition-all group">
-                            <span className="material-symbols-outlined group-hover:scale-110 transition-transform">download</span>
+                        <button disabled className="flex items-center justify-center gap-2 w-full py-4 rounded-xl border border-dashed border-gray-300 dark:border-gray-600 text-gray-400 cursor-not-allowed transition-all group opacity-70" title="Em breve">
+                            <span className="material-symbols-outlined">download</span>
                             <span className="font-medium">Exportar Relatório Mensal</span>
                         </button>
                     </div>

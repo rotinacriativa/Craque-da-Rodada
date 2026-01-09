@@ -1,0 +1,10 @@
+{
+    "framework": "nextjs",
+    "cleanUrls": true,
+    "rewrites": [
+        {
+            "source": "/((?!api/|_next/|static/|favicon.ico).*)",
+            "destination": "/"
+        }
+    ]
+}

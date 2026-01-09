@@ -132,28 +132,51 @@ export default function GroupDashboard({ params }: { params: Promise<{ id: strin
 
 
 
+    const [inviteCopied, setInviteCopied] = useState(false);
+
     const handleInvite = async () => {
         if (!group) return;
+        const url = window.location.href;
+
+        // Fallback for copying
+        const copyToClipboard = async (text: string) => {
+            try {
+                await navigator.clipboard.writeText(text);
+                return true;
+            } catch (err) {
+                console.error('Failed to copy:', err);
+                return false;
+            }
+        };
 
         const shareData = {
             title: `Convite para ${group.name}`,
             text: `Vem jogar com a gente no grupo ${group.name}!`,
-            url: window.location.href, // Or a specific invite link if you have one
+            url: url,
         };
 
+        // Try native share first (mobile)
         if (navigator.share) {
             try {
                 await navigator.share(shareData);
+                return;
             } catch (error) {
-                console.log('Error sharing:', error);
+                // If user cancelled, do nothing. If error, fall through to copy.
+                if ((error as any).name !== 'AbortError') {
+                    console.log('Share failed, trying copy');
+                } else {
+                    return; // User cancelled
+                }
             }
+        }
+
+        // Fallback to clipboard
+        const success = await copyToClipboard(url);
+        if (success) {
+            setInviteCopied(true);
+            setTimeout(() => setInviteCopied(false), 3000);
         } else {
-            try {
-                await navigator.clipboard.writeText(shareData.url);
-                alert('Link do grupo copiado! Envie para seus amigos.');
-            } catch (err) {
-                alert('Copie este link: ' + shareData.url);
-            }
+            prompt('Copie o link do grupo:', url);
         }
     };
 
@@ -273,10 +296,15 @@ export default function GroupDashboard({ params }: { params: Promise<{ id: strin
                                     </div>
                                     <button
                                         onClick={handleInvite}
-                                        className="flex items-center gap-2 px-4 py-2.5 bg-gray-100 hover:bg-gray-200 dark:bg-[#2a4031] dark:hover:bg-[#35503d] text-[#0d1b12] dark:text-white rounded-full font-bold transition-colors"
+                                        className={`flex items-center gap-2 px-4 py-2.5 rounded-full font-bold transition-all ${inviteCopied
+                                                ? "bg-green-600 text-white shadow-lg scale-105"
+                                                : "bg-gray-100 hover:bg-gray-200 dark:bg-[#2a4031] dark:hover:bg-[#35503d] text-[#0d1b12] dark:text-white"
+                                            }`}
                                     >
-                                        <span className="material-symbols-outlined text-lg">share</span>
-                                        <span>Convidar galera</span>
+                                        <span className="material-symbols-outlined text-lg">
+                                            {inviteCopied ? "check_circle" : "share"}
+                                        </span>
+                                        <span>{inviteCopied ? "Link Copiado!" : "Convidar galera"}</span>
                                     </button>
 
                                     {/* Create Match (Always visible for simplified flow or check logic later) */}
@@ -319,7 +347,7 @@ export default function GroupDashboard({ params }: { params: Promise<{ id: strin
                     <div className="lg:col-span-2 flex flex-col gap-6">
                         <div className="flex items-center justify-between">
                             <h2 className="text-xl font-bold text-[#0d1b12] dark:text-white">Próximas Partidas</h2>
-                            <Link href="#" className="text-sm font-medium text-[#0ea841] dark:text-[#13ec5b] hover:underline">Ver histórico</Link>
+                            <span className="text-sm font-medium text-gray-400 cursor-not-allowed" title="Em breve">Ver histórico</span>
                         </div>
 
                         {isLoading ? (
@@ -426,7 +454,11 @@ export default function GroupDashboard({ params }: { params: Promise<{ id: strin
                                     <span className="material-symbols-outlined text-[#13ec5b]">groups</span>
                                     Membros ({members.length})
                                 </h3>
-                                <Link className="text-xs font-bold text-[#0ea841] dark:text-[#13ec5b] hover:underline" href="#">Ver todos</Link>
+                                {isAdmin ? (
+                                    <Link className="text-xs font-bold text-[#0ea841] dark:text-[#13ec5b] hover:underline" href={`/dashboard/grupos/${groupId}/admin/membros`}>Ver todos</Link>
+                                ) : (
+                                    <span className="text-xs font-bold text-gray-400 cursor-not-allowed" title="Em breve">Ver todos</span>
+                                )}
                             </div>
                             <div className="grid grid-cols-4 gap-3">
                                 {members.slice(0, 7).map((member) => (

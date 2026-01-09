@@ -229,7 +229,7 @@ export default function DashboardPage() {
                 <div className="bg-white dark:bg-[#1a2c20] rounded-[2rem] p-6 border border-[#e7f3eb] dark:border-[#2a4535] shadow-sm">
                     <div className="flex items-center justify-between mb-6">
                         <h4 className="font-bold text-lg text-[#0d1b12] dark:text-white">Atividade Recente</h4>
-                        <button className="text-[#4c9a66] hover:text-[#13ec5b] transition-colors">
+                        <button disabled className="text-[#4c9a66] opacity-50 cursor-not-allowed" title="Em breve">
                             <span className="material-symbols-outlined">more_horiz</span>
                         </button>
                     </div>

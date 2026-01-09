@@ -221,7 +221,7 @@ export default function GroupMembersPage({ params }: { params: Promise<{ id: str
                                             </div>
                                             <div className="flex items-center gap-2">
                                                 {/* Actions */}
-                                                <button className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-slate-900 dark:hover:text-white transition-colors" title="Ver Perfil">
+                                                <button disabled className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-300 cursor-not-allowed" title="Em breve">
                                                     <span className="material-symbols-outlined text-[20px]">visibility</span>
                                                 </button>
                                                 <button

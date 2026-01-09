@@ -1,6 +1,10 @@
 
+"use client";
+
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
 import { Lexend, Noto_Sans } from "next/font/google";
 import { Instagram, Twitter, Facebook } from "lucide-react";
 
@@ -8,6 +12,8 @@ const lexend = Lexend({ subsets: ["latin"] });
 const notoSans = Noto_Sans({ subsets: ["latin"], weight: ["400", "500", "700"] });
 
 export default function Home() {
+  const router = useRouter();
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   return (
     <div className={`${lexend.className} relative flex min-h-screen w-full flex-col group/design-root bg-[#f6f8f6] dark:bg-[#102216] text-[#0d1b12] dark:text-gray-100 overflow-x-hidden`}>
       {/* Material Symbols Font */}
@@ -39,11 +45,35 @@ export default function Home() {
             </Link>
           </div>
         </div>
-        {/* Mobile Menu Icon (Placeholder for functionality) */}
-        <div className="md:hidden">
-          <span className="material-symbols-outlined cursor-pointer">menu</span>
+        {/* Mobile Menu Icon */}
+        <div className="md:hidden" onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}>
+          <span className="material-symbols-outlined cursor-pointer select-none">
+            {isMobileMenuOpen ? 'close' : 'menu'}
+          </span>
         </div>
       </header>
+
+      {/* Mobile Menu Overlay */}
+      {isMobileMenuOpen && (
+        <div className="fixed inset-0 z-40 bg-white dark:bg-[#102216] pt-24 px-6 flex flex-col items-center gap-8 md:hidden animate-in fade-in slide-in-from-top-4 duration-200">
+          <nav className="flex flex-col items-center gap-6 w-full">
+            <a onClick={() => setIsMobileMenuOpen(false)} className="text-xl font-medium hover:text-[#13ec5b] transition-colors" href="#como-funciona">Como funciona</a>
+            <div className="h-px w-full bg-[#e7f3eb] dark:bg-white/10"></div>
+            <Link
+              href="/login"
+              className="flex items-center justify-center w-full h-14 rounded-full border border-[#e7f3eb] dark:border-white/20 hover:bg-[#e7f3eb] dark:hover:bg-white/10 text-[#0d1b12] dark:text-white text-lg font-bold transition-all"
+            >
+              Login
+            </Link>
+            <Link
+              href="/cadastro"
+              className="flex items-center justify-center w-full h-14 rounded-full bg-[#13ec5b] hover:bg-[#13ec5b]/90 text-[#0d1b12] text-lg font-bold shadow-lg shadow-[#13ec5b]/20 transition-all"
+            >
+              Criar conta grátis
+            </Link>
+          </nav>
+        </div>
+      )}
 
       <main className="flex-1 flex flex-col items-center w-full">
         {/* Hero Section */}

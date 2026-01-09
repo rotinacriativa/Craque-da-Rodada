@@ -10,15 +10,20 @@ const notoSans = Noto_Sans({ subsets: ["latin"], weight: ["400", "500", "700"] }
 
 export default function RecuperarSenha() {
     const [emailSent, setEmailSent] = useState(false);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
 
-    const handleSubmit = (event: React.FormEvent) => {
+    const handleSubmit = async (event: React.FormEvent) => {
         event.preventDefault();
-        setEmailSent(true);
+        setLoading(true);
+        setError(null);
+        setEmailSent(false);
+
         // Simulate API call
         setTimeout(() => {
-            alert("Link de recuperação enviado (simulação)");
-            setEmailSent(false);
-        }, 1000);
+            setLoading(false);
+            setEmailSent(true);
+        }, 1500);
     };
 
     return (
@@ -76,37 +81,56 @@ export default function RecuperarSenha() {
                             </div>
                             {/* Title */}
                             <h1 className="text-2xl sm:text-3xl font-bold text-[#0d1b12] dark:text-white mb-3">Recuperar Senha</h1>
-                            {/* Description */}
-                            <p className="text-gray-500 dark:text-gray-400 text-base leading-relaxed mb-8 max-w-sm">
-                                Esqueceu sua senha? Não se preocupe. Digite seu email abaixo e enviaremos um link para redefinir seu acesso.
-                            </p>
-                            {/* Form */}
-                            <form className="w-full space-y-6" onSubmit={handleSubmit}>
-                                {/* Email Input */}
-                                <div className="text-left group">
-                                    <label className="block text-sm font-medium text-[#0d1b12] dark:text-gray-300 mb-2 ml-1" htmlFor="email">Email</label>
-                                    <div className="relative">
-                                        <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-gray-400 group-focus-within:text-[#13ec5b] transition-colors">
-                                            <span className="material-symbols-outlined">mail</span>
-                                        </div>
-                                        <input
-                                            className={`block w-full pl-11 pr-4 py-3.5 bg-[#f8fcf9] dark:bg-black/20 border border-gray-200 dark:border-gray-700 rounded-lg text-[#0d1b12] dark:text-white placeholder-gray-400 focus:outline-none focus:border-[#13ec5b] focus:ring-1 focus:ring-[#13ec5b] transition-all sm:text-sm ${notoSans.className}`}
-                                            id="email"
-                                            placeholder="seu@email.com"
-                                            required
-                                            type="email"
-                                        />
-                                    </div>
+
+                            {/* Description or Success Message */}
+                            {!emailSent ? (
+                                <p className="text-gray-500 dark:text-gray-400 text-base leading-relaxed mb-8 max-w-sm">
+                                    Esqueceu sua senha? Não se preocupe. Digite seu email abaixo e enviaremos um link para redefinir seu acesso.
+                                </p>
+                            ) : (
+                                <div className="mb-8 p-4 bg-green-50 dark:bg-green-900/10 border border-green-100 dark:border-green-900/30 rounded-xl animate-in fade-in slide-in-from-bottom-2">
+                                    <p className="text-green-700 dark:text-green-400 font-bold mb-1">Email enviado!</p>
+                                    <p className="text-sm text-green-600 dark:text-green-500">Verifique sua caixa de entrada (e spam) para redefinir sua senha.</p>
                                 </div>
-                                {/* Action Button */}
-                                <button
-                                    disabled={emailSent}
-                                    className="w-full flex items-center justify-center bg-[#13ec5b] hover:bg-[#0fb946] text-[#0d1b12] font-bold text-base py-3.5 rounded-full transition-all shadow-lg shadow-[#13ec5b]/25 hover:shadow-[#13ec5b]/40 active:scale-[0.98] group disabled:opacity-70 disabled:cursor-not-allowed"
-                                >
-                                    <span>{emailSent ? "Enviando..." : "Enviar link de recuperação"}</span>
-                                    {!emailSent && <span className="material-symbols-outlined ml-2 text-xl group-hover:translate-x-1 transition-transform">arrow_forward</span>}
-                                </button>
-                            </form>
+                            )}
+
+                            {/* Form */}
+                            {!emailSent && (
+                                <form className="w-full space-y-6" onSubmit={handleSubmit}>
+                                    {/* Email Input */}
+                                    <div className="text-left group">
+                                        <label className="block text-sm font-medium text-[#0d1b12] dark:text-gray-300 mb-2 ml-1" htmlFor="email">Email</label>
+                                        <div className="relative">
+                                            <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-gray-400 group-focus-within:text-[#13ec5b] transition-colors">
+                                                <span className="material-symbols-outlined">mail</span>
+                                            </div>
+                                            <input
+                                                className={`block w-full pl-11 pr-4 py-3.5 bg-[#f8fcf9] dark:bg-black/20 border border-gray-200 dark:border-gray-700 rounded-lg text-[#0d1b12] dark:text-white placeholder-gray-400 focus:outline-none focus:border-[#13ec5b] focus:ring-1 focus:ring-[#13ec5b] transition-all sm:text-sm ${notoSans.className}`}
+                                                id="email"
+                                                placeholder="seu@email.com"
+                                                required
+                                                type="email"
+                                                disabled={loading}
+                                            />
+                                        </div>
+                                    </div>
+                                    {/* Action Button */}
+                                    <button
+                                        disabled={loading}
+                                        className="w-full flex items-center justify-center bg-[#13ec5b] hover:bg-[#0fb946] text-[#0d1b12] font-bold text-base py-3.5 rounded-full transition-all shadow-lg shadow-[#13ec5b]/25 hover:shadow-[#13ec5b]/40 active:scale-[0.98] group disabled:opacity-70 disabled:cursor-not-allowed"
+                                    >
+                                        {loading ? (
+                                            <span className="w-6 h-6 border-2 border-[#0d1b12] border-t-transparent rounded-full animate-spin"></span>
+                                        ) : (
+                                            <>
+                                                <span>Enviar link de recuperação</span>
+                                                <span className="material-symbols-outlined ml-2 text-xl group-hover:translate-x-1 transition-transform">arrow_forward</span>
+                                            </>
+                                        )}
+                                    </button>
+                                </form>
+                            )}
+
                             {/* Footer Link */}
                             <div className="mt-8 pt-6 border-t border-gray-100 dark:border-white/5 w-full">
                                 <Link className="inline-flex items-center text-sm font-medium text-gray-500 hover:text-[#0d1b12] dark:text-gray-400 dark:hover:text-white transition-colors gap-2 group" href="/login">
@@ -115,13 +139,6 @@ export default function RecuperarSenha() {
                                 </Link>
                             </div>
                         </div>
-                    </div>
-                    {/* Trust Badge / Footer Note */}
-                    <div className="mt-8 text-center opacity-60">
-                        <p className="text-xs text-gray-500 dark:text-gray-500 flex items-center justify-center gap-1">
-                            <span className="material-symbols-outlined text-sm">verified_user</span>
-                            Seguro e criptografado pela Craque da Rodada
-                        </p>
                     </div>
                 </div>
             </main>

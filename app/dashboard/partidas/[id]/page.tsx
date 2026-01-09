@@ -461,7 +461,7 @@ export default function MatchDetails({ params }: { params: Promise<{ id: string 
                                         Gerenciar
                                     </Link>
                                     <Link
-                                        href={`/dashboard/grupos/${match.group_id}/partidas/${matchId}/em-andamento`}
+                                        href={`/dashboard/partidas/${matchId}/em-andamento`}
                                         className="inline-flex items-center gap-1 px-3 py-1 bg-[#13ec5b] hover:bg-[#0fd652] rounded-full text-xs font-bold text-[#0d1b12] transition-colors"
                                     >
                                         <span className="material-symbols-outlined text-[16px]">timer</span>

@@ -245,39 +245,12 @@ export default function GroupSettingsPage({ params }: { params: Promise<{ id: st
     const confirmDeleteGroup = async () => {
         setIsDeleting(true);
         try {
-            // 1. Get all matches to delete dependants
-            const { data: matches, error: matchesFetchError } = await supabase
-                .from('matches')
-                .select('id')
-                .eq('group_id', groupId);
+            // RELY ON DATABASE CASCADING
+            // matches, transactions, and group_members are all set to ON DELETE CASCADE
+            // So we just need to delete the group, and everything else goes with it.
+            // IMPORTANT: We MUST NOT delete group_members manually first, otherwise we lose the "Admin" permission 
+            // required to delete the group itself (since RLS checks if we are an admin).
 
-            if (matchesFetchError) throw matchesFetchError;
-
-            const matchIds = matches?.map(m => m.id) || [];
-
-            if (matchIds.length > 0) {
-                // Delete Match Participants
-                const { error: partError } = await supabase.from('match_participants').delete().in('match_id', matchIds);
-                if (partError) throw partError;
-
-                // Delete Match Votes
-                const { error: votesError } = await supabase.from('match_votes').delete().in('match_id', matchIds);
-                if (votesError) throw votesError;
-
-                // Delete Matches
-                const { error: matchesDelError } = await supabase.from('matches').delete().in('id', matchIds);
-                if (matchesDelError) throw matchesDelError;
-            }
-
-            // 2. Delete Transactions
-            const { error: transError } = await supabase.from('transactions').delete().eq('group_id', groupId);
-            if (transError) throw transError;
-
-            // 3. Delete Group Members
-            const { error: membersError } = await supabase.from('group_members').delete().eq('group_id', groupId);
-            if (membersError) throw membersError;
-
-            // 4. Delete Group
             const { error } = await supabase
                 .from("groups")
                 .delete()
@@ -292,8 +265,10 @@ export default function GroupSettingsPage({ params }: { params: Promise<{ id: st
 
         } catch (error: any) {
             console.error("Error deleting group:", error);
-            setMessage({ type: 'error', text: "Erro ao excluir grupo: " + error.message });
-            setIsDeleting(false); // Only stop loading if error
+            // Alert full error details for debugging
+            alert("Erro ao excluir grupo: " + (error.message || JSON.stringify(error)));
+            setMessage({ type: 'error', text: "Erro ao excluir grupo: " + (error.message || "Erro desconhecido") });
+            setIsDeleting(false);
             setIsDeleteModalOpen(false);
         }
     };

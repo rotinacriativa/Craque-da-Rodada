@@ -166,8 +166,14 @@ export default function Cadastro() {
                                 type="submit"
                                 disabled={loading}
                             >
-                                <span>Criar conta</span>
-                                <span className="material-symbols-outlined group-hover:translate-x-1 transition-transform">arrow_forward</span>
+                                {loading ? (
+                                    <span className="w-6 h-6 border-2 border-[#0d1b12] border-t-transparent rounded-full animate-spin"></span>
+                                ) : (
+                                    <>
+                                        <span>Criar conta</span>
+                                        <span className="material-symbols-outlined group-hover:translate-x-1 transition-transform">arrow_forward</span>
+                                    </>
+                                )}
                             </button>
                         </form>
                         {/* Footer Links */}

@@ -165,8 +165,14 @@ export default function Login() {
                                 className={`mt-2 flex w-full cursor-pointer items-center justify-center overflow-hidden rounded-full h-12 px-5 bg-[#13ec5b] hover:bg-[#0fb946] text-[#0d1b12] text-base font-bold leading-normal tracking-[0.015em] transition-all shadow-lg shadow-[#13ec5b]/20 hover:shadow-[#13ec5b]/40 transform active:scale-[0.98] ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}
                                 type="submit"
                             >
-                                <span className="truncate">Entrar</span>
-                                <span className="material-symbols-outlined ml-2 text-sm">arrow_forward</span>
+                                {loading ? (
+                                    <span className="w-5 h-5 border-2 border-[#0d1b12] border-t-transparent rounded-full animate-spin"></span>
+                                ) : (
+                                    <>
+                                        <span className="truncate">Entrar</span>
+                                        <span className="material-symbols-outlined ml-2 text-sm">arrow_forward</span>
+                                    </>
+                                )}
                             </button>
                         </form>
 
