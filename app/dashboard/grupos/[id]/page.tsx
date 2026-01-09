@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { use, useEffect, useState } from "react";
 import { supabase } from "../../../../src/lib/client";
+import { getResilientUser } from "../../../../src/lib/auth-helpers";
 import { formatDateForGroup } from "../../../../src/lib/utils";
 import ConfirmationModal from "../../../components/ConfirmationModal";
 import NextStepsGuide from "./NextStepsGuide";
@@ -30,21 +31,7 @@ export default function GroupDashboard({ params }: { params: Promise<{ id: strin
     const fetchData = async () => {
         try {
             // 1. Get Current User with Multi-Stage Check (Resilient for Mobile)
-            let { data: { user } } = await supabase.auth.getUser();
-
-            if (!user) {
-                console.log("No user found on first check, waiting for hydration...");
-                // Wait for mobile session to hydrate
-                await new Promise(resolve => setTimeout(resolve, 1500));
-                const { data: { user: retryUser } } = await supabase.auth.getUser();
-                user = retryUser;
-            }
-
-            if (!user) {
-                console.log("Final auth check failed, redirecting to login");
-                router.push("/login");
-                return;
-            }
+            const user = await getResilientUser(supabase);
             setCurrentUser(user);
 
             // Fetch Group Details

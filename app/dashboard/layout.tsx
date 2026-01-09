@@ -6,6 +6,7 @@ import { Lexend } from "next/font/google";
 import { usePathname, useRouter } from "next/navigation";
 import OnboardingModal from "../components/OnboardingModal";
 import { supabase } from "../../src/lib/client";
+import { getResilientUser } from "../../src/lib/auth-helpers";
 import { cn } from "../../src/lib/utils";
 
 const lexend = Lexend({ subsets: ["latin"] });
@@ -25,7 +26,7 @@ export default function DashboardLayout({
 
     useEffect(() => {
         async function fetchUser() {
-            const { data: { user } } = await supabase.auth.getUser();
+            const user = await getResilientUser(supabase);
             if (user) {
                 // Try to get profile data first
                 const { data: profile } = await supabase

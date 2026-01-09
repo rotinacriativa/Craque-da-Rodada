@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "../../../src/lib/client";
+import { getResilientUser } from "../../../src/lib/auth-helpers";
 import ConfirmationModal from "../../components/ConfirmationModal";
 
 interface IBGEUF {
@@ -89,7 +90,7 @@ export default function UserProfile() {
     useEffect(() => {
         async function fetchProfile() {
             try {
-                const { data: { user } } = await supabase.auth.getUser();
+                const user = await getResilientUser(supabase);
                 if (!user) {
                     router.push('/login');
                     return;

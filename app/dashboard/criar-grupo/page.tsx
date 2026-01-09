@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { supabase } from "../../../src/lib/client";
+import { getResilientUser } from "../../../src/lib/auth-helpers";
 import Link from "next/link";
 
 export default function CreateGroupPage() {
@@ -33,7 +34,7 @@ export default function CreateGroupPage() {
         setError(null);
 
         try {
-            const { data: { user } } = await supabase.auth.getUser();
+            const user = await getResilientUser(supabase);
             if (!user) throw new Error("Usuário não autenticado");
 
             if (!name) throw new Error("Preencha o nome da sua pelada.");

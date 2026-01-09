@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "../../../src/lib/client";
+import { getResilientUser } from "../../../src/lib/auth-helpers";
 import ConfirmationModal from "../../components/ConfirmationModal";
 
 export default function SettingsPage() {
@@ -29,7 +30,7 @@ export default function SettingsPage() {
 
     useEffect(() => {
         async function fetchUserData() {
-            const { data: { user } } = await supabase.auth.getUser();
+            const user = await getResilientUser(supabase);
             if (user) {
                 setEmail(user.email || "");
                 if (user.user_metadata?.full_name) {

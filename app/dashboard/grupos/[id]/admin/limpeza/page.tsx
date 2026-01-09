@@ -3,6 +3,7 @@
 import { use, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "../../../../../../src/lib/client";
+import { getResilientUser } from "../../../../../../src/lib/auth-helpers";
 import Link from "next/link";
 
 export default function CleanupPage({ params }: { params: Promise<{ id: string }> }) {
@@ -11,9 +12,11 @@ export default function CleanupPage({ params }: { params: Promise<{ id: string }
     const router = useRouter();
 
     const [members, setMembers] = useState<any[]>([]);
+    const [matchesCount, setMatchesCount] = useState(0);
     const [currentUser, setCurrentUser] = useState<any>(null);
     const [loading, setLoading] = useState(true);
     const [deleting, setDeleting] = useState(false);
+    const [deletingMatches, setDeletingMatches] = useState(false);
 
     useEffect(() => {
         fetchData();
@@ -21,11 +24,14 @@ export default function CleanupPage({ params }: { params: Promise<{ id: string }
 
     const fetchData = async () => {
         try {
-            // Get current user
-            const { data: { user } } = await supabase.auth.getUser();
-            setCurrentUser(user);
+            // 1. Get Current User with Multi-Stage Check (Resilient for Mobile)
+            const user = await getResilientUser(supabase);
 
-            if (!user) return;
+            if (!user) {
+                router.push("/login");
+                return;
+            }
+            setCurrentUser(user);
 
             // Fetch members
             const { data: membersData, error: membersError } = await supabase
@@ -47,6 +53,14 @@ export default function CleanupPage({ params }: { params: Promise<{ id: string }
             }
 
             setMembers(membersWithProfiles || []);
+
+            // Fetch Matches Count
+            const { count: mCount } = await supabase
+                .from('matches')
+                .select('*', { count: 'exact', head: true })
+                .eq('group_id', groupId);
+
+            setMatchesCount(mCount || 0);
 
         } catch (error) {
             console.error("Error fetching data:", error);
@@ -91,6 +105,38 @@ export default function CleanupPage({ params }: { params: Promise<{ id: string }
             alert("Erro ao deletar membros: " + error.message);
         } finally {
             setDeleting(false);
+        }
+    };
+
+    const handleDeleteAllMatches = async () => {
+        if (!currentUser) return;
+
+        if (matchesCount === 0) {
+            alert("Não há partidas para deletar.");
+            return;
+        }
+
+        if (!confirm(`TEM CERTEZA? Isso excluirá TODAS AS ${matchesCount} PARTIDAS deste grupo. Esta ação é IRREVERSÍVEL e removerá todos os dados de votação e participação.`)) {
+            return;
+        }
+
+        setDeletingMatches(true);
+
+        try {
+            const { error } = await supabase
+                .from('matches')
+                .delete()
+                .eq('group_id', groupId);
+
+            if (error) throw error;
+
+            alert(`Sucesso! Todas as partidas foram removidas.`);
+            fetchData();
+        } catch (error: any) {
+            console.error("Error deleting matches:", error);
+            alert("Erro ao deletar partidas: " + error.message);
+        } finally {
+            setDeletingMatches(false);
         }
     };
 
@@ -148,6 +194,42 @@ export default function CleanupPage({ params }: { params: Promise<{ id: string }
                         <>
                             <span className="material-symbols-outlined">delete_forever</span>
                             Confirmar Limpeza (Manter apenas EU)
+                        </>
+                    )}
+                </button>
+            </div>
+
+            <div className="bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-800 rounded-2xl p-6">
+                <h1 className="text-2xl font-bold text-amber-600 dark:text-amber-400 mb-2 flex items-center gap-2">
+                    <span className="material-symbols-outlined">delete_sweep</span>
+                    Limpeza de Partidas
+                </h1>
+                <p className="text-gray-700 dark:text-gray-300 mb-6 font-medium">
+                    Remova todas as partidas cadastradas neste grupo para começar do zero.
+                </p>
+
+                <div className="bg-white dark:bg-[#1a2c20] p-4 rounded-xl border border-gray-200 dark:border-[#2a4032] mb-6">
+                    <h3 className="font-bold mb-3">Resumo da Ação:</h3>
+                    <ul className="list-disc list-inside space-y-1 text-sm">
+                        <li>Total de partidas no grupo: <strong>{matchesCount}</strong></li>
+                        <li className="text-amber-600 font-bold">TODAS as partidas serão EXCLUÍDAS.</li>
+                    </ul>
+                </div>
+
+                <button
+                    onClick={handleDeleteAllMatches}
+                    disabled={deletingMatches || matchesCount === 0}
+                    className="w-full py-4 bg-amber-500 hover:bg-amber-600 text-white font-bold rounded-xl shadow-lg shadow-amber-500/20 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                    {deletingMatches ? (
+                        <>
+                            <span className="size-5 border-2 border-white border-r-transparent rounded-full animate-spin"></span>
+                            Limpando Partidas...
+                        </>
+                    ) : (
+                        <>
+                            <span className="material-symbols-outlined">delete_sweep</span>
+                            Excluir Todas as Partidas
                         </>
                     )}
                 </button>

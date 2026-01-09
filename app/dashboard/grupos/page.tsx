@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "../../../src/lib/client";
+import { getResilientUser } from "../../../src/lib/auth-helpers";
 
 export default function GroupsPage() {
     const router = useRouter();
@@ -14,17 +15,9 @@ export default function GroupsPage() {
         async function fetchGroups() {
             try {
                 // 1. Get Current User with Multi-Stage Check (Resilient for Mobile)
-                let { data: { user } } = await supabase.auth.getUser();
+                const user = await getResilientUser(supabase);
 
                 if (!user) {
-                    console.log("No user found on first check, waiting for hydration...");
-                    await new Promise(resolve => setTimeout(resolve, 1500));
-                    const { data: { user: retryUser } } = await supabase.auth.getUser();
-                    user = retryUser;
-                }
-
-                if (!user) {
-                    console.log("Final auth check failed, redirecting to login");
                     router.push("/login");
                     return;
                 }

@@ -2,7 +2,10 @@
 
 import { use, useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { supabase } from "../../../../../../src/lib/client";
+import { getResilientUser } from "../../../../../../src/lib/auth-helpers";
+import ConfirmationModal from "../../../../../components/ConfirmationModal";
 
 interface Match {
     id: string;
@@ -19,34 +22,40 @@ interface Match {
 export default function GroupMatchesPage({ params }: { params: Promise<{ id: string }> }) {
     const { id } = use(params);
     const groupId = id;
+    const router = useRouter();
 
     const [activeTab, setActiveTab] = useState<"upcoming" | "ongoing" | "past">("upcoming");
     const [matches, setMatches] = useState<Match[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [userRole, setUserRole] = useState<string | null>(null);
+
+    // Modals
+    const [matchToDelete, setMatchToDelete] = useState<Match | null>(null);
+    const [isDeleting, setIsDeleting] = useState(false);
 
     useEffect(() => {
-        async function fetchMatches() {
+        const fetchData = async () => {
             try {
+                // 1. Get Current User with Multi-Stage Check (Resilient for Mobile)
+                const user = await getResilientUser(supabase);
+
+                if (!user) {
+                    router.push("/login");
+                    return;
+                }
+
                 // Fetch matches for this group
                 const { data: matchesData, error: matchesError } = await supabase
                     .from("matches")
                     .select(`
                         *,
-                        match_participants:match_participants(count)
+                        match_participants: match_participants(count)
                     `)
                     .eq("group_id", groupId)
                     .order("date", { ascending: true })
                     .order("start_time", { ascending: true });
 
                 if (matchesError) throw matchesError;
-
-                // Process data (Supabase returns count as an array of objects if grouping, or just property if configured, 
-                // but usually .select('*, match_participants(count)') returns { ..., match_participants: [ { count: 3 } ] } 
-                // Wait, select(count) on relation usually returns { count: N, ... }. 
-                // Actually simpler: fetch matches, then maybe separate count or use the return structure carefully.
-                // Standard Supabase JS with Foreign Key: .select('*, match_participants(count)') returns match_participants as [{count: N}] array.
-                // NOTE: We might need 'head: true' or exact setup. 
-                // Let's assume basic retrieval and cleaning.
 
                 const processedMatches = (matchesData || []).map((m: any) => ({
                     ...m,
@@ -55,6 +64,18 @@ export default function GroupMatchesPage({ params }: { params: Promise<{ id: str
 
                 setMatches(processedMatches);
 
+                // Fetch User Role in Group
+                const { data: memberData } = await supabase
+                    .from("group_members")
+                    .select("role")
+                    .eq("group_id", groupId)
+                    .eq("user_id", user.id)
+                    .single();
+
+                if (memberData) {
+                    setUserRole(memberData.role);
+                }
+
             } catch (error) {
                 console.error("Error fetching matches:", error);
             } finally {
@@ -62,36 +83,51 @@ export default function GroupMatchesPage({ params }: { params: Promise<{ id: str
             }
         }
 
-        fetchMatches();
+        fetchData();
     }, [groupId]);
+
+    const handleDeleteMatch = (match: Match) => {
+        setMatchToDelete(match);
+    };
+
+    const confirmDeleteMatch = async () => {
+        if (!matchToDelete) return;
+        setIsDeleting(true);
+
+        try {
+            const { error, count } = await supabase
+                .from("matches")
+                .delete({ count: 'exact' })
+                .eq("id", matchToDelete.id);
+
+            if (error) throw error;
+
+            if (count === 0) {
+                throw new Error("Permissão negada ou partida não encontrada.");
+            }
+
+            setMatches(prev => prev.filter(m => m.id !== matchToDelete.id));
+            setMatchToDelete(null);
+        } catch (error: any) {
+            console.error("Error deleting match:", error);
+            alert("Erro ao excluir partida: " + error.message);
+        } finally {
+            setIsDeleting(false);
+        }
+    };
 
     // Filtering logic
     const filteredMatches = matches.filter(match => {
-        const matchDate = new Date(`${match.date}T${match.start_time}`);
         const now = new Date();
-
-        // Simple comparison (ignoring duration for "ongoing" precision for now, treating "ongoing" as Today for simplicity or purely time based)
-        // Let's strictly follow the tabs:
-        // Próximas: Future dates OR Today but future time.
-        // Em andamento: Right now (difficult to catch exactly). 
-        // Encerradas: Past dates OR Today but past time.
-
-        // Refined Logic:
-        // Past: EndTime < Now
-        // Upcoming: StartTime > Now
-        // Ongoing: StartTime <= Now <= EndTime
-
-        // Construct full End Date/Time
+        const startDateTime = new Date(`${match.date}T${match.start_time}`);
         const endDateTime = new Date(`${match.date}T${match.end_time || match.start_time}`);
-        // Update endDateTime if it doesn't have accurate duration, but assume end_time exists.
 
         if (activeTab === "past") {
             return endDateTime < now;
         } else if (activeTab === "upcoming") {
-            return new Date(`${match.date}T${match.start_time}`) > now;
+            return startDateTime > now;
         } else if (activeTab === "ongoing") {
-            const start = new Date(`${match.date}T${match.start_time}`);
-            return start <= now && endDateTime >= now;
+            return startDateTime <= now && endDateTime >= now;
         }
         return false;
     });
@@ -101,6 +137,8 @@ export default function GroupMatchesPage({ params }: { params: Promise<{ id: str
         const date = new Date(`${dateStr}T${timeStr}`);
         return date.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }) + `, ${timeStr.slice(0, 5)}`;
     };
+
+    const isAdmin = userRole === 'admin' || userRole === 'owner';
 
     return (
         <div className="flex-1 px-6 pb-12 md:px-10 h-full overflow-y-auto">
@@ -126,8 +164,8 @@ export default function GroupMatchesPage({ params }: { params: Promise<{ id: str
                     <button
                         onClick={() => setActiveTab("upcoming")}
                         className={`px-5 py-2.5 text-sm font-bold -mb-1.5 transition-colors ${activeTab === "upcoming"
-                                ? "text-slate-900 dark:text-white border-b-2 border-[#13ec5b]"
-                                : "text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200"
+                            ? "text-slate-900 dark:text-white border-b-2 border-[#13ec5b]"
+                            : "text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200"
                             }`}
                     >
                         Próximas
@@ -135,8 +173,8 @@ export default function GroupMatchesPage({ params }: { params: Promise<{ id: str
                     <button
                         onClick={() => setActiveTab("ongoing")}
                         className={`px-5 py-2.5 text-sm font-bold -mb-1.5 transition-colors ${activeTab === "ongoing"
-                                ? "text-slate-900 dark:text-white border-b-2 border-[#13ec5b]"
-                                : "text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200"
+                            ? "text-slate-900 dark:text-white border-b-2 border-[#13ec5b]"
+                            : "text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200"
                             }`}
                     >
                         Em andamento
@@ -144,8 +182,8 @@ export default function GroupMatchesPage({ params }: { params: Promise<{ id: str
                     <button
                         onClick={() => setActiveTab("past")}
                         className={`px-5 py-2.5 text-sm font-bold -mb-1.5 transition-colors ${activeTab === "past"
-                                ? "text-slate-900 dark:text-white border-b-2 border-[#13ec5b]"
-                                : "text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200"
+                            ? "text-slate-900 dark:text-white border-b-2 border-[#13ec5b]"
+                            : "text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200"
                             }`}
                     >
                         Encerradas
@@ -170,9 +208,8 @@ export default function GroupMatchesPage({ params }: { params: Promise<{ id: str
                         </div>
                     ) : (
                         filteredMatches.map(match => {
-                            // Calculate status logic for badge
                             const filled = match.participants_count || 0;
-                            const total = match.capacity || 20; // default
+                            const total = match.capacity || 20;
                             const percentage = Math.min(100, (filled / total) * 100);
 
                             let statusBadge;
@@ -203,11 +240,9 @@ export default function GroupMatchesPage({ params }: { params: Promise<{ id: str
                                 );
                             }
 
-                            // Bar Color
                             let barColor = "bg-[#13ec5b]";
                             if (filled >= total) barColor = "bg-red-500";
                             else if (filled > total * 0.8) barColor = "bg-amber-500";
-
 
                             return (
                                 <div key={match.id} className="bg-white dark:bg-[#1a2c22] rounded-2xl p-6 border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-md transition-all group flex flex-col h-full relative overflow-hidden">
@@ -215,8 +250,22 @@ export default function GroupMatchesPage({ params }: { params: Promise<{ id: str
 
                                     <div className="flex justify-between items-start mb-4 z-10 relative">
                                         {statusBadge}
-                                        <div className="p-1.5 rounded-full bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 text-slate-400 group-hover:text-[#13ec5b] transition-colors">
-                                            <span className="material-symbols-outlined text-[20px]">sports_soccer</span>
+                                        <div className="flex gap-1.5">
+                                            {isAdmin && (
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.preventDefault();
+                                                        handleDeleteMatch(match);
+                                                    }}
+                                                    className="p-1.5 rounded-full bg-red-50 dark:bg-red-900/20 text-red-400 hover:text-red-600 transition-colors border border-red-100 dark:border-red-900/30"
+                                                    title="Excluir Partida"
+                                                >
+                                                    <span className="material-symbols-outlined text-[20px]">delete_forever</span>
+                                                </button>
+                                            )}
+                                            <div className="p-1.5 rounded-full bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 text-slate-400 group-hover:text-[#13ec5b] transition-colors">
+                                                <span className="material-symbols-outlined text-[20px]">sports_soccer</span>
+                                            </div>
                                         </div>
                                     </div>
 
@@ -260,6 +309,18 @@ export default function GroupMatchesPage({ params }: { params: Promise<{ id: str
                     )}
                 </div>
             </div>
+
+            <ConfirmationModal
+                isOpen={!!matchToDelete}
+                onClose={() => setMatchToDelete(null)}
+                onConfirm={confirmDeleteMatch}
+                title="Excluir Partida"
+                message={`Tem certeza que deseja excluir a partida "${matchToDelete?.name}"? Esta ação não pode ser desfeita.`}
+                confirmText="Excluir"
+                cancelText="Cancelar"
+                type="danger"
+                isLoading={isDeleting}
+            />
         </div>
     );
 }

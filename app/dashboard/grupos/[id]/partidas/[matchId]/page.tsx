@@ -1,14 +1,20 @@
 "use client";
 
-import { use, useState, useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { use, useEffect, useState } from "react";
 import { supabase } from "../../../../../../src/lib/client";
+import { getResilientUser } from "../../../../../../src/lib/auth-helpers";
+import ConfirmationModal from "../../../../../components/ConfirmationModal";
+import { formatDateForGroup } from "../../../../../../src/lib/utils";
 
 interface Match {
     id: string;
+    group_id: string;
     name: string;
     date: string;
     start_time: string;
+    end_time: string;
     location: string;
     capacity: number;
     description?: string;
@@ -31,61 +37,133 @@ interface Participant {
 export default function MatchDetailsPage({ params }: { params: Promise<{ id: string; matchId: string }> }) {
     const { id, matchId } = use(params);
     const groupId = id;
+    const router = useRouter();
 
     const [match, setMatch] = useState<Match | null>(null);
     const [participants, setParticipants] = useState<Participant[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [activeTab, setActiveTab] = useState<"confirmed" | "waiting" | "invited">("confirmed");
+    const [currentUser, setCurrentUser] = useState<any>(null);
+    const [userRole, setUserRole] = useState<string | null>(null);
+
+    // Modals
+    const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+    const [isDeleting, setIsDeleting] = useState(false);
+    const [isRemovingParticipant, setIsRemovingParticipant] = useState<string | null>(null);
+
+    const fetchData = async () => {
+        try {
+            // 1. Get Current User with Multi-Stage Check (Resilient for Mobile)
+            const user = await getResilientUser(supabase);
+
+            if (!user) {
+                router.push("/login");
+                return;
+            }
+            setCurrentUser(user);
+
+            // Fetch Match
+            const { data: matchData, error: matchError } = await supabase
+                .from("matches")
+                .select("*")
+                .eq("id", matchId)
+                .single();
+
+            if (matchError) throw matchError;
+            setMatch(matchData);
+
+            // Fetch Participants
+            const { data: participantsData, error: participantsError } = await supabase
+                .from("match_participants")
+                .select(`
+                    id,
+                    user_id,
+                    status,
+                    payment_status,
+                    player_type,
+                    team,
+                    profiles (
+                        full_name,
+                        position,
+                        avatar_url
+                    )
+                `)
+                .eq("match_id", matchId);
+
+            if (participantsError) throw participantsError;
+            setParticipants(participantsData as any);
+
+            // Fetch User Role in Group
+            const { data: memberData } = await supabase
+                .from("group_members")
+                .select("role")
+                .eq("group_id", matchData.group_id)
+                .eq("user_id", user.id)
+                .single();
+
+            if (memberData) {
+                setUserRole(memberData.role);
+            }
+
+        } catch (error: any) {
+            console.error("Error fetching match data:", error);
+        } finally {
+            setIsLoading(false);
+        }
+    }
 
     useEffect(() => {
-        async function fetchData() {
-            try {
-                // Fetch Match
-                const { data: matchData, error: matchError } = await supabase
-                    .from("matches")
-                    .select("*")
-                    .eq("id", matchId)
-                    .single();
-
-                if (matchError) throw matchError;
-                setMatch(matchData);
-
-                // Fetch Participants
-                const { data: participantsData, error: participantsError } = await supabase
-                    .from("match_participants")
-                    .select(`
-                        id,
-                        user_id,
-                        status,
-                        payment_status,
-                        player_type,
-                        team,
-                        profiles (
-                            full_name,
-                            position,
-                            avatar_url
-                        )
-                    `)
-                    .eq("match_id", matchId);
-
-                if (participantsError) throw participantsError;
-                setParticipants(participantsData as any);
-
-            } catch (error: any) {
-                console.error("Error fetching match data:", error);
-                console.error("Error details:", {
-                    message: error?.message,
-                    code: error?.code,
-                    details: error?.details,
-                    hint: error?.hint
-                });
-            } finally {
-                setIsLoading(false);
-            }
-        }
-
         fetchData();
     }, [matchId]);
+
+    const handleRemoveParticipant = async (participantId: string) => {
+        if (!isAdmin) return;
+        if (!confirm("Remover este jogador da partida?")) return;
+
+        setIsRemovingParticipant(participantId);
+        try {
+            const { error } = await supabase
+                .from("match_participants")
+                .delete()
+                .eq("id", participantId);
+
+            if (error) throw error;
+            await fetchData();
+        } catch (error: any) {
+            console.error("Error removing participant:", error);
+            alert("Erro ao remover jogador: " + error.message);
+        } finally {
+            setIsRemovingParticipant(null);
+        }
+    };
+
+    const handleDeleteMatch = () => {
+        setIsDeleteModalOpen(true);
+    };
+
+    const confirmDeleteMatch = async () => {
+        setIsDeleting(true);
+        try {
+            const { error, count } = await supabase
+                .from("matches")
+                .delete({ count: 'exact' })
+                .eq("id", matchId);
+
+            if (error) throw error;
+
+            if (count === 0) {
+                throw new Error("Permissão negada ou partida não encontrada.");
+            }
+
+            alert("Partida excluída com sucesso.");
+            router.push(`/dashboard/grupos/${groupId}/admin/partidas`);
+        } catch (error: any) {
+            console.error("Error deleting match:", error);
+            alert("Erro ao excluir partida: " + error.message);
+            setIsDeleting(false);
+            setIsDeleteModalOpen(false);
+        }
+    };
 
     if (isLoading) {
         return <div className="flex-1 flex items-center justify-center text-slate-500">Carregando detalhes da partida...</div>;
@@ -142,6 +220,8 @@ export default function MatchDetailsPage({ params }: { params: Promise<{ id: str
             .toUpperCase();
     };
 
+    const isAdmin = userRole === 'admin' || userRole === 'owner';
+
     return (
         <div className="flex-1 flex flex-col h-full overflow-y-auto relative z-10 bg-[#f6f8f6] dark:bg-[#102216]">
             <header className="w-full px-6 py-5 md:px-10 md:py-8">
@@ -176,6 +256,16 @@ export default function MatchDetailsPage({ params }: { params: Promise<{ id: str
                                 </div>
                             </div>
                         </div>
+
+                        {isAdmin && (
+                            <button
+                                onClick={handleDeleteMatch}
+                                className="px-5 py-2.5 bg-red-50 hover:bg-red-100 text-red-600 dark:bg-red-900/20 dark:hover:bg-red-900/30 dark:text-red-400 rounded-xl font-bold flex items-center justify-center gap-2 transition-all text-sm border border-red-100 dark:border-red-900/30"
+                            >
+                                <span className="material-symbols-outlined text-[20px]">delete_forever</span>
+                                Excluir Partida
+                            </button>
+                        )}
                     </div>
 
                     {/* Stats Grid */}
@@ -313,9 +403,20 @@ export default function MatchDetailsPage({ params }: { params: Promise<{ id: str
                                                         <button className="p-2 rounded-lg text-slate-400 hover:text-[#13ec5b] hover:bg-[#13ec5b]/10 transition-colors" title="Notificar">
                                                             <span className="material-symbols-outlined text-[20px]">notifications</span>
                                                         </button>
-                                                        <button className="p-2 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors" title="Remover">
-                                                            <span className="material-symbols-outlined text-[20px]">delete</span>
-                                                        </button>
+                                                        {isAdmin && (
+                                                            <button
+                                                                onClick={() => handleRemoveParticipant(player.id)}
+                                                                disabled={isRemovingParticipant === player.id}
+                                                                className="p-2 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors disabled:opacity-50"
+                                                                title="Remover"
+                                                            >
+                                                                {isRemovingParticipant === player.id ? (
+                                                                    <span className="size-5 border-2 border-red-500 border-r-transparent rounded-full animate-spin"></span>
+                                                                ) : (
+                                                                    <span className="material-symbols-outlined text-[20px]">delete</span>
+                                                                )}
+                                                            </button>
+                                                        )}
                                                     </div>
                                                 </td>
                                             </tr>
@@ -327,6 +428,18 @@ export default function MatchDetailsPage({ params }: { params: Promise<{ id: str
                     </div>
                 </div>
             </div>
+
+            <ConfirmationModal
+                isOpen={isDeleteModalOpen}
+                onClose={() => setIsDeleteModalOpen(false)}
+                onConfirm={confirmDeleteMatch}
+                title="Excluir Partida"
+                message={`Tem certeza que deseja excluir a partida "${match.name}"? Esta ação não pode ser desfeita e removerá todos os jogadores confirmados.`}
+                confirmText="Excluir Definitivamente"
+                cancelText="Cancelar"
+                type="danger"
+                isLoading={isDeleting}
+            />
         </div>
     );
 }

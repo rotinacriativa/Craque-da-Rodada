@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState, use, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "../../../../src/lib/client";
+import { getResilientUser } from "../../../../src/lib/auth-helpers";
 import ConfirmationModal from "../../../components/ConfirmationModal";
 import AddPlayerModal from "../../../components/AddPlayerModal";
 
@@ -110,7 +111,7 @@ export default function MatchDetails({ params }: { params: Promise<{ id: string 
         setLoading(true);
         try {
             // 1. Get User
-            const { data: { user } } = await supabase.auth.getUser();
+            const user = await getResilientUser(supabase);
             setCurrentUser(user?.id || null);
 
             // 2. Get Match

@@ -3,6 +3,7 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "../../../../../src/lib/client";
+import { getResilientUser } from "../../../../../src/lib/auth-helpers";
 
 interface AdminContextType {
     isAuthorized: boolean;
@@ -30,28 +31,12 @@ export function AdminProvider({
     useEffect(() => {
         async function checkPermission() {
             try {
-                // 1. Get Current Session (More robust for client-side check)
-                const { data: { session } } = await supabase.auth.getSession();
-                let actualUser = session?.user;
+                // 1. Get Current User with Multi-Stage Check (Resilient for Mobile)
+                const actualUser = await getResilientUser(supabase);
 
                 if (!actualUser) {
-                    // Try getUser immediately as a fallback
-                    const { data: { user: immediateUser } } = await supabase.auth.getUser();
-                    actualUser = (immediateUser as any);
-
-                    if (!actualUser) {
-                        console.log("No session found, waiting for hydration...");
-                        // Give it a moment for mobile browsers to hydrate session
-                        await new Promise(resolve => setTimeout(resolve, 1500));
-                        const { data: { user: retryUser } } = await supabase.auth.getUser();
-
-                        if (!retryUser) {
-                            console.log("Final check failed, redirecting to login");
-                            router.push("/login");
-                            return;
-                        }
-                        actualUser = retryUser;
-                    }
+                    router.push("/login");
+                    return;
                 }
 
                 setUser(actualUser);
