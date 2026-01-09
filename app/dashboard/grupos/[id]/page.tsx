@@ -6,6 +6,7 @@ import { use, useEffect, useState } from "react";
 import { supabase } from "../../../../src/lib/client";
 import { formatDateForGroup } from "../../../../src/lib/utils";
 import ConfirmationModal from "../../../components/ConfirmationModal";
+import NextStepsGuide from "./NextStepsGuide";
 
 export default function GroupDashboard({ params }: { params: Promise<{ id: string }> }) {
     // Unwrap params using React.use()
@@ -266,6 +267,15 @@ export default function GroupDashboard({ params }: { params: Promise<{ id: strin
                     <span className="text-gray-400">/</span>
                     <span className="text-[#0d1b12] dark:text-white font-medium">{group.name}</span>
                 </div>
+
+                {/* Next Steps Guide (New User Flow) */}
+                <NextStepsGuide
+                    isAdmin={!!isAdmin}
+                    membersCount={members.length}
+                    matchesCount={matches.length}
+                    groupId={groupId}
+                    onInvite={handleInvite}
+                />
 
                 {/* Profile Header */}
                 <div className="bg-white dark:bg-[#183020] rounded-xl p-6 md:p-8 shadow-sm border border-[#e7f3eb] dark:border-[#1f3b29] relative overflow-hidden">
