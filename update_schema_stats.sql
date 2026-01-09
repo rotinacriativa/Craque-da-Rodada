@@ -37,8 +37,8 @@ begin
     p.avatar_url,
     p.position,
     count(mp.match_id) as matches_played,
-    sum(coaleasce(mp.goals, 0)) as goals,
-    sum(coaleasce(mp.assists, 0)) as assists,
+    sum(coalesce(mp.goals, 0)) as goals,
+    sum(coalesce(mp.assists, 0)) as assists,
     count(case when m.winner_team = mp.team then 1 end) as wins,
     round(avg(mp.rating), 1) as avg_rating,
     -- Custom score calculation (customize as needed)
