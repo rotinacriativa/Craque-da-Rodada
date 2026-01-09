@@ -2,6 +2,7 @@
 
 import { use, useState, useEffect, useRef } from "react";
 import Link from "next/link";
+// Ensure correct relative path to client
 import { supabase } from "../../../../../src/lib/client";
 
 interface MatchEvent {
