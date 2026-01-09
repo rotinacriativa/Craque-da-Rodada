@@ -419,14 +419,14 @@ export default function GroupDashboard({ params }: { params: Promise<{ id: strin
                                 <div className="bg-[#13ec5b]/10 p-4 rounded-full mb-4">
                                     <span className="material-symbols-outlined text-3xl text-[#0ea841] dark:text-[#13ec5b]">sports_soccer</span>
                                 </div>
-                                <h3 className="text-lg font-bold text-[#0d1b12] dark:text-white mb-2">Nenhuma partida agendada</h3>
-                                <p className="text-gray-500 dark:text-gray-400 mb-6 max-w-xs">Organize o próximo jogo da sua turma agora mesmo.</p>
+                                <h3 className="text-lg font-bold text-[#0d1b12] dark:text-white mb-2">Nenhum jogo marcado</h3>
+                                <p className="text-gray-500 dark:text-gray-400 mb-6 max-w-xs">A bola não pode parar! Marque o próximo jogo da galera.</p>
                                 <Link
                                     href={`/dashboard/grupos/${groupId}/nova-partida`}
                                     className="flex items-center gap-2 px-6 py-3 bg-[#13ec5b] hover:bg-[#0fd650] text-[#0d1b12] rounded-full font-bold transition-all shadow-lg hover:shadow-[#13ec5b]/20"
                                 >
                                     <span className="material-symbols-outlined">add_circle</span>
-                                    Criar primeira Pelada
+                                    Marcar Jogo
                                 </Link>
                             </div>
                         )}
@@ -491,8 +491,19 @@ export default function GroupDashboard({ params }: { params: Promise<{ id: strin
                                 )}
 
                                 {members.length === 0 && (
-                                    <div className="col-span-4 text-center text-gray-400 text-sm py-4">
-                                        Nenhum membro encontrado.
+                                    <div className="col-span-4 flex flex-col items-center justify-center py-6 text-center">
+                                        <div className="bg-gray-100 dark:bg-[#102216] p-3 rounded-full mb-3">
+                                            <span className="material-symbols-outlined text-gray-400 text-2xl">person_off</span>
+                                        </div>
+                                        <h4 className="font-bold text-sm text-[#0d1b12] dark:text-white mb-1">Cadê a galera?</h4>
+                                        <p className="text-xs text-gray-500 dark:text-gray-400 mb-4 max-w-[200px]">O time tá vazio. Convide os jogadores para começar.</p>
+                                        <button
+                                            onClick={handleInvite}
+                                            className="text-xs font-bold text-[#0d1b12] bg-[#13ec5b] hover:bg-[#0fd650] px-4 py-2 rounded-full transition-colors flex items-center gap-1"
+                                        >
+                                            <span className="material-symbols-outlined text-sm">share</span>
+                                            Chamar Jogadores
+                                        </button>
                                     </div>
                                 )}
                             </div>
