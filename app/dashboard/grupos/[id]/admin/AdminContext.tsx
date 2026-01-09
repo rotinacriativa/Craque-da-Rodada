@@ -30,13 +30,25 @@ export function AdminProvider({
     useEffect(() => {
         async function checkPermission() {
             try {
-                // 1. Get Current User
-                const { data: { user } } = await supabase.auth.getUser();
-                if (!user) {
-                    router.push("/login");
-                    return;
+                // 1. Get Current Session (More robust for client-side check)
+                const { data: { session } } = await supabase.auth.getSession();
+
+                if (!session || !session.user) {
+                    console.log("No session found in AdminContext");
+                    // Try getUser as a backup/validation
+                    const { data: { user: serverUser } } = await supabase.auth.getUser();
+                    if (!serverUser) {
+                        router.push("/login");
+                        return;
+                    }
+                    setUser(serverUser);
+                } else {
+                    setUser(session.user);
                 }
-                setUser(user);
+
+                const currentUser = session?.user || user; // Ensure we have a user object
+                if (!currentUser) return; // Should be handled above
+
 
                 // 2. Check Group Membership & Role
                 // Check if creator
