@@ -35,15 +35,23 @@ export function AdminProvider({
                 let actualUser = session?.user;
 
                 if (!actualUser) {
-                    console.log("No session found in AdminContext, trying getUser...");
-                    // Try getUser as a backup/validation
-                    const { data: { user: serverUser } } = await supabase.auth.getUser();
-                    if (!serverUser) {
-                        console.log("No user found, redirecting to login");
-                        router.push("/login");
-                        return;
+                    // Try getUser immediately as a fallback
+                    const { data: { user: immediateUser } } = await supabase.auth.getUser();
+                    actualUser = (immediateUser as any);
+
+                    if (!actualUser) {
+                        console.log("No session found, waiting for hydration...");
+                        // Give it a moment for mobile browsers to hydrate session
+                        await new Promise(resolve => setTimeout(resolve, 1500));
+                        const { data: { user: retryUser } } = await supabase.auth.getUser();
+
+                        if (!retryUser) {
+                            console.log("Final check failed, redirecting to login");
+                            router.push("/login");
+                            return;
+                        }
+                        actualUser = retryUser;
                     }
-                    actualUser = serverUser;
                 }
 
                 setUser(actualUser);
