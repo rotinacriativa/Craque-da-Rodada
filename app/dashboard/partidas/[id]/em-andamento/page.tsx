@@ -2,7 +2,7 @@
 
 import { use, useState, useEffect, useRef } from "react";
 import Link from "next/link";
-import { supabase } from "../../../../../../src/lib/client";
+import { supabase } from "../../../../../src/lib/client";
 
 interface MatchEvent {
     id: string;
