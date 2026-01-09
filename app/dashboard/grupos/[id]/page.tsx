@@ -29,8 +29,22 @@ export default function GroupDashboard({ params }: { params: Promise<{ id: strin
     // Fetch Data Function
     const fetchData = async () => {
         try {
-            // Get Current User
-            const { data: { user } } = await supabase.auth.getUser();
+            // 1. Get Current User with Multi-Stage Check (Resilient for Mobile)
+            let { data: { user } } = await supabase.auth.getUser();
+
+            if (!user) {
+                console.log("No user found on first check, waiting for hydration...");
+                // Wait for mobile session to hydrate
+                await new Promise(resolve => setTimeout(resolve, 1500));
+                const { data: { user: retryUser } } = await supabase.auth.getUser();
+                user = retryUser;
+            }
+
+            if (!user) {
+                console.log("Final auth check failed, redirecting to login");
+                router.push("/login");
+                return;
+            }
             setCurrentUser(user);
 
             // Fetch Group Details

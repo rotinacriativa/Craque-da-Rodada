@@ -251,12 +251,17 @@ export default function GroupSettingsPage({ params }: { params: Promise<{ id: st
             // IMPORTANT: We MUST NOT delete group_members manually first, otherwise we lose the "Admin" permission 
             // required to delete the group itself (since RLS checks if we are an admin).
 
-            const { error } = await supabase
+            const { error, count } = await supabase
                 .from("groups")
-                .delete()
+                .delete({ count: 'exact' })
                 .eq("id", groupId);
 
             if (error) throw error;
+
+            if (count === 0) {
+                console.warn("Delete command completed but 0 rows affected. RLS might be blocking it.");
+                throw new Error("Permissão negada ou grupo não encontrado. Verifique se você é o dono do grupo.");
+            }
 
             alert("Grupo e todos os dados excluídos com sucesso.");
 
