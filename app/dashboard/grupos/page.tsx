@@ -114,16 +114,16 @@ export default function GroupsPage() {
                     <div className="bg-[#13ec5b]/10 p-6 rounded-full mb-6 animate-pulse">
                         <span className="material-symbols-outlined text-5xl text-[#0ea841] dark:text-[#13ec5b]">sports_soccer</span>
                     </div>
-                    <h2 className="text-2xl font-black text-[#0d1b12] dark:text-white mb-3">Você ainda não tem peladas</h2>
+                    <h2 className="text-2xl font-black text-[#0d1b12] dark:text-white mb-3">Nenhuma pelada por aqui</h2>
                     <p className="text-[#4c9a66] dark:text-[#8baaa0] mb-8 max-w-sm text-lg">
-                        Crie sua primeira pelada para organizar os jogos ou entre em uma turma com um código de convite.
+                        Tá parado por quê? Crie sua pelada ou entre na de um parceiro para começar a resenha.
                     </p>
                     <Link
                         href="/dashboard/criar-grupo"
                         className="h-14 px-8 rounded-full bg-[#13ec5b] hover:bg-[#0fd650] text-[#0d1b12] font-bold flex items-center gap-2 transition-all shadow-xl shadow-[#13ec5b]/20 hover:scale-105"
                     >
                         <span className="material-symbols-outlined">add_circle</span>
-                        Criar minha Primeira Pelada
+                        Criar Pelada
                     </Link>
                 </div>
             )}
