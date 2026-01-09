@@ -9,6 +9,8 @@ import { formatDateForMatchList } from "../../src/lib/utils";
 export default function DashboardPage() {
     const router = useRouter();
     const [nextMatch, setNextMatch] = useState<any>(null);
+    const [nextMatchParticipants, setNextMatchParticipants] = useState<any[]>([]);
+    const [lastCraque, setLastCraque] = useState<any>(null);
     const [loading, setLoading] = useState(true);
     const [stats, setStats] = useState({ organized: 0, participated: 0 });
 
@@ -29,9 +31,71 @@ export default function DashboardPage() {
                     .limit(1);
 
                 if (matches && matches.length > 0) {
-                    setNextMatch(matches[0]);
+                    const match = matches[0];
+                    setNextMatch(match);
+
+                    // 2.1 Fetch Participants for Next Match
+                    const { data: partData } = await supabase
+                        .from('match_participants')
+                        .select('status, profile:profiles(id, full_name, avatar_url)')
+                        .eq('match_id', match.id)
+                        .eq('status', 'confirmed');
+
+                    if (partData) {
+                        setNextMatchParticipants(partData.map((p: any) => p.profile));
+                    }
                 } else {
                     setNextMatch(null);
+                }
+
+                // 2.2 Fetch Last Match & Craque
+                const { data: lastMatches } = await supabase
+                    .from('matches')
+                    .select('id')
+                    .eq('match_participants.user_id', user.id)
+                    .lt('date', new Date().toISOString().split('T')[0])
+                    .order('date', { ascending: false })
+                    .limit(1);
+
+                if (lastMatches && lastMatches.length > 0) {
+                    const lastMatchId = lastMatches[0].id;
+
+                    // Fetch votes
+                    const { data: votes } = await supabase
+                        .from('match_votes')
+                        .select('voted_user_id')
+                        .eq('match_id', lastMatchId)
+                        .eq('category', 'craque');
+
+                    if (votes && votes.length > 0) {
+                        // Count votes
+                        const voteCounts: Record<string, number> = {};
+                        votes.forEach((v: any) => {
+                            voteCounts[v.voted_user_id] = (voteCounts[v.voted_user_id] || 0) + 1;
+                        });
+
+                        // Find winner
+                        let winnerId = null;
+                        let maxVotes = 0;
+                        Object.entries(voteCounts).forEach(([uid, count]) => {
+                            if (count > maxVotes) {
+                                maxVotes = count;
+                                winnerId = uid;
+                            }
+                        });
+
+                        if (winnerId) {
+                            const { data: profile } = await supabase
+                                .from('profiles')
+                                .select('full_name, avatar_url')
+                                .eq('id', winnerId)
+                                .single();
+
+                            if (profile) {
+                                setLastCraque({ ...profile, votes: maxVotes });
+                            }
+                        }
+                    }
                 }
 
                 // 3. Fetch Stats
@@ -185,16 +249,33 @@ export default function DashboardPage() {
                                     {nextMatch.location}
                                 </div>
                             </div>
-                            {/* Players Avatars - Mocked for now */}
-                            <div className="flex items-center gap-4 py-2 opacity-50">
-                                <span className="text-xs italic">Participantes (Em breve)</span>
+
+                            {/* Players Section */}
+                            <div className="flex items-center gap-3 py-2">
+                                <div className="flex -space-x-3">
+                                    {nextMatchParticipants.slice(0, 4).map((p, i) => (
+                                        <div key={i} className="w-10 h-10 rounded-full border-2 border-white dark:border-[#1a2c20] bg-gray-200 bg-cover bg-center" style={{ backgroundImage: `url('${p.avatar_url || ""}')` }}>
+                                            {!p.avatar_url && <span className="flex items-center justify-center w-full h-full text-[10px] font-bold text-gray-500">{p.full_name?.charAt(0)}</span>}
+                                        </div>
+                                    ))}
+                                    {nextMatchParticipants.length > 4 && (
+                                        <div className="w-10 h-10 rounded-full border-2 border-white dark:border-[#1a2c20] bg-gray-100 flex items-center justify-center text-xs font-bold text-gray-600">
+                                            +{nextMatchParticipants.length - 4}
+                                        </div>
+                                    )}
+                                </div>
+                                <div className="flex flex-col">
+                                    <span className="text-[#0d1b12] dark:text-white font-bold text-sm">{nextMatchParticipants.length} Confirmados</span>
+                                    <span className="text-xs text-[#4c9a66]">Garanta sua vaga!</span>
+                                </div>
                             </div>
+
                             <div className="mt-auto flex gap-3 pt-4 border-t border-[#e7f3eb] dark:border-[#2a4535]">
                                 <button
-                                    onClick={() => router.push(`/dashboard/grupos/${nextMatch.group_id}`)}
+                                    onClick={() => router.push(`/dashboard/grupos/${nextMatch.group_id}/partidas/${nextMatch.id}`)}
                                     className="flex-1 min-w-[120px] cursor-pointer items-center justify-center overflow-hidden rounded-full h-12 px-6 bg-[#13ec5b] text-[#0d1b12] text-sm font-bold leading-normal tracking-[0.015em] hover:bg-[#0fd651] transition-colors shadow-lg shadow-[#13ec5b]/20"
                                 >
-                                    <span className="truncate">Ver Detalhes da Pelada</span>
+                                    <span className="truncate">Ver Detalhes do Jogo</span>
                                 </button>
                                 <button
                                     onClick={handleShare}
@@ -260,6 +341,51 @@ export default function DashboardPage() {
                         </div>
                     </div>
                 </div>
+
+                {/* Last Craque Card */}
+                {lastCraque && (
+                    <div className="bg-gradient-to-br from-yellow-50 to-white dark:from-yellow-900/10 dark:to-[#1a2c20] rounded-[2rem] p-6 border border-yellow-200 dark:border-yellow-900/30 shadow-sm relative overflow-hidden group">
+                        <div className="flex items-start justify-between relative z-10">
+                            <div>
+                                <h4 className="font-bold text-lg text-[#0d1b12] dark:text-white mb-1">Último Craque</h4>
+                                <p className="text-xs text-[#4c9a66] dark:text-gray-400">O melhor em campo da última rodada</p>
+                            </div>
+                            <div className="bg-yellow-100 dark:bg-yellow-900/20 text-yellow-600 p-2 rounded-lg">
+                                <span className="material-symbols-outlined">stars</span>
+                            </div>
+                        </div>
+
+                        <div className="mt-6 flex items-center gap-4 relative z-10">
+                            <div className="size-16 rounded-full border-4 border-yellow-400 p-0.5 bg-white dark:bg-[#1a2c20]">
+                                <div className="w-full h-full rounded-full bg-cover bg-center" style={{ backgroundImage: `url('${lastCraque.avatar_url || ""}')` }}>
+                                    {!lastCraque.avatar_url && <span className="flex items-center justify-center w-full h-full bg-gray-200 text-gray-500 font-bold">{lastCraque.full_name?.charAt(0)}</span>}
+                                </div>
+                            </div>
+                            <div>
+                                <p className="font-black text-xl text-[#0d1b12] dark:text-white leading-none mb-1">{lastCraque.full_name}</p>
+                                <p className="text-sm font-bold text-yellow-600 dark:text-yellow-500">{lastCraque.votes} Votos</p>
+                            </div>
+                        </div>
+
+                        {/* Background Decor */}
+                        <div className="absolute -bottom-8 -right-8 text-yellow-500/10 dark:text-yellow-500/5 rotate-12">
+                            <span className="material-symbols-outlined text-[150px]">trophy</span>
+                        </div>
+                    </div>
+                )}
+
+                {!lastCraque && (
+                    <div className="bg-white dark:bg-[#1a2c20] rounded-[2rem] p-6 border border-[#e7f3eb] dark:border-[#2a4535] shadow-sm flex items-center justify-center text-center">
+                        <div>
+                            <div className="w-12 h-12 bg-gray-100 dark:bg-[#22382b] rounded-full flex items-center justify-center mx-auto mb-3 text-gray-400">
+                                <span className="material-symbols-outlined">emoji_events</span>
+                            </div>
+                            <h4 className="font-bold text-[#0d1b12] dark:text-white">Sem Craque Recente</h4>
+                            <p className="text-xs text-gray-500 mt-1">Jogue e vote para eleger o melhor.</p>
+                        </div>
+                    </div>
+                )}
+
                 {/* Invite Banner */}
                 <div className="bg-[#0d1b12] rounded-[2rem] p-8 flex flex-col justify-between relative overflow-hidden group">
                     <div className="absolute right-[-20px] bottom-[-40px] opacity-20 group-hover:scale-110 transition-transform duration-500">
