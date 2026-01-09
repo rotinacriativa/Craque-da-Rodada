@@ -126,7 +126,7 @@ export default function AddPlayerModal({ isOpen, onClose, matchId, groupId, exis
                         </div>
                     ) : filteredMembers.length === 0 ? (
                         <div className="text-center p-8 text-gray-400 text-sm">
-                            {searchTerm ? "Nenhum membro encontrado." : "Todos os membros já estão na partida."}
+                            {searchTerm ? "Nenhum membro encontrado." : "Todos os jogadores já estão no jogo."}
                         </div>
                     ) : (
                         filteredMembers.map(member => (
