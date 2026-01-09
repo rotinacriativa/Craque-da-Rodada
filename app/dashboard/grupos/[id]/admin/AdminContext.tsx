@@ -32,22 +32,21 @@ export function AdminProvider({
             try {
                 // 1. Get Current Session (More robust for client-side check)
                 const { data: { session } } = await supabase.auth.getSession();
+                let actualUser = session?.user;
 
-                if (!session || !session.user) {
-                    console.log("No session found in AdminContext");
+                if (!actualUser) {
+                    console.log("No session found in AdminContext, trying getUser...");
                     // Try getUser as a backup/validation
                     const { data: { user: serverUser } } = await supabase.auth.getUser();
                     if (!serverUser) {
+                        console.log("No user found, redirecting to login");
                         router.push("/login");
                         return;
                     }
-                    setUser(serverUser);
-                } else {
-                    setUser(session.user);
+                    actualUser = serverUser;
                 }
 
-                const currentUser = session?.user || user; // Ensure we have a user object
-                if (!currentUser) return; // Should be handled above
+                setUser(actualUser);
 
 
                 // 2. Check Group Membership & Role
@@ -58,7 +57,7 @@ export function AdminProvider({
                     .eq('id', groupId)
                     .single();
 
-                if (group && group.created_by === user.id) {
+                if (group && group.created_by === actualUser.id) {
                     setAuthorized(true);
                     setRole("owner");
                     setIsLoading(false);
@@ -70,11 +69,11 @@ export function AdminProvider({
                     .from('group_members')
                     .select('role')
                     .eq('group_id', groupId)
-                    .eq('user_id', user.id)
+                    .eq('user_id', actualUser.id)
                     .single();
 
                 if (error || !member || (member.role !== 'admin' && member.role !== 'owner')) {
-                    console.warn("Access denied: User is not an admin.");
+                    console.warn("Access denied: User is not an admin.", { member, error });
                     router.push(`/dashboard/grupos/${groupId}`);
                     return;
                 }
