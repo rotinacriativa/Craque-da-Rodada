@@ -1,72 +1,191 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { use, useEffect, useState } from "react";
 import { supabase } from "../../../../src/lib/client";
 import { formatDateForGroup } from "../../../../src/lib/utils";
+import ConfirmationModal from "../../../components/ConfirmationModal";
 
 export default function GroupDashboard({ params }: { params: Promise<{ id: string }> }) {
     // Unwrap params using React.use()
     const { id } = use(params);
     const groupId = id;
+    const router = useRouter();
 
     const [currentUser, setCurrentUser] = useState<any>(null);
     const [matches, setMatches] = useState<any[]>([]);
+    const [members, setMembers] = useState<any[]>([]);
     const [group, setGroup] = useState<any>(null);
+    const [userRole, setUserRole] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(true);
 
-    useEffect(() => {
-        async function fetchData() {
-            try {
-                // Get Current User
-                const { data: { user } } = await supabase.auth.getUser();
-                setCurrentUser(user);
+    // Modals
+    const [isLeaveModalOpen, setIsLeaveModalOpen] = useState(false);
+    const [isLeaving, setIsLeaving] = useState(false);
 
-                // Fetch Group Details
-                const { data: groupData, error: groupError } = await supabase
-                    .from('groups')
-                    .select('*')
-                    .eq('id', groupId)
-                    .single();
+    // Fetch Data Function
+    const fetchData = async () => {
+        try {
+            // Get Current User
+            const { data: { user } } = await supabase.auth.getUser();
+            setCurrentUser(user);
 
-                if (groupError) {
-                    if (groupError.code === 'PGRST116') {
-                        setGroup(null);
-                        // Stop loading if group not found, no need to fetch matches
-                        setIsLoading(false);
-                        return;
-                    }
-                    throw groupError;
-                } else {
-                    setGroup(groupData);
+            // Fetch Group Details
+            const { data: groupData, error: groupError } = await supabase
+                .from('groups')
+                .select('*')
+                .eq('id', groupId)
+                .single();
+
+            if (groupError) {
+                console.error("Error fetching group:", groupError);
+                if (groupError.code === 'PGRST116') {
+                    setGroup(null);
+                    setIsLoading(false);
+                    return;
+                }
+                throw groupError;
+            } else {
+                setGroup(groupData);
+            }
+
+            // Fetch Matches (Lookup User ID only)
+            const { data: matchesData, error: matchesError } = await supabase
+                .from('matches')
+                .select('*, match_participants(user_id)')
+                .eq('group_id', groupId)
+                .gte('date', new Date().toISOString().split('T')[0])
+                .order('date', { ascending: true });
+
+            if (matchesError) {
+                console.error("Error fetching matches:", matchesError);
+                throw matchesError;
+            }
+            setMatches(matchesData || []);
+
+            // Fetch Members (Active) - WITHOUT JOIN
+            const { data: membersRaw, error: membersError } = await supabase
+                .from('group_members')
+                .select('*')
+                .eq('group_id', groupId)
+                .eq('status', 'active');
+
+            if (membersError) {
+                console.error("Error fetching members:", membersError);
+                throw membersError;
+            }
+
+            // Manually Fetch Profiles for Members
+            let membersWithProfiles = [];
+            if (membersRaw && membersRaw.length > 0) {
+                const userIds = membersRaw.map((m: any) => m.user_id);
+
+                const { data: profilesData, error: profilesError } = await supabase
+                    .from('profiles')
+                    .select('id, full_name, avatar_url')
+                    .in('id', userIds);
+
+                if (profilesError) {
+                    console.error("Error fetching profiles:", profilesError);
+                    // We don't throw here to avoid crashing if just profiles fail, but ideally we should know
+                    // For now, let's proceed with potentially missing profiles
                 }
 
-                // Fetch Matches
-                const { data: matchesData, error: matchesError } = await supabase
-                    .from('matches')
-                    .select('*')
-                    .eq('group_id', groupId)
-                    .gte('date', new Date().toISOString().split('T')[0]) // Only future or today's matches
-                    .order('date', { ascending: true });
-
-                if (matchesError) throw matchesError;
-                setMatches(matchesData || []);
-
-            } catch (error: any) {
-                console.error("Error loading dashboard:", error);
-                setError("Erro ao carregar dados do grupo. Tente recarregar a página.");
-            } finally {
-                setIsLoading(false);
+                // Merge
+                membersWithProfiles = membersRaw.map((member: any) => {
+                    const profile = profilesData?.find((p: any) => p.id === member.user_id);
+                    return { ...member, profile };
+                });
             }
-        }
 
+            setMembers(membersWithProfiles);
+
+            // Check Member Role
+            if (user) {
+                const currentUserMember = membersWithProfiles.find((m: any) => m.user_id === user.id);
+                if (currentUserMember) {
+                    setUserRole(currentUserMember.role);
+                }
+            }
+
+        } catch (error: any) {
+            console.error("Error loading dashboard:", error);
+            setError("Erro ao carregar dados do grupo. Tente recarregar a página.");
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    // Initial Fetch
+    useEffect(() => {
         if (groupId) {
             fetchData();
         }
-    }, [groupId]);
+    }, [groupId, router]);
 
-    const isAdmin = currentUser && group && currentUser.id === group.created_by;
+    // Helper to get profile from matches
+    const getMemberProfile = (userId: string) => {
+        return members.find(m => m.user_id === userId)?.profile;
+    };
+
+
+
+    const handleInvite = async () => {
+        if (!group) return;
+
+        const shareData = {
+            title: `Convite para ${group.name}`,
+            text: `Vem jogar com a gente no grupo ${group.name}!`,
+            url: window.location.href, // Or a specific invite link if you have one
+        };
+
+        if (navigator.share) {
+            try {
+                await navigator.share(shareData);
+            } catch (error) {
+                console.log('Error sharing:', error);
+            }
+        } else {
+            try {
+                await navigator.clipboard.writeText(shareData.url);
+                alert('Link do grupo copiado! Envie para seus amigos.');
+            } catch (err) {
+                alert('Copie este link: ' + shareData.url);
+            }
+        }
+    };
+
+    const handleLeaveGroup = () => {
+        setIsLeaveModalOpen(true);
+    };
+
+    const confirmLeaveGroup = async () => {
+        if (!currentUser) return;
+        setIsLeaving(true);
+
+        try {
+            const { error } = await supabase
+                .from('group_members')
+                .delete()
+                .eq('group_id', groupId)
+                .eq('user_id', currentUser.id);
+
+            if (error) throw error;
+
+            // Success feedback happens via modal close or redirect, but let's pause briefly
+            router.push("/dashboard");
+            router.refresh();
+        } catch (error: any) {
+            console.error("Error leaving group:", error);
+            alert("Erro ao sair do grupo: " + error.message);
+            setIsLeaving(false);
+            setIsLeaveModalOpen(false);
+        }
+    };
+
+    const isAdmin = (currentUser && group && currentUser.id === group.created_by) || (userRole === 'admin' || userRole === 'owner');
 
     if (isLoading) {
         return (
@@ -152,7 +271,10 @@ export default function GroupDashboard({ params }: { params: Promise<{ id: strin
                                         <span className="material-symbols-outlined text-lg">location_on</span>
                                         <span>{group.location || "Local não definido"}</span>
                                     </div>
-                                    <button className="flex items-center gap-2 px-4 py-2.5 bg-gray-100 hover:bg-gray-200 dark:bg-[#2a4031] dark:hover:bg-[#35503d] text-[#0d1b12] dark:text-white rounded-full font-bold transition-colors">
+                                    <button
+                                        onClick={handleInvite}
+                                        className="flex items-center gap-2 px-4 py-2.5 bg-gray-100 hover:bg-gray-200 dark:bg-[#2a4031] dark:hover:bg-[#35503d] text-[#0d1b12] dark:text-white rounded-full font-bold transition-colors"
+                                    >
                                         <span className="material-symbols-outlined text-lg">share</span>
                                         <span>Convidar galera</span>
                                     </button>
@@ -180,7 +302,10 @@ export default function GroupDashboard({ params }: { params: Promise<{ id: strin
                             </div>
                         </div>
                         <div className="flex items-center">
-                            <button className="group flex items-center justify-center gap-2 h-10 px-5 rounded-full bg-red-50 hover:bg-red-100 text-red-600 dark:bg-red-900/20 dark:hover:bg-red-900/30 dark:text-red-400 font-semibold text-sm transition-all w-full md:w-auto">
+                            <button
+                                onClick={handleLeaveGroup}
+                                className="group flex items-center justify-center gap-2 h-10 px-5 rounded-full bg-red-50 hover:bg-red-100 text-red-600 dark:bg-red-900/20 dark:hover:bg-red-900/30 dark:text-red-400 font-semibold text-sm transition-all w-full md:w-auto"
+                            >
                                 <span className="material-symbols-outlined text-lg">logout</span>
                                 <span>Sair do Grupo</span>
                             </button>
@@ -231,12 +356,26 @@ export default function GroupDashboard({ params }: { params: Promise<{ id: strin
                                                 </div>
                                             </div>
                                             <div className="flex items-center sm:self-center gap-3 mt-2 sm:mt-0">
-                                                {/* Avatars placeholder (could be real players later) */}
+                                                {/* Avatars */}
                                                 <div className="flex -space-x-2 mr-2 hidden md:flex">
-                                                    <div className="w-8 h-8 rounded-full border-2 border-white dark:border-[#1f3b29] bg-gray-200 bg-cover" style={{ backgroundImage: "url('https://lh3.googleusercontent.com/aida-public/AB6AXuBZkNk_S0MD3o3uEW2XxmPsOv4P3OtZ63IsBf5c4t4kWxV6WOvqLvA4OYaSZfbWpevORetRV5DCXSi6tzSIWyl3Oo7MPNN7AGPpSAynO06YM7GwKlYyuLwcTNKjSY9sNhWOyGsOwDc_rGO5CBVr2o-xkv8zRRKOiyx6ZY2uGIOgnkIFfTqrJ5SuSJHER2BOZLB_GFaC4e2-6KW4hyyKtWzKT_vNX9hX3anw1l9Psl0Ld_SqrwaCRJtDOUM11otOV0bTFQR4v1dRwgM')" }}></div>
-                                                    <div className="w-8 h-8 rounded-full border-2 border-white dark:border-[#1f3b29] bg-gray-200 bg-cover" style={{ backgroundImage: "url('https://lh3.googleusercontent.com/aida-public/AB6AXuA_AZgzBWXmaFYyM2aoCKyCYWKS5_aF5g8h8iaxLLh8dZUW2lx7TOSj9H3duRb3EM4n5QHu3uTi_Jn-8iYWE4GlcLwun4x1--r0tGscvH_bdAijTiF6KVUhk5uJTKeoqPAgxvQlkx6OrAzbj9AxYPA2TAT34YJnotKrnI_K-IV8UdD09aEWtFbsT4UHqABWbR08N8yVYkGqS8s0A-ygNfbQp66iNzOStNNpT-8FL5kSfoIMC42vxRI51NzMW9QB-vz4bCktL01z1Q4')" }}></div>
-                                                    <div className="w-8 h-8 rounded-full border-2 border-white dark:border-[#1f3b29] bg-gray-200 bg-cover" style={{ backgroundImage: "url('https://lh3.googleusercontent.com/aida-public/AB6AXuBg4shSAgf0oozkpNWZclUL6osG8EH-dWRjmOMhLKd313WpTToJMSdrn7jg3SQHCnKU9dZmfCpbIc3CKGAtNTDwf4latSz19LB5mJeHt2uLiZjHzTTQStC852tax4ilAPqVsXWfM7W_hCg4O5KnKfcan6IbKnuDkYba6nHHK5-QkAgof2_h7hl5V1gxRtrTsU-594qJ5gqjiWWxFEyAvg2dQsRy0xPjywmyPtx3IrQaqoMepsbLFy9tHafTgt8H6gj5TWGbPT0IDqA')" }}></div>
-                                                    <div className="w-8 h-8 rounded-full border-2 border-white dark:border-[#1f3b29] bg-gray-100 flex items-center justify-center text-[10px] font-bold text-gray-600">+?</div>
+                                                    {match.match_participants && match.match_participants.slice(0, 3).map((participant: any) => (
+                                                        <div
+                                                            key={participant.user_id}
+                                                            className="w-8 h-8 rounded-full border-2 border-white dark:border-[#1f3b29] bg-gray-200 bg-cover"
+                                                            style={{ backgroundImage: `url('${participant.profile?.avatar_url || ""}')` }}
+                                                        >
+                                                            {!participant.profile?.avatar_url && (
+                                                                <div className="w-full h-full flex items-center justify-center text-[10px] text-gray-500 font-bold">
+                                                                    ?
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    ))}
+                                                    {match.match_participants && match.match_participants.length > 3 && (
+                                                        <div className="w-8 h-8 rounded-full border-2 border-white dark:border-[#1f3b29] bg-gray-100 flex items-center justify-center text-[10px] font-bold text-gray-600">
+                                                            +{match.match_participants.length - 3}
+                                                        </div>
+                                                    )}
                                                 </div>
                                                 <Link href={`/dashboard/partidas/${match.id}`} className="w-full sm:w-auto bg-[#13ec5b] hover:bg-[#0fd650] text-[#0d1b12] font-bold py-2.5 px-6 rounded-full transition-colors shadow-sm shadow-[#13ec5b]/30 flex items-center justify-center gap-2">
                                                     <span>Ver partida</span>
@@ -275,17 +414,8 @@ export default function GroupDashboard({ params }: { params: Promise<{ id: strin
                             </h3>
                             <div className="prose prose-sm dark:prose-invert text-gray-600 dark:text-gray-300">
                                 <p className="mb-3 text-sm leading-relaxed">
-                                    Grupo focado em diversão e respeito. Jogamos toda terça-feira religiosamente. Nível intermediário.
+                                    {group.description || "O administrador ainda não adicionou uma descrição para este grupo."}
                                 </p>
-                                <div className="bg-[#f6f8f6] dark:bg-[#102216] p-3 rounded-lg border border-[#e7f3eb] dark:border-[#1f3b29]">
-                                    <h4 className="text-xs font-bold uppercase text-gray-500 dark:text-gray-400 mb-2">Regras Rápidas</h4>
-                                    <ul className="text-sm space-y-2 list-disc pl-4 marker:text-[#13ec5b]">
-                                        <li>Chegar 15 min antes.</li>
-                                        <li>Goleiro fixo não paga.</li>
-                                        <li>Proibido carrinho.</li>
-                                        <li>Pagamento via PIX antes do jogo.</li>
-                                    </ul>
-                                </div>
                             </div>
                         </div>
 
@@ -294,62 +424,63 @@ export default function GroupDashboard({ params }: { params: Promise<{ id: strin
                             <div className="flex items-center justify-between mb-4">
                                 <h3 className="font-bold text-lg text-[#0d1b12] dark:text-white flex items-center gap-2">
                                     <span className="material-symbols-outlined text-[#13ec5b]">groups</span>
-                                    Membros (24)
+                                    Membros ({members.length})
                                 </h3>
                                 <Link className="text-xs font-bold text-[#0ea841] dark:text-[#13ec5b] hover:underline" href="#">Ver todos</Link>
                             </div>
                             <div className="grid grid-cols-4 gap-3">
-                                {/* Member 1 (Admin) */}
-                                <div className="flex flex-col items-center gap-1">
-                                    <div className="relative">
-                                        <div className="w-12 h-12 rounded-full bg-cover bg-center border-2 border-[#13ec5b]" style={{ backgroundImage: "url('https://lh3.googleusercontent.com/aida-public/AB6AXuDCmSQWmb4e416gLjgykhvARrhgREwlQ6omR43G-cMHadkY0K2-mfRkUT8l38ZOSjV3n3x9kq3x2bInlgIPz0LC7m1xBSPLlPUwkfXmPsBDJ-6OW0PIetKztBFwGJgJd6fnhYcVbXt96js0ZBE_pxcR5qrYydgl_EYUeLE5S6-CWKCMcISkvkd6bfgvxfjTnhSzg9bNhpdoJPmMT8Mee6IrNQAwmxLZgf9zfV9dLs0OYSUPq3jdMEdZbt-XLt-cx6ozoieYc75LaxY')" }}></div>
-                                        <div className="absolute -bottom-1 -right-1 bg-[#13ec5b] text-[#0d1b12] text-[8px] font-bold px-1.5 py-0.5 rounded-full border border-white dark:border-[#1c2e22]">ADM</div>
+                                {members.slice(0, 7).map((member) => (
+                                    <div key={member.id} className="flex flex-col items-center gap-1">
+                                        <div className="relative">
+                                            {member.profile?.avatar_url ? (
+                                                <div className={`w-12 h-12 rounded-full bg-cover bg-center border-2 ${member.role === 'admin' || member.role === 'owner' ? 'border-[#13ec5b]' : 'border-gray-200 dark:border-[#2a4031]'}`} style={{ backgroundImage: `url('${member.profile.avatar_url}')` }}></div>
+                                            ) : (
+                                                <div className={`w-12 h-12 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center text-gray-500 font-bold border-2 ${member.role === 'admin' || member.role === 'owner' ? 'border-[#13ec5b]' : 'border-gray-200 dark:border-[#2a4031]'}`}>
+                                                    {member.profile?.full_name?.charAt(0).toUpperCase() || "?"}
+                                                </div>
+                                            )}
+                                            {(member.role === 'admin' || member.role === 'owner') && (
+                                                <div className="absolute -bottom-1 -right-1 bg-[#13ec5b] text-[#0d1b12] text-[8px] font-bold px-1.5 py-0.5 rounded-full border border-white dark:border-[#1c2e22]">ADM</div>
+                                            )}
+                                        </div>
+                                        <span className="text-xs font-medium truncate w-full text-center text-gray-700 dark:text-gray-300">
+                                            {member.profile?.full_name?.split(' ')[0] || "Usuário"}
+                                        </span>
                                     </div>
-                                    <span className="text-xs font-medium truncate w-full text-center text-gray-700 dark:text-gray-300">Carlos</span>
-                                </div>
-                                {/* Member 2 */}
-                                <div className="flex flex-col items-center gap-1">
-                                    <div className="w-12 h-12 rounded-full bg-cover bg-center bg-gray-200" style={{ backgroundImage: "url('https://lh3.googleusercontent.com/aida-public/AB6AXuDICiEYhQNpuov4FecrdRyv2qrfoHjJR871MB3aIOUdH1GPeUIon-eVQzP0ZKgDQBdudaD3-Td6t8yzSt__VPOJk_O5RgX3jEcG73r8IGoEquUJbaITV-mNR-XDUqrDYKQiCTf-bbfo9MGExZK6-TPNHp15djjxa2qwYxzzQGALqmzjj2SY1nyitonopiP1HwXWgi9LCxPx4_WmviGGYCv09dxmVarDMehkH1k6tebvWA2VFFV9MZJZQsThPcvRQ11sYzNL5gxXQYc')" }}></div>
-                                    <span className="text-xs font-medium truncate w-full text-center text-gray-700 dark:text-gray-300">João</span>
-                                </div>
-                                {/* Member 3 */}
-                                <div className="flex flex-col items-center gap-1">
-                                    <div className="w-12 h-12 rounded-full bg-cover bg-center bg-gray-200" style={{ backgroundImage: "url('https://lh3.googleusercontent.com/aida-public/AB6AXuB3vt9JQw3REUMc3ih_xWDe-F6VKiXrMCAGPIhj4e9ra_bDGcwiVf7OxA2h6_FXedMT77YDVGJJGTBRfD6Kf0WEG45K41ENoWNGa7MOqAa3YHxkXtpSoZ-QSPJB0BU5U5SSyZJ_13xwBC5uS3PrHNoOnVhJXFDJu_Xtd2kv0Tk7wTwRDnQ6LLZxeO12-_ZQXRXoc-Ik6ck8yUSqOubRqzWXKl_He7aZAu6aUTzyjUZ39NroZW0od4wgYhK81XigTzv__kekDBnJNu4')" }}></div>
-                                    <span className="text-xs font-medium truncate w-full text-center text-gray-700 dark:text-gray-300">André</span>
-                                </div>
-                                {/* Member 4 */}
-                                <div className="flex flex-col items-center gap-1">
-                                    <div className="w-12 h-12 rounded-full bg-cover bg-center bg-gray-200" style={{ backgroundImage: "url('https://lh3.googleusercontent.com/aida-public/AB6AXuCdPYToVNj6bBc1R_IFmLrWUU8X4qeXapx3NT5gyzkBcHOfBeK1v1I-8HDgnHqi_8DJwXiSuZtKGKEemyZ5aU0RZUvs7S4r39pntqK-ZNGY0FiUugPCLZslJ2ruE9WaFCU8K5w7rMUf53atN_NjIidTPASiLJ0belRTRiEx1zqeVTz_WeTKEj9e4VZHyX-089EywIUQFF_NJ92gUjFiNtE2R1hH58Iik0hOKtx76EN285J0HHu3MAyEWZzN979hZ_guwlQMMRqRKns')" }}></div>
-                                    <span className="text-xs font-medium truncate w-full text-center text-gray-700 dark:text-gray-300">Felipe</span>
-                                </div>
-                                {/* Member 5 */}
-                                <div className="flex flex-col items-center gap-1">
-                                    <div className="w-12 h-12 rounded-full bg-cover bg-center bg-gray-200" style={{ backgroundImage: "url('https://lh3.googleusercontent.com/aida-public/AB6AXuB__j1QcDQw3OTEf-sdMTgnozMsE5M3tDOW35RTHeSTu-P4hIYLSa38k8UJM0NRkmRoWQwBhG3GkDQciUPw0SUawabQIxOUnoAZS1L2hpavcyNE8tfrks-wTFmqXf9T4fWco24sw6nFVJVZ9Wd89mzQoxasS8GGEY9MLDVeYMpDj7-8W5cRQXuEq3fvxCkceDhDX8gliIKi6rzE2eRsgwRg_iF0pdhImUYIiBazqabTKsciLoj_v5o9odJ1Haw5vs6yaFgBLzvnJQk')" }}></div>
-                                    <span className="text-xs font-medium truncate w-full text-center text-gray-700 dark:text-gray-300">Lucas</span>
-                                </div>
-                                {/* Member 6 */}
-                                <div className="flex flex-col items-center gap-1">
-                                    <div className="w-12 h-12 rounded-full bg-cover bg-center bg-gray-200" style={{ backgroundImage: "url('https://lh3.googleusercontent.com/aida-public/AB6AXuA1IjN0uvpfNqOsnTd5P26jUHpXlgNyI9G2h9hGfQsDr4Zf_LMa97d3Bh-kz6nJvLBzBbHbNtdcZQoC6J4ohuKVivJJfibhug2Ja-nlt5LZu9no6I8z80GcbPBDox4_TX9eeFy0UUP5INFnxcswpUChJVyVe7AMM__0pEBGP_DinSUAiyFXzzDjCbEoT1V7OvykYS9IsoS_LfudCRykmbWK6bf9YO8ML-cm4xSyXcnlBQIUuKIHIKejNnGb_F6TqLA0LXHo77WEfWU')" }}></div>
-                                    <span className="text-xs font-medium truncate w-full text-center text-gray-700 dark:text-gray-300">Vitor</span>
-                                </div>
-                                {/* Member 7 */}
-                                <div className="flex flex-col items-center gap-1">
-                                    <div className="w-12 h-12 rounded-full bg-cover bg-center bg-gray-200" style={{ backgroundImage: "url('https://lh3.googleusercontent.com/aida-public/AB6AXuCImLVXEyELkDjEYXi1pfh8wwJPVLlgMSqlIS1IXaZxEfTRPOx3QvbVkAVke6V9qu8bXDyvqQ28T3F6GFGzA2K52K-Fak9BkvyP0pYFfIMRhvqZ1DmJchySK_XxzZpUZXATwrUqtPwuth481Ob7UCSM-G9IDafVcgwX85aiECE1NW9wmAfg1r79Y77ryWDaP8jSlDkxmGH182gOfmYnIBV96nUL_F6GU8JTUdwGLVMf_tiujSX9LzzMjQG460wDQdCSGGe6hyjSL5o')" }}></div>
-                                    <span className="text-xs font-medium truncate w-full text-center text-gray-700 dark:text-gray-300">Gui</span>
-                                </div>
-                                {/* More count */}
-                                <div className="flex flex-col items-center gap-1">
-                                    <div className="w-12 h-12 rounded-full bg-[#13ec5b]/10 flex items-center justify-center text-[#0ea841] dark:text-[#13ec5b] font-bold text-sm hover:bg-[#13ec5b]/20 transition-colors cursor-pointer">
-                                        +17
+                                ))}
+
+                                {members.length > 7 && (
+                                    <div className="flex flex-col items-center gap-1">
+                                        <div className="w-12 h-12 rounded-full bg-[#13ec5b]/10 flex items-center justify-center text-[#0ea841] dark:text-[#13ec5b] font-bold text-sm hover:bg-[#13ec5b]/20 transition-colors cursor-pointer">
+                                            +{members.length - 7}
+                                        </div>
+                                        <span className="text-xs font-medium truncate w-full text-center text-gray-700 dark:text-gray-300">Outros</span>
                                     </div>
-                                    <span className="text-xs font-medium truncate w-full text-center text-gray-700 dark:text-gray-300">Outros</span>
-                                </div>
+                                )}
+
+                                {members.length === 0 && (
+                                    <div className="col-span-4 text-center text-gray-400 text-sm py-4">
+                                        Nenhum membro encontrado.
+                                    </div>
+                                )}
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
-        </div>
 
+            {/* Modals */}
+            <ConfirmationModal
+                isOpen={isLeaveModalOpen}
+                onClose={() => setIsLeaveModalOpen(false)}
+                onConfirm={confirmLeaveGroup}
+                title="Sair do Grupo"
+                message={`Tem certeza que deseja sair do grupo "${group?.name}"? Você perderá acesso às partidas e histórico.`}
+                confirmText="Sair do Grupo"
+                cancelText="Ficar"
+                type="danger"
+                isLoading={isLeaving}
+            />
+        </div>
     );
 }

@@ -236,7 +236,18 @@ function CreateMatchContent() {
                                             lon: lon || ""
                                         }));
                                     }}
-                                    defaultValue={formData.location}
+                                    onChange={(value) => {
+                                        setFormData(prev => ({
+                                            ...prev,
+                                            location: value,
+                                            // Keep existing lat/lon or clear them? 
+                                            // If user types, we probably shouldn't rely on old coordinates unless they select again.
+                                            // But for now let's just update the text so validation passes.
+                                            lat: "",
+                                            lon: ""
+                                        }));
+                                    }}
+                                    value={formData.location}
                                     placeholder="Digite o nome do campo, quadra ou endereço..."
                                     className="w-full bg-slate-50 dark:bg-[#102216] border-2 border-slate-100 dark:border-slate-800 rounded-xl px-4 py-3 text-slate-900 dark:text-white font-bold outline-none focus:border-[#13ec5b] transition-colors"
                                 />

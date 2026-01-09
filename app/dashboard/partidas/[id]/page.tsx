@@ -2,7 +2,9 @@
 
 import Link from "next/link";
 import { useState, use, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { supabase } from "../../../../src/lib/client";
+import ConfirmationModal from "../../../components/ConfirmationModal";
 
 interface Match {
     id: string;
@@ -37,6 +39,7 @@ interface Vote {
 export default function MatchDetails({ params }: { params: Promise<{ id: string }> }) {
     const { id } = use(params);
     const matchId = id;
+    const router = useRouter();
 
     const [match, setMatch] = useState<Match | null>(null);
     const [participants, setParticipants] = useState<Participant[]>([]);
@@ -51,6 +54,41 @@ export default function MatchDetails({ params }: { params: Promise<{ id: string 
     const [myVote, setMyVote] = useState<Vote | null>(null);
     const [showVoting, setShowVoting] = useState(false);
     const [voteResults, setVoteResults] = useState<{ userId: string; count: number; user: Participant }[] | null>(null);
+
+    // Cancel Match State
+    const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
+    const [isCanceling, setIsCanceling] = useState(false);
+
+    const handleCancelMatch = () => {
+        setIsCancelModalOpen(true);
+    };
+
+    const confirmCancelMatch = async () => {
+        setIsCanceling(true);
+        try {
+            // 1. Delete Dependencies (Participants & Votes)
+            await supabase.from('match_participants').delete().eq('match_id', matchId);
+            await supabase.from('match_votes').delete().eq('match_id', matchId);
+
+            // 2. Delete the Match
+            const { error } = await supabase
+                .from('matches')
+                .delete()
+                .eq('id', matchId);
+
+            if (error) throw error;
+
+            setSuccessMessage("Partida cancelada com sucesso.");
+            // Slight delay or immediate redirect
+            router.push(match?.group_id ? `/dashboard/grupos/${match.group_id}` : '/dashboard');
+            router.refresh();
+        } catch (error: any) {
+            console.error(error);
+            setErrorMessage("Erro ao cancelar partida: " + (error?.message || "Erro desconhecido"));
+            setIsCanceling(false);
+            setIsCancelModalOpen(false);
+        }
+    };
 
     // Fetch Data
     const fetchData = async () => {
@@ -407,13 +445,29 @@ export default function MatchDetails({ params }: { params: Promise<{ id: string 
                                 Competitivo
                             </span>
                             {isAdmin && (
-                                <Link
-                                    href={`/dashboard/grupos/${match.group_id}/admin`}
-                                    className="inline-flex items-center gap-1 px-3 py-1 bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/20 rounded-full text-xs font-bold text-[#0d1b12] dark:text-white transition-colors ml-auto sm:ml-0"
-                                >
-                                    <span className="material-symbols-outlined text-[16px]">settings</span>
-                                    Gerenciar
-                                </Link>
+                                <div className="flex items-center gap-2 ml-auto sm:ml-0">
+                                    <button
+                                        onClick={handleCancelMatch}
+                                        className="inline-flex items-center gap-1 px-3 py-1 bg-red-50 hover:bg-red-100 rounded-full text-xs font-bold text-red-600 transition-colors"
+                                    >
+                                        <span className="material-symbols-outlined text-[16px]">cancel</span>
+                                        Cancelar
+                                    </button>
+                                    <Link
+                                        href={`/dashboard/grupos/${match.group_id}/admin`}
+                                        className="inline-flex items-center gap-1 px-3 py-1 bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/20 rounded-full text-xs font-bold text-[#0d1b12] dark:text-white transition-colors"
+                                    >
+                                        <span className="material-symbols-outlined text-[16px]">settings</span>
+                                        Gerenciar
+                                    </Link>
+                                    <Link
+                                        href={`/dashboard/grupos/${match.group_id}/partidas/${matchId}/em-andamento`}
+                                        className="inline-flex items-center gap-1 px-3 py-1 bg-[#13ec5b] hover:bg-[#0fd652] rounded-full text-xs font-bold text-[#0d1b12] transition-colors"
+                                    >
+                                        <span className="material-symbols-outlined text-[16px]">timer</span>
+                                        Ao Vivo
+                                    </Link>
+                                </div>
                             )}
                         </div>
 
@@ -679,6 +733,17 @@ export default function MatchDetails({ params }: { params: Promise<{ id: string 
                     </div>
                 </div>
             </div>
+            {/* Modal */}
+            <ConfirmationModal
+                isOpen={isCancelModalOpen}
+                onClose={() => setIsCancelModalOpen(false)}
+                onConfirm={confirmCancelMatch}
+                title="Cancelar Partida"
+                message={`Tem certeza que deseja cancelar a partida "${match.name}"? Isso removerá o evento e notificará os jogadores.`}
+                confirmText="Sim, Cancelar Partida"
+                type="danger"
+                isLoading={isCanceling}
+            />
         </div>
     );
 }

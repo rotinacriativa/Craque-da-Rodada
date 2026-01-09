@@ -1,19 +1,314 @@
 "use client";
 
-import { use } from "react";
-import { useState } from "react";
+import { use, useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { supabase } from "../../../../../../src/lib/client";
+import ConfirmationModal from "../../../../../../app/components/ConfirmationModal";
+
+interface Admin {
+    id: string; // group_member id
+    user_id: string;
+    role: string;
+    profile: {
+        full_name: string;
+        avatar_url: string;
+    } | null;
+}
+
+interface Member {
+    id: string; // group_member id
+    user_id: string;
+    profile: {
+        full_name: string;
+        avatar_url: string;
+    } | null;
+}
 
 export default function GroupSettingsPage({ params }: { params: Promise<{ id: string }> }) {
     const { id } = use(params);
     const groupId = id;
+    const router = useRouter();
 
-    // Use state for form handling later, sticking to visual port for now
-    const [groupName, setGroupName] = useState("Craque da Rodada FC");
-    const [location, setLocation] = useState("Arena Society Central");
-    const [description, setDescription] = useState("Grupo oficial para as peladas de terça-feira. Respeito e bom futebol acima de tudo!");
+    // Core Data
+    const [groupName, setGroupName] = useState("");
+    const [location, setLocation] = useState("");
+    const [description, setDescription] = useState("");
+    const [imageUrl, setImageUrl] = useState("");
+
+    // Rules Data
+    const [duration, setDuration] = useState(60);
+    const [maxPlayers, setMaxPlayers] = useState(14);
+    const [tolerance, setTolerance] = useState(15);
+
+    // Privacy Data
+    const [isPrivate, setIsPrivate] = useState(false);
+    const [manualApproval, setManualApproval] = useState(false);
+
+    const [admins, setAdmins] = useState<Admin[]>([]);
+    const [members, setMembers] = useState<Member[]>([]); // For promoting to admin
+
+    const [isLoading, setIsLoading] = useState(true);
+    const [isSaving, setIsSaving] = useState(false);
+    const [isUploading, setIsUploading] = useState(false);
+    const [showAddAdminModal, setShowAddAdminModal] = useState(false);
+    const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
+
+    useEffect(() => {
+        if (groupId) fetchData();
+    }, [groupId]);
+
+    async function fetchData() {
+        try {
+            // 1. Fetch Group Details
+            const { data: groupData, error: groupError } = await supabase
+                .from("groups")
+                .select("name, location, description, max_members, visibility, image_url, manual_approval")
+                .eq("id", groupId)
+                .single();
+
+            if (groupError) throw groupError;
+
+            if (groupData) {
+                setGroupName(groupData.name || "");
+                setLocation(groupData.location || "");
+                setDescription(groupData.description || "");
+                setImageUrl(groupData.image_url || "");
+
+                if (groupData.max_members) setMaxPlayers(groupData.max_members);
+                setIsPrivate(groupData.visibility === 'private');
+                setManualApproval(groupData.manual_approval || false);
+            }
+
+            // 2. Fetch All Members (to separate admins and potential admins)
+            const { data: membersData, error: membersError } = await supabase
+                .from("group_members")
+                .select("id, user_id, role")
+                .eq("group_id", groupId);
+
+            if (membersError) throw membersError;
+
+            if (membersData && membersData.length > 0) {
+                const userIds = membersData.map((m: any) => m.user_id);
+                const { data: profilesData, error: profilesError } = await supabase
+                    .from("profiles")
+                    .select("id, full_name, avatar_url")
+                    .in("id", userIds);
+
+                if (profilesError) throw profilesError;
+
+                const profilesMap = new Map(profilesData?.map((p: any) => [p.id, p]));
+
+                const adminsList: Admin[] = [];
+                const regularMembers: Member[] = [];
+
+                membersData.forEach((m: any) => {
+                    const profile = profilesMap.get(m.user_id) || null;
+                    if (m.role === 'admin' || m.role === 'owner') {
+                        adminsList.push({ ...m, profile });
+                    } else {
+                        regularMembers.push({ ...m, profile });
+                    }
+                });
+
+                setAdmins(adminsList);
+                setMembers(regularMembers); // Candidates for admin
+            } else {
+                setAdmins([]);
+                setMembers([]);
+            }
+
+        } catch (error) {
+            console.error("Error fetching settings:", error);
+            setMessage({ type: 'error', text: "Erro ao carregar dados." });
+        } finally {
+            setIsLoading(false);
+        }
+    }
+
+    const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (!e.target.files || e.target.files.length === 0) return;
+
+        setIsUploading(true);
+        const file = e.target.files[0];
+        const fileExt = file.name.split('.').pop();
+        const fileName = `${groupId}/${Date.now()}.${fileExt}`;
+
+        try {
+            const { error: uploadError } = await supabase.storage
+                .from('group-logos')
+                .upload(fileName, file, { upsert: true });
+
+            if (uploadError) throw uploadError;
+
+            const { data: { publicUrl } } = supabase.storage
+                .from('group-logos')
+                .getPublicUrl(fileName);
+
+            // Update immediately - nice UX
+            const { error: updateError } = await supabase
+                .from('groups')
+                .update({ image_url: publicUrl })
+                .eq('id', groupId);
+
+            if (updateError) throw updateError;
+
+            setImageUrl(publicUrl);
+            setMessage({ type: 'success', text: "Logo atualizado com sucesso!" });
+            setTimeout(() => setMessage(null), 3000);
+
+        } catch (error: any) {
+            console.error("Error uploading logo:", error);
+            setMessage({ type: 'error', text: "Erro ao fazer upload da imagem." });
+        } finally {
+            setIsUploading(false);
+        }
+    };
+
+    const handleSave = async (e?: React.FormEvent) => {
+        if (e) e.preventDefault();
+        setIsSaving(true);
+        setMessage(null);
+
+        try {
+            const { error } = await supabase
+                .from("groups")
+                .update({
+                    name: groupName,
+                    location: location,
+                    description: description,
+                    max_members: maxPlayers,
+                    visibility: isPrivate ? 'private' : 'public',
+                    manual_approval: manualApproval
+                })
+                .eq("id", groupId);
+
+            if (error) throw error;
+
+            setMessage({ type: 'success', text: "Configurações salvas!" });
+            setTimeout(() => setMessage(null), 3000);
+
+        } catch (error) {
+            console.error("Error updating group:", error);
+            setMessage({ type: 'error', text: "Erro ao salvar alterações." });
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    const handlePromoteAdmin = async (memberId: string) => {
+        try {
+            const { error } = await supabase
+                .from("group_members")
+                .update({ role: "admin" })
+                .eq("id", memberId);
+
+            if (error) throw error;
+
+            setMessage({ type: 'success', text: "Membro promovido a Admin!" });
+            setShowAddAdminModal(false);
+            fetchData(); // Refresh lists
+            setTimeout(() => setMessage(null), 3000);
+        } catch (error) {
+            console.error("Error promoting member:", error);
+            setMessage({ type: 'error', text: "Erro ao promover membro." });
+        }
+    };
+
+    // Function to remove admin (demote to member)
+    const handleRemoveAdmin = async (memberId: string) => {
+        if (!confirm("Tem certeza que deseja remover este admin?")) return;
+
+        try {
+            const { error } = await supabase
+                .from("group_members")
+                .update({ role: "member" })
+                .eq("id", memberId);
+
+            if (error) throw error;
+
+            setMessage({ type: 'success', text: "Admin removido com sucesso." });
+            fetchData();
+            setTimeout(() => setMessage(null), 3000);
+        } catch (error) {
+            console.error("Error removing admin:", error);
+            setMessage({ type: 'error', text: "Erro ao remover admin." });
+        }
+    }
+
+    const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+    const [isDeleting, setIsDeleting] = useState(false);
+
+    const handleDeleteGroup = () => {
+        setIsDeleteModalOpen(true);
+    };
+
+    const confirmDeleteGroup = async () => {
+        setIsDeleting(true);
+        try {
+            // 1. Get all matches to delete dependants
+            const { data: matches, error: matchesFetchError } = await supabase
+                .from('matches')
+                .select('id')
+                .eq('group_id', groupId);
+
+            if (matchesFetchError) throw matchesFetchError;
+
+            const matchIds = matches?.map(m => m.id) || [];
+
+            if (matchIds.length > 0) {
+                // Delete Match Participants
+                const { error: partError } = await supabase.from('match_participants').delete().in('match_id', matchIds);
+                if (partError) throw partError;
+
+                // Delete Match Votes
+                const { error: votesError } = await supabase.from('match_votes').delete().in('match_id', matchIds);
+                if (votesError) throw votesError;
+
+                // Delete Matches
+                const { error: matchesDelError } = await supabase.from('matches').delete().in('id', matchIds);
+                if (matchesDelError) throw matchesDelError;
+            }
+
+            // 2. Delete Transactions
+            const { error: transError } = await supabase.from('transactions').delete().eq('group_id', groupId);
+            if (transError) throw transError;
+
+            // 3. Delete Group Members
+            const { error: membersError } = await supabase.from('group_members').delete().eq('group_id', groupId);
+            if (membersError) throw membersError;
+
+            // 4. Delete Group
+            const { error } = await supabase
+                .from("groups")
+                .delete()
+                .eq("id", groupId);
+
+            if (error) throw error;
+
+            alert("Grupo e todos os dados excluídos com sucesso.");
+
+            // Force hard reload to ensure cache is cleared and "My Groups" is updated
+            window.location.href = "/dashboard";
+
+        } catch (error: any) {
+            console.error("Error deleting group:", error);
+            setMessage({ type: 'error', text: "Erro ao excluir grupo: " + error.message });
+            setIsDeleting(false); // Only stop loading if error
+            setIsDeleteModalOpen(false);
+        }
+    };
+
+
+    if (isLoading) {
+        return (
+            <div className="flex-1 w-full max-w-5xl mx-auto px-6 py-8 flex items-center justify-center">
+                <p className="text-slate-500">Carregando configurações...</p>
+            </div>
+        );
+    }
 
     return (
-        <div className="flex-1 w-full max-w-5xl mx-auto px-6 py-8 pb-12 flex flex-col gap-8">
+        <div className="flex-1 w-full max-w-5xl mx-auto px-6 py-8 pb-12 flex flex-col gap-8 relative">
             <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
                 <div className="flex flex-col gap-2">
                     <h2 className="text-3xl md:text-3xl font-black tracking-tight text-[#0d1b12] dark:text-white">Configurações do Grupo</h2>
@@ -21,9 +316,16 @@ export default function GroupSettingsPage({ params }: { params: Promise<{ id: st
                 </div>
             </div>
 
+            {message && (
+                <div className={`p-4 rounded-xl text-center font-bold sticky top-4 z-50 shadow-md ${message.type === 'success' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                    {message.text}
+                </div>
+            )}
+
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {/* Coluna Principal - Esquerda (2/3) */}
                 <div className="lg:col-span-2 flex flex-col gap-6">
+
                     {/* Dados do Grupo */}
                     <div className="bg-white dark:bg-[#1a2c20] p-6 rounded-2xl shadow-sm border border-[#e7f3eb] dark:border-[#2a4032]">
                         <div className="flex items-center gap-3 mb-6 pb-4 border-b border-[#e7f3eb] dark:border-[#2a4032]">
@@ -32,14 +334,26 @@ export default function GroupSettingsPage({ params }: { params: Promise<{ id: st
                             </div>
                             <h3 className="text-xl font-bold text-[#0d1b12] dark:text-white">Dados do Grupo</h3>
                         </div>
-                        <form className="flex flex-col gap-6" onSubmit={(e) => e.preventDefault()}>
+                        <div className="flex flex-col gap-6">
                             <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6">
                                 <div className="flex flex-col items-center gap-2">
-                                    <div className="relative w-24 h-24 rounded-2xl bg-gray-100 dark:bg-[#25382e] border-2 border-dashed border-gray-300 dark:border-gray-600 flex items-center justify-center overflow-hidden group cursor-pointer hover:border-[#13ec5b] transition-colors">
-                                        <span className="material-symbols-outlined text-gray-400 text-3xl">add_a_photo</span>
-                                        <input className="absolute inset-0 opacity-0 cursor-pointer" type="file" />
+                                    <div className={`relative w-24 h-24 rounded-2xl bg-gray-100 dark:bg-[#25382e] border-2 border-dashed border-gray-300 dark:border-gray-600 flex items-center justify-center overflow-hidden group cursor-pointer hover:border-[#13ec5b] transition-colors ${isUploading ? 'opacity-50' : ''}`}>
+                                        {imageUrl ? (
+                                            <img src={imageUrl} alt="Logo" className="w-full h-full object-cover" />
+                                        ) : (
+                                            <span className="material-symbols-outlined text-gray-400 text-3xl">add_a_photo</span>
+                                        )}
+                                        <input
+                                            className="absolute inset-0 opacity-0 cursor-pointer"
+                                            type="file"
+                                            accept="image/*"
+                                            onChange={handleLogoUpload}
+                                            disabled={isUploading}
+                                        />
                                     </div>
-                                    <button className="text-xs font-bold text-[#13ec5b] hover:text-[#0fd652]">Alterar Logo</button>
+                                    <button type="button" className="text-xs font-bold text-[#13ec5b] hover:text-[#0fd652]">
+                                        {isUploading ? 'Enviando...' : 'Alterar Logo'}
+                                    </button>
                                 </div>
                                 <div className="flex-1 w-full space-y-4">
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -75,16 +389,27 @@ export default function GroupSettingsPage({ params }: { params: Promise<{ id: st
                                         ></textarea>
                                     </div>
                                     <div className="flex justify-end pt-2">
-                                        <button className="bg-[#13ec5b] hover:bg-[#0fd652] text-[#0d1b12] font-bold py-3 px-8 rounded-xl transition-colors shadow-lg shadow-[#13ec5b]/20">
-                                            Salvar Dados
+                                        <button
+                                            onClick={(e) => handleSave(e)}
+                                            disabled={isSaving}
+                                            className="bg-[#13ec5b] hover:bg-[#0fd652] text-[#0d1b12] font-bold py-3 px-8 rounded-xl transition-colors shadow-lg shadow-[#13ec5b]/20 disabled:opacity-50 flex items-center gap-2"
+                                        >
+                                            {isSaving ? (
+                                                <>
+                                                    <span className="material-symbols-outlined animate-spin">refresh</span>
+                                                    Salvando...
+                                                </>
+                                            ) : (
+                                                "Salvar Dados"
+                                            )}
                                         </button>
                                     </div>
                                 </div>
                             </div>
-                        </form>
+                        </div>
                     </div>
 
-                    {/* Administradores - Moved here for better flow or keep bottom? Keeping bottom might be better for hierarchy. Let's put Admins below Dados. */}
+                    {/* Administradores */}
                     <div className="bg-white dark:bg-[#1a2c20] p-6 rounded-2xl shadow-sm border border-[#e7f3eb] dark:border-[#2a4032]">
                         <div className="flex items-center justify-between mb-6 pb-4 border-b border-[#e7f3eb] dark:border-[#2a4032]">
                             <div className="flex items-center gap-3">
@@ -93,125 +418,244 @@ export default function GroupSettingsPage({ params }: { params: Promise<{ id: st
                                 </div>
                                 <h3 className="text-xl font-bold text-[#0d1b12] dark:text-white">Administradores</h3>
                             </div>
-                            <button className="text-[#13ec5b] hover:text-[#0fd652] font-bold text-sm flex items-center gap-1 bg-[#13ec5b]/10 px-3 py-1.5 rounded-lg transition-colors">
+                            <button
+                                onClick={() => setShowAddAdminModal(true)}
+                                className="text-[#13ec5b] hover:text-[#0fd652] font-bold text-sm flex items-center gap-1 bg-[#13ec5b]/10 px-3 py-1.5 rounded-lg transition-colors"
+                            >
                                 <span className="material-symbols-outlined text-[18px]">add</span> Novo Admin
                             </button>
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                            <div className="flex items-center justify-between p-3 rounded-xl bg-gray-50 dark:bg-[#102216]/50 border border-gray-100 dark:border-[#2a4032]">
-                                <div className="flex items-center gap-3">
-                                    <div className="h-10 w-10 rounded-full bg-[#13ec5b]/20 flex items-center justify-center text-[#0d1b12] dark:text-white font-bold text-sm">PF</div>
-                                    <div className="min-w-0">
-                                        <p className="text-sm font-bold text-[#0d1b12] dark:text-white truncate">Craque da Rodada (Você)</p>
-                                        <p className="text-xs text-emerald-500 font-medium">Proprietário</p>
+                            {admins.map((admin) => (
+                                <div key={admin.id} className="flex items-center gap-3 p-3 rounded-xl bg-gray-50 dark:bg-[#102216]/50 border border-[#e7f3eb] dark:border-[#2a4032]">
+                                    <div className="w-10 h-10 rounded-full bg-gray-200 dark:bg-gray-700 overflow-hidden">
+                                        {admin.profile?.avatar_url ? (
+                                            <img src={admin.profile.avatar_url} alt={admin.profile.full_name} className="w-full h-full object-cover" />
+                                        ) : (
+                                            <div className="w-full h-full flex items-center justify-center text-gray-500 font-bold">
+                                                {admin.profile?.full_name?.charAt(0).toUpperCase() || "A"}
+                                            </div>
+                                        )}
                                     </div>
-                                </div>
-                                <span className="px-2 py-1 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 text-xs font-bold rounded">Ativo</span>
-                            </div>
-                            <div className="flex items-center justify-between p-3 rounded-xl bg-gray-50 dark:bg-[#102216]/50 border border-gray-100 dark:border-[#2a4032] group hover:border-gray-300 dark:hover:border-gray-600 transition-colors">
-                                <div className="flex items-center gap-3">
-                                    <div className="h-10 w-10 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center text-amber-700 dark:text-amber-400 font-bold text-sm">JS</div>
-                                    <div className="min-w-0">
-                                        <p className="text-sm font-bold text-[#0d1b12] dark:text-white truncate">João Silva</p>
-                                        <p className="text-xs text-gray-500">Adicionado em 12 Out</p>
+                                    <div className="flex-1 min-w-0">
+                                        <p className="font-bold text-[#0d1b12] dark:text-white truncate">{admin.profile?.full_name || "Usuário não encontrado"}</p>
+                                        <p className="text-xs text-[#13ec5b] font-bold uppercase">{admin.role === 'owner' ? 'Dono do Grupo' : 'Administrador'}</p>
                                     </div>
+                                    {admin.role !== 'owner' && (
+                                        <button
+                                            onClick={() => handleRemoveAdmin(admin.id)}
+                                            className="text-gray-400 hover:text-red-500 transition-colors p-1"
+                                            title="Remover Admin"
+                                        >
+                                            <span className="material-symbols-outlined text-[20px]">delete</span>
+                                        </button>
+                                    )}
                                 </div>
-                                <button className="text-gray-400 hover:text-red-500 transition-colors p-2 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20" title="Remover admin">
-                                    <span className="material-symbols-outlined text-[20px]">delete</span>
-                                </button>
-                            </div>
-                            <div className="flex items-center justify-between p-3 rounded-xl bg-gray-50 dark:bg-[#102216]/50 border border-gray-100 dark:border-[#2a4032] group hover:border-gray-300 dark:hover:border-gray-600 transition-colors">
-                                <div className="flex items-center gap-3">
-                                    <div className="h-10 w-10 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-blue-700 dark:text-blue-400 font-bold text-sm">CM</div>
-                                    <div className="min-w-0">
-                                        <p className="text-sm font-bold text-[#0d1b12] dark:text-white truncate">Carlos Mendes</p>
-                                        <p className="text-xs text-gray-500">Adicionado em 05 Set</p>
-                                    </div>
-                                </div>
-                                <button className="text-gray-400 hover:text-red-500 transition-colors p-2 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20" title="Remover admin">
-                                    <span className="material-symbols-outlined text-[20px]">delete</span>
-                                </button>
-                            </div>
+                            ))}
                         </div>
                     </div>
                 </div>
 
                 {/* Coluna Lateral - Direita (1/3) */}
                 <div className="flex flex-col gap-6">
-                    {/* Regras da Pelada */}
-                    <div className="bg-white dark:bg-[#1a2c20] p-6 rounded-2xl shadow-sm border border-[#e7f3eb] dark:border-[#2a4032] h-fit">
+                    {/* Regras */}
+                    <div className="bg-white dark:bg-[#1a2c20] p-6 rounded-2xl shadow-sm border border-[#e7f3eb] dark:border-[#2a4032]">
                         <div className="flex items-center gap-3 mb-6 pb-4 border-b border-[#e7f3eb] dark:border-[#2a4032]">
                             <div className="w-10 h-10 rounded-full bg-gray-100 dark:bg-[#25382e] flex items-center justify-center text-gray-600 dark:text-gray-300">
-                                <span className="material-symbols-outlined">rule</span>
+                                <span className="material-symbols-outlined">gavel</span>
                             </div>
-                            <h3 className="text-xl font-bold text-[#0d1b12] dark:text-white">Regras</h3>
+                            <h3 className="text-xl font-bold text-[#0d1b12] dark:text-white">Regras do Jogo</h3>
                         </div>
-                        <form className="flex flex-col gap-5" onSubmit={(e) => e.preventDefault()}>
+
+                        <div className="space-y-6">
+                            {/* Duração & Jogadores */}
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
-                                    <label className="block text-xs font-bold uppercase text-gray-500 mb-1.5">Duração</label>
-                                    <div className="relative">
-                                        <input className="w-full rounded-lg border-[#e7f3eb] dark:border-[#2a4032] bg-gray-50 dark:bg-[#102216]/50 px-3 py-2 text-[#0d1b12] dark:text-white text-sm focus:ring-2 focus:ring-[#13ec5b] focus:border-transparent outline-none" type="number" defaultValue="60" />
-                                        <span className="absolute right-3 top-2 text-gray-400 text-xs">min</span>
+                                    <label className="block text-xs font-bold text-gray-500 mb-1 uppercase">Duração</label>
+                                    <div className="flex items-center gap-2">
+                                        <input
+                                            type="number"
+                                            value={duration}
+                                            onChange={(e) => setDuration(Number(e.target.value))}
+                                            className="w-full bg-gray-50 dark:bg-[#102216]/50 border border-gray-200 dark:border-[#2a4032] rounded-lg p-2 text-center font-bold text-[#0d1b12] dark:text-white"
+                                        />
+                                        <span className="text-sm font-medium text-gray-400">min</span>
                                     </div>
                                 </div>
                                 <div>
-                                    <label className="block text-xs font-bold uppercase text-gray-500 mb-1.5">Jogadores</label>
-                                    <div className="relative">
-                                        <input className="w-full rounded-lg border-[#e7f3eb] dark:border-[#2a4032] bg-gray-50 dark:bg-[#102216]/50 px-3 py-2 text-[#0d1b12] dark:text-white text-sm focus:ring-2 focus:ring-[#13ec5b] focus:border-transparent outline-none" type="number" defaultValue="14" />
-                                        <span className="absolute right-3 top-2 text-gray-400 text-xs">pax</span>
+                                    <label className="block text-xs font-bold text-gray-500 mb-1 uppercase">Jogadores</label>
+                                    <div className="flex items-center gap-2">
+                                        <input
+                                            type="number"
+                                            value={maxPlayers}
+                                            onChange={(e) => setMaxPlayers(Number(e.target.value))}
+                                            className="w-full bg-gray-50 dark:bg-[#102216]/50 border border-gray-200 dark:border-[#2a4032] rounded-lg p-2 text-center font-bold text-[#0d1b12] dark:text-white"
+                                        />
+                                        <span className="text-sm font-medium text-gray-400">pax</span>
                                     </div>
                                 </div>
                             </div>
+
+                            {/* Tolerância */}
                             <div>
-                                <div className="flex items-center justify-between mb-2">
-                                    <label className="block text-xs font-bold uppercase text-gray-500">Tolerância</label>
-                                    <span className="bg-gray-100 dark:bg-[#25382e] text-[#0d1b12] dark:text-white px-2 py-0.5 rounded text-[10px] font-bold">15 min</span>
+                                <div className="flex justify-between items-center mb-1">
+                                    <label className="block text-xs font-bold text-gray-500 uppercase">Tolerância</label>
+                                    <span className="text-xs font-bold text-[#0d1b12] dark:text-white">{tolerance} min</span>
                                 </div>
-                                <input className="w-full h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer dark:bg-gray-700 accent-[#13ec5b]" max="60" min="0" type="range" defaultValue="15" />
+                                <input
+                                    type="range"
+                                    min="0"
+                                    max="60"
+                                    step="5"
+                                    value={tolerance}
+                                    onChange={(e) => setTolerance(Number(e.target.value))}
+                                    className="w-full accent-[#13ec5b]"
+                                />
+                                <p className="text-xs text-gray-400 mt-2 leading-tight">
+                                    Tempo de espera permitido para confirmação de presença antes de liberar a vaga.
+                                </p>
                             </div>
-                            <button className="w-full bg-[#13ec5b] hover:bg-[#0fd652] text-[#0d1b12] font-bold py-2.5 rounded-xl transition-colors shadow-lg shadow-[#13ec5b]/10 text-sm">
+
+                            <button
+                                onClick={(e) => handleSave(e)}
+                                className="w-full bg-[#13ec5b] hover:bg-[#0fd652] text-[#0d1b12] font-bold py-3 rounded-xl transition-colors shadow-lg shadow-[#13ec5b]/20"
+                            >
                                 Salvar Regras
                             </button>
-                        </form>
+                        </div>
                     </div>
 
-                    {/* Privacidade e Visibilidade */}
-                    <div className="bg-white dark:bg-[#1a2c20] p-6 rounded-2xl shadow-sm border border-[#e7f3eb] dark:border-[#2a4032] h-fit">
+                    {/* Privacidade */}
+                    <div className="bg-white dark:bg-[#1a2c20] p-6 rounded-2xl shadow-sm border border-[#e7f3eb] dark:border-[#2a4032]">
                         <div className="flex items-center gap-3 mb-6 pb-4 border-b border-[#e7f3eb] dark:border-[#2a4032]">
                             <div className="w-10 h-10 rounded-full bg-gray-100 dark:bg-[#25382e] flex items-center justify-center text-gray-600 dark:text-gray-300">
                                 <span className="material-symbols-outlined">lock</span>
                             </div>
                             <h3 className="text-xl font-bold text-[#0d1b12] dark:text-white">Privacidade</h3>
                         </div>
-                        <div className="flex flex-col gap-4">
+
+                        <div className="space-y-6">
+                            {/* Toggle Private */}
                             <div className="flex items-center justify-between">
-                                <div className="flex flex-col gap-0.5">
-                                    <p className="font-bold text-[#0d1b12] dark:text-white text-sm">Grupo Privado</p>
-                                    <p className="text-xs text-gray-500">Apenas convidados.</p>
+                                <div className="flex flex-col">
+                                    <span className="text-sm font-bold text-[#0d1b12] dark:text-white">Grupo Privado</span>
+                                    <span className="text-xs text-gray-500">Apenas convidados.</span>
                                 </div>
-                                <label className="relative inline-flex items-center cursor-pointer flex-shrink-0 ml-4">
-                                    <input defaultChecked className="sr-only peer" type="checkbox" />
-                                    <div className="w-9 h-5 bg-gray-300 peer-focus:outline-none rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#13ec5b]"></div>
-                                </label>
+                                <button
+                                    onClick={() => setIsPrivate(!isPrivate)}
+                                    className={`w-12 h-6 rounded-full relative transition-colors ${isPrivate ? 'bg-[#13ec5b]' : 'bg-gray-300 dark:bg-gray-600'}`}
+                                >
+                                    <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all shadow-sm ${isPrivate ? 'left-7' : 'left-1'}`}></div>
+                                </button>
                             </div>
+
+                            {/* Toggle Approval */}
                             <div className="flex items-center justify-between">
-                                <div className="flex flex-col gap-0.5">
-                                    <p className="font-bold text-[#0d1b12] dark:text-white text-sm">Aprovação Manual</p>
-                                    <p className="text-xs text-gray-500">Admin aprova membros.</p>
+                                <div className="flex flex-col">
+                                    <span className="text-sm font-bold text-[#0d1b12] dark:text-white">Aprovação Manual</span>
+                                    <span className="text-xs text-gray-500">Admin aprova membros.</span>
                                 </div>
-                                <label className="relative inline-flex items-center cursor-pointer flex-shrink-0 ml-4">
-                                    <input className="sr-only peer" type="checkbox" />
-                                    <div className="w-9 h-5 bg-gray-300 peer-focus:outline-none rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#13ec5b]"></div>
-                                </label>
+                                <button
+                                    onClick={() => setManualApproval(!manualApproval)}
+                                    className={`w-12 h-6 rounded-full relative transition-colors ${manualApproval ? 'bg-[#13ec5b]' : 'bg-gray-300 dark:bg-gray-600'}`}
+                                >
+                                    <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all shadow-sm ${manualApproval ? 'left-7' : 'left-1'}`}></div>
+                                </button>
                             </div>
-                            <button className="w-full bg-[#13ec5b] hover:bg-[#0fd652] text-[#0d1b12] font-bold py-2.5 rounded-xl transition-colors shadow-lg shadow-[#13ec5b]/10 text-sm mt-2">
+
+                            <button
+                                onClick={(e) => handleSave(e)}
+                                className="w-full bg-[#13ec5b] hover:bg-[#0fd652] text-[#0d1b12] font-bold py-3 rounded-xl transition-colors shadow-lg shadow-[#13ec5b]/20"
+                            >
                                 Salvar Privacidade
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Zona de Perigo */}
+                    <div className="bg-red-50 dark:bg-red-900/20 p-6 rounded-2xl shadow-sm border border-red-200 dark:border-red-900/50">
+                        <div className="flex items-center gap-3 mb-6 pb-4 border-b border-red-200 dark:border-red-900/50">
+                            <div className="w-10 h-10 rounded-full bg-red-100 dark:bg-red-900/40 flex items-center justify-center text-red-600 dark:text-red-400">
+                                <span className="material-symbols-outlined">warning</span>
+                            </div>
+                            <h3 className="text-xl font-bold text-red-700 dark:text-red-400">Zona de Perigo</h3>
+                        </div>
+
+                        <div className="space-y-4">
+                            <p className="text-sm text-red-600/80 dark:text-red-400/80">
+                                A exclusão do grupo é irreversível. Todas as partidas, pagamentos e histórico serão perdidos permanentemente.
+                            </p>
+
+                            <button
+                                onClick={handleDeleteGroup}
+                                disabled={isSaving}
+                                className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 rounded-xl transition-colors shadow-lg shadow-red-600/20 flex items-center justify-center gap-2"
+                            >
+                                <span className="material-symbols-outlined">delete_forever</span>
+                                Excluir Grupo
                             </button>
                         </div>
                     </div>
                 </div>
             </div>
+
+            {/* Modal Novo Admin */}
+            {showAddAdminModal && (
+                <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4 backdrop-blur-sm">
+                    <div className="bg-white dark:bg-[#1a2c20] rounded-2xl w-full max-w-md overflow-hidden shadow-2xl border border-[#e7f3eb] dark:border-[#2a4032]">
+                        <div className="p-4 border-b border-[#e7f3eb] dark:border-[#2a4032] flex justify-between items-center">
+                            <h3 className="text-lg font-bold text-[#0d1b12] dark:text-white">Adicionar Administrador</h3>
+                            <button onClick={() => setShowAddAdminModal(false)} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
+                                <span className="material-symbols-outlined">close</span>
+                            </button>
+                        </div>
+                        <div className="p-4 max-h-[60vh] overflow-y-auto">
+                            {members.length === 0 ? (
+                                <p className="text-center text-gray-500 py-8">
+                                    Todos os membros já são administradores ou não há outros membros no grupo.
+                                </p>
+                            ) : (
+                                <ul className="space-y-3">
+                                    {members.map(member => (
+                                        <li key={member.id} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-[#102216]/50 rounded-xl">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-10 h-10 rounded-full bg-gray-200 dark:bg-gray-700 overflow-hidden">
+                                                    {member.profile?.avatar_url ? (
+                                                        <img src={member.profile.avatar_url} alt={member.profile.full_name} className="w-full h-full object-cover" />
+                                                    ) : (
+                                                        <div className="w-full h-full flex items-center justify-center text-gray-500 font-bold">
+                                                            {member.profile?.full_name?.charAt(0).toUpperCase() || "M"}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                                <span className="font-bold text-[#0d1b12] dark:text-white text-sm">{member.profile?.full_name}</span>
+                                            </div>
+                                            <button
+                                                onClick={() => handlePromoteAdmin(member.id)}
+                                                className="bg-[#13ec5b]/10 hover:bg-[#13ec5b]/20 text-[#13ec5b] font-bold text-xs px-3 py-2 rounded-lg transition-colors"
+                                            >
+                                                Promover
+                                            </button>
+                                        </li>
+                                    ))}
+                                </ul>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            <ConfirmationModal
+                isOpen={isDeleteModalOpen}
+                onClose={() => setIsDeleteModalOpen(false)}
+                onConfirm={confirmDeleteGroup}
+                title="Excluir Grupo"
+                message={`Tem certeza que deseja excluir o grupo "${groupName}"? Todas as partidas, jogadores e histórico serão apagados permanentemente.`}
+                confirmText="Excluir Grupo"
+                type="danger"
+                isLoading={isDeleting}
+                verificationText={groupName}
+            />
         </div>
     );
 }

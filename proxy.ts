@@ -1,7 +1,7 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
-export async function middleware(request: NextRequest) {
+export default async function proxy(request: NextRequest) {
     let response = NextResponse.next({
         request: {
             headers: request.headers,
@@ -12,7 +12,7 @@ export async function middleware(request: NextRequest) {
     const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
     if (!supabaseUrl || !supabaseKey) {
-        console.error("Middleware: Missing Supabase environment variables");
+        console.error("Proxy: Missing Supabase environment variables");
         // Proceeding might crash, but at least we logged it. 
         // Best to return early if critical? But middleware must return response.
         // Let's keep the ! assertions but maybe log if missing before crash?

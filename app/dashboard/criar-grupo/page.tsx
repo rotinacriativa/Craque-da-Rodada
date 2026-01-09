@@ -7,14 +7,23 @@ import Link from "next/link";
 
 export default function CreateGroupPage() {
     const router = useRouter();
+
+    // Core Fields
     const [name, setName] = useState("");
     const [description, setDescription] = useState("");
     const [location, setLocation] = useState("");
+    const [visibility, setVisibility] = useState("public");
+
+    // Pattern Fields
+    const [defaultDay, setDefaultDay] = useState("quinta");
+    const [defaultTimeStart, setDefaultTimeStart] = useState("20:00");
+    const [defaultMaxMembers, setDefaultMaxMembers] = useState("20");
+
+    // UI States
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
-    const handleCreateGroup = async (e: React.FormEvent) => {
-        e.preventDefault();
+    const handleCreateGroup = async () => {
         setLoading(true);
         setError(null);
 
@@ -22,25 +31,33 @@ export default function CreateGroupPage() {
             const { data: { user } } = await supabase.auth.getUser();
             if (!user) throw new Error("Usuário não autenticado");
 
+            if (!name || !location) {
+                throw new Error("Preencha os campos obrigatórios.");
+            }
+
+            // Prepare payload
+            const payload: any = {
+                name,
+                description,
+                city: location,
+                created_by: user.id,
+                visibility,
+                max_members: defaultMaxMembers ? parseInt(defaultMaxMembers) : 20,
+                default_day: defaultDay || null,
+                default_time_start: defaultTimeStart || null,
+            };
+
             // 1. Create Group
             const { data: group, error: createError } = await supabase
                 .from('groups')
-                .insert({
-                    name,
-                    description,
-                    location,
-                    city: location, // Mapping location input to city as well for coverage
-                    created_by: user.id,
-                    visibility: 'public',
-                    max_members: 20
-                })
+                .insert(payload)
                 .select()
                 .single();
 
             if (createError) throw createError;
 
             // 2. Add creator as admin member
-            const { error: memberError } = await supabase
+            await supabase
                 .from('group_members')
                 .insert({
                     group_id: group.id,
@@ -49,12 +66,7 @@ export default function CreateGroupPage() {
                     status: 'active'
                 });
 
-            if (memberError) {
-                console.error("Error adding admin member:", memberError);
-                // Non-blocking but logged
-            }
-
-            // Success! Redirect to the new group
+            // Success! Redirect
             router.push(`/dashboard/grupos/${group.id}`);
             router.refresh();
 
@@ -66,82 +78,306 @@ export default function CreateGroupPage() {
         }
     };
 
+    // Helper for Day Labels
+    const getDayLabel = (day: string) => {
+        const days: Record<string, string> = {
+            domingo: "Dom", segunda: "Seg", terca: "Ter", quarta: "Qua",
+            quinta: "Qui", sexta: "Sex", sabado: "Sáb"
+        };
+        return days[day] || day.substring(0, 3);
+    };
+
     return (
-        <div className="max-w-2xl mx-auto w-full">
-            <div className="mb-8">
-                <Link href="/dashboard/grupos" className="text-sm font-bold text-[#4c9a66] hover:text-[#13ec5b] flex items-center gap-1 mb-4 transition-colors">
-                    <span className="material-symbols-outlined text-lg">arrow_back</span>
-                    Voltar para Meus Grupos
-                </Link>
-                <h1 className="text-3xl md:text-4xl font-black text-[#0d1b12] dark:text-white mb-2">Criar Novo Grupo</h1>
-                <p className="text-[#4c9a66] dark:text-[#8baaa0]">Comece a organizar suas peladas agora mesmo.</p>
-            </div>
-
-            <div className="bg-white dark:bg-[#1a2c20] rounded-[2rem] p-6 md:p-8 border border-[#e7f3eb] dark:border-[#2a4535] shadow-sm">
-                <form onSubmit={handleCreateGroup} className="flex flex-col gap-6">
-                    {error && (
-                        <div className="p-4 bg-red-50 border border-red-100 text-red-600 rounded-xl text-sm font-medium">
-                            {error}
+        <div className="flex-1 overflow-y-auto bg-[#f6f8f6] dark:bg-[#102216] p-4 lg:p-10 min-h-screen">
+            <div className="mx-auto flex max-w-[960px] flex-col gap-8">
+                {/* Page Header & Progress */}
+                <div className="flex flex-col gap-6">
+                    <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
+                        <div>
+                            <h2 className="text-3xl font-bold tracking-tight text-[#0d1b12] dark:text-white">Criar Novo Grupo</h2>
+                            <p className="mt-1 text-[#4c9a66] dark:text-gray-400">Configure sua nova pelada em poucos passos</p>
                         </div>
-                    )}
-
-                    {/* Group Name */}
-                    <label className="flex flex-col gap-2">
-                        <span className="text-sm font-bold text-[#0d1b12] dark:text-white uppercase tracking-wide">Nome do Grupo *</span>
-                        <input
-                            type="text"
-                            required
-                            value={name}
-                            onChange={(e) => setName(e.target.value)}
-                            placeholder="Ex: Boleiros de Terça"
-                            className="h-14 px-4 rounded-xl bg-[#f6f8f6] dark:bg-[#102216] border border-[#cfe7d7] dark:border-[#2a4030] focus:border-[#13ec5b] focus:ring-0 outline-none text-[#0d1b12] dark:text-white font-medium transition-all placeholder:text-[#8baaa0]/50"
-                        />
-                    </label>
-
-                    {/* Location */}
-                    <label className="flex flex-col gap-2">
-                        <span className="text-sm font-bold text-[#0d1b12] dark:text-white uppercase tracking-wide">Cidade / Local *</span>
-                        <div className="relative">
-                            <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-[#4c9a66]">location_on</span>
-                            <input
-                                type="text"
-                                required
-                                value={location}
-                                onChange={(e) => setLocation(e.target.value)}
-                                placeholder="Ex: São Paulo, SP"
-                                className="h-14 pl-12 pr-4 w-full rounded-xl bg-[#f6f8f6] dark:bg-[#102216] border border-[#cfe7d7] dark:border-[#2a4030] focus:border-[#13ec5b] focus:ring-0 outline-none text-[#0d1b12] dark:text-white font-medium transition-all placeholder:text-[#8baaa0]/50"
-                            />
+                        {/* Stepper Indicators */}
+                        <div className="hidden md:flex items-center gap-2 text-sm font-medium">
+                            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#13ec5b] text-[#0d1b12] shadow-md shadow-[#13ec5b]/20">1</span>
+                            <span className="h-1 w-8 rounded-full bg-gray-200 dark:bg-gray-700"></span>
+                            <span className="flex h-8 w-8 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-400 dark:border-gray-700 dark:bg-transparent dark:text-gray-600">2</span>
+                            <span className="h-1 w-8 rounded-full bg-gray-200 dark:bg-gray-700"></span>
+                            <span className="flex h-8 w-8 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-400 dark:border-gray-700 dark:bg-transparent dark:text-gray-600">3</span>
                         </div>
-                    </label>
-
-                    {/* Description */}
-                    <label className="flex flex-col gap-2">
-                        <span className="text-sm font-bold text-[#0d1b12] dark:text-white uppercase tracking-wide">Descrição</span>
-                        <textarea
-                            value={description}
-                            onChange={(e) => setDescription(e.target.value)}
-                            placeholder="Regras, dias de jogo, ou uma frase de efeito..."
-                            className="h-32 p-4 rounded-xl bg-[#f6f8f6] dark:bg-[#102216] border border-[#cfe7d7] dark:border-[#2a4030] focus:border-[#13ec5b] focus:ring-0 outline-none text-[#0d1b12] dark:text-white font-medium transition-all resize-none placeholder:text-[#8baaa0]/50"
-                        />
-                    </label>
-
-                    <div className="pt-4">
-                        <button
-                            type="submit"
-                            disabled={loading}
-                            className={`w-full h-14 bg-[#13ec5b] hover:bg-[#0fd650] text-[#0d1b12] rounded-full font-black text-lg uppercase tracking-wide transition-all shadow-lg shadow-[#13ec5b]/20 hover:shadow-[#13ec5b]/30 active:scale-[0.98] flex items-center justify-center gap-2 ${loading ? 'opacity-70 cursor-not-allowed' : ''}`}
-                        >
-                            {loading ? (
-                                <span className="size-6 border-2 border-[#0d1b12] border-t-transparent rounded-full animate-spin"></span>
-                            ) : (
-                                <>
-                                    <span>Criar Grupo</span>
-                                    <span className="material-symbols-outlined">add_circle</span>
-                                </>
-                            )}
-                        </button>
                     </div>
-                </form>
+                </div>
+
+                {error && (
+                    <div className="p-4 bg-red-50 border border-red-100 text-red-600 rounded-xl text-sm font-medium">
+                        {error}
+                    </div>
+                )}
+
+                {/* Main Form Container */}
+                <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
+                    {/* Left Column: Form Steps */}
+                    <div className="col-span-1 lg:col-span-2 flex flex-col gap-6">
+
+                        {/* Step 1 Card: Basic Info */}
+                        <div className="rounded-xl border border-[#e7f3eb] bg-white p-6 shadow-sm dark:border-[#2a4533] dark:bg-[#1a3322]">
+                            <div className="mb-6 flex items-center gap-3 border-b border-[#e7f3eb] pb-4 dark:border-[#2a4533]">
+                                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#e7f3eb] text-[#0d1b12] dark:bg-[#2a4533] dark:text-white">
+                                    <span className="material-symbols-outlined text-lg">info</span>
+                                </div>
+                                <h3 className="text-lg font-bold text-[#0d1b12] dark:text-white">Informações Básicas</h3>
+                            </div>
+                            <div className="flex flex-col gap-6">
+                                <div className="flex flex-col-reverse gap-6 sm:flex-row">
+                                    {/* Logo Upload */}
+                                    <div className="flex flex-col gap-2 sm:w-1/3">
+                                        <label className="text-sm font-medium text-[#0d1b12] dark:text-white">Escudo do Time</label>
+                                        <div className="group relative flex aspect-square w-full cursor-pointer flex-col items-center justify-center rounded-full border-2 border-dashed border-[#cfe7d7] bg-[#f8fcf9] hover:border-[#13ec5b] hover:bg-[#f0fdf4] dark:border-gray-600 dark:bg-[#1a3322] dark:hover:border-[#13ec5b] dark:hover:bg-[#1a3322] transition-all">
+                                            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white shadow-sm group-hover:scale-110 transition-transform dark:bg-[#2a4533]">
+                                                <span className="material-symbols-outlined text-[#4c9a66] group-hover:text-[#13ec5b] dark:text-gray-400">add_a_photo</span>
+                                            </div>
+                                            <p className="mt-2 text-center text-xs text-[#4c9a66] dark:text-gray-400">Clique para upload</p>
+                                            <input class="absolute inset-0 opacity-0 cursor-pointer" type="file" />
+                                        </div>
+                                    </div>
+                                    {/* Text Inputs */}
+                                    <div className="flex flex-1 flex-col gap-4">
+                                        <div className="flex flex-col gap-2">
+                                            <label className="text-sm font-medium text-[#0d1b12] dark:text-white">Nome do Grupo</label>
+                                            <input
+                                                value={name}
+                                                onChange={(e) => setName(e.target.value)}
+                                                className="h-12 w-full rounded-xl border border-[#cfe7d7] bg-white px-4 text-base outline-none focus:border-[#13ec5b] focus:ring-1 focus:ring-[#13ec5b] dark:border-gray-600 dark:bg-[#1a3322] dark:text-white dark:placeholder-gray-500"
+                                                placeholder="Ex: Pelada de Quinta"
+                                                type="text"
+                                            />
+                                        </div>
+                                        <div className="flex flex-col gap-2 h-full">
+                                            <label className="text-sm font-medium text-[#0d1b12] dark:text-white">Descrição Curta</label>
+                                            <textarea
+                                                value={description}
+                                                onChange={(e) => setDescription(e.target.value)}
+                                                className="h-full min-h-[120px] w-full resize-none rounded-xl border border-[#cfe7d7] bg-white px-4 py-3 text-base outline-none focus:border-[#13ec5b] focus:ring-1 focus:ring-[#13ec5b] dark:border-gray-600 dark:bg-[#1a3322] dark:text-white dark:placeholder-gray-500"
+                                                placeholder="O lema do time, nível de jogo, etc."
+                                            ></textarea>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Step 2 Card: Location & Time */}
+                        <div className="rounded-xl border border-[#e7f3eb] bg-white p-6 shadow-sm dark:border-[#2a4533] dark:bg-[#1a3322]">
+                            <div className="mb-6 flex items-center gap-3 border-b border-[#e7f3eb] pb-4 dark:border-[#2a4533]">
+                                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#e7f3eb] text-[#0d1b12] dark:bg-[#2a4533] dark:text-white">
+                                    <span className="material-symbols-outlined text-lg">location_on</span>
+                                </div>
+                                <h3 className="text-lg font-bold text-[#0d1b12] dark:text-white">Local e Frequência</h3>
+                            </div>
+                            <div className="flex flex-col gap-6">
+                                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                                    <div className="flex flex-col gap-2">
+                                        <label className="text-sm font-medium text-[#0d1b12] dark:text-white">Cidade/Bairro</label>
+                                        <div className="relative">
+                                            <input
+                                                value={location}
+                                                onChange={(e) => setLocation(e.target.value)}
+                                                className="h-12 w-full rounded-xl border border-[#cfe7d7] bg-white pl-10 pr-4 text-base outline-none focus:border-[#13ec5b] focus:ring-1 focus:ring-[#13ec5b] dark:border-gray-600 dark:bg-[#1a3322] dark:text-white dark:placeholder-gray-500"
+                                                placeholder="Ex: Copacabana, RJ"
+                                                type="text"
+                                            />
+                                            <span className="material-symbols-outlined absolute left-3 top-3 text-[#4c9a66] dark:text-gray-500">map</span>
+                                        </div>
+                                    </div>
+                                    <div className="flex flex-col gap-2">
+                                        <label className="text-sm font-medium text-[#0d1b12] dark:text-white">Horário Padrão</label>
+                                        <div className="relative">
+                                            <input
+                                                value={defaultTimeStart}
+                                                onChange={(e) => setDefaultTimeStart(e.target.value)}
+                                                className="h-12 w-full rounded-xl border border-[#cfe7d7] bg-white pl-10 pr-4 text-base outline-none focus:border-[#13ec5b] focus:ring-1 focus:ring-[#13ec5b] dark:border-gray-600 dark:bg-[#1a3322] dark:text-white [color-scheme:light] dark:[color-scheme:dark]"
+                                                type="time"
+                                            />
+                                            <span className="material-symbols-outlined absolute left-3 top-3 text-[#4c9a66] dark:text-gray-500">schedule</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="flex flex-col gap-3">
+                                    <label className="text-sm font-medium text-[#0d1b12] dark:text-white">Dia da Semana</label>
+                                    <div className="flex flex-wrap gap-2">
+                                        {[
+                                            { id: "domingo", label: "Dom" },
+                                            { id: "segunda", label: "Seg" },
+                                            { id: "terca", label: "Ter" },
+                                            { id: "quarta", label: "Qua" },
+                                            { id: "quinta", label: "Qui" },
+                                            { id: "sexta", label: "Sex" },
+                                            { id: "sabado", label: "Sáb" },
+                                        ].map((day) => (
+                                            <div key={day.id} className="flex-1 min-w-[40px]">
+                                                <input
+                                                    id={day.id}
+                                                    name="weekday"
+                                                    type="radio"
+                                                    className="peer hidden"
+                                                    checked={defaultDay === day.id}
+                                                    onChange={() => setDefaultDay(day.id)}
+                                                />
+                                                <label
+                                                    htmlFor={day.id}
+                                                    className="flex h-10 w-full cursor-pointer items-center justify-center rounded-full border border-[#cfe7d7] bg-white text-sm text-[#4c9a66] hover:border-[#13ec5b] hover:text-[#13ec5b] transition-colors dark:border-gray-600 dark:bg-[#1a3322] dark:text-gray-400 peer-checked:bg-[#13ec5b] peer-checked:text-[#0d1b12] peer-checked:border-[#13ec5b] peer-checked:font-semibold"
+                                                >
+                                                    {day.label}
+                                                </label>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Step 3 Card: Privacy */}
+                        <div className="rounded-xl border border-[#e7f3eb] bg-white p-6 shadow-sm dark:border-[#2a4533] dark:bg-[#1a3322]">
+                            <div className="mb-6 flex items-center gap-3 border-b border-[#e7f3eb] pb-4 dark:border-[#2a4533]">
+                                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#e7f3eb] text-[#0d1b12] dark:bg-[#2a4533] dark:text-white">
+                                    <span className="material-symbols-outlined text-lg">lock</span>
+                                </div>
+                                <h3 className="text-lg font-bold text-[#0d1b12] dark:text-white">Privacidade</h3>
+                            </div>
+                            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                                {/* Public Option */}
+                                <label className="cursor-pointer">
+                                    <input
+                                        type="radio"
+                                        name="privacy"
+                                        className="peer sr-only"
+                                        checked={visibility === "public"}
+                                        onChange={() => setVisibility("public")}
+                                    />
+                                    <div className="custom-radio-card flex h-full flex-col gap-3 rounded-xl border border-[#cfe7d7] bg-white p-4 transition-all hover:border-[#13ec5b] dark:border-gray-600 dark:bg-[#1a3322] peer-checked:border-[#13ec5b] peer-checked:bg-[#f0fdf4] dark:peer-checked:bg-[#1f3b29]">
+                                        <div className="flex items-center justify-between">
+                                            <div className="rounded-full bg-[#e7f3eb] p-2 text-[#0d1b12] dark:bg-[#2a4533] dark:text-white">
+                                                <span className={`material-symbols-outlined icon-active ${visibility === 'public' ? 'text-[#13ec5b]' : ''}`}>public</span>
+                                            </div>
+                                            <div className={`h-5 w-5 rounded-full border-2 ${visibility === 'public' ? 'border-[#13ec5b] bg-[#13ec5b]' : 'border-gray-300 dark:border-gray-500'}`}></div>
+                                        </div>
+                                        <div>
+                                            <p className="font-bold text-[#0d1b12] dark:text-white">Público</p>
+                                            <p className="text-xs text-[#4c9a66] dark:text-gray-400">Qualquer pessoa pode encontrar o grupo.</p>
+                                        </div>
+                                    </div>
+                                </label>
+                                {/* Private Option */}
+                                <label className="cursor-pointer">
+                                    <input
+                                        type="radio"
+                                        name="privacy"
+                                        className="peer sr-only"
+                                        checked={visibility === "private"}
+                                        onChange={() => setVisibility("private")}
+                                    />
+                                    <div className="custom-radio-card flex h-full flex-col gap-3 rounded-xl border border-[#cfe7d7] bg-white p-4 transition-all hover:border-[#13ec5b] dark:border-gray-600 dark:bg-[#1a3322] peer-checked:border-[#13ec5b] peer-checked:bg-[#f0fdf4] dark:peer-checked:bg-[#1f3b29]">
+                                        <div className="flex items-center justify-between">
+                                            <div className="rounded-full bg-[#e7f3eb] p-2 text-[#0d1b12] dark:bg-[#2a4533] dark:text-white">
+                                                <span className={`material-symbols-outlined icon-active ${visibility === 'private' ? 'text-[#13ec5b]' : ''}`}>lock</span>
+                                            </div>
+                                            <div className={`h-5 w-5 rounded-full border-2 ${visibility === 'private' ? 'border-[#13ec5b] bg-[#13ec5b]' : 'border-gray-300 dark:border-gray-500'}`}></div>
+                                        </div>
+                                        <div>
+                                            <p className="font-bold text-[#0d1b12] dark:text-white">Privado</p>
+                                            <p className="text-xs text-[#4c9a66] dark:text-gray-400">Apenas convidados entram.</p>
+                                        </div>
+                                    </div>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Right Column: Preview & Summary */}
+                    <div className="col-span-1 hidden lg:block">
+                        <div className="sticky top-10 flex flex-col gap-6">
+                            {/* Preview Card */}
+                            <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#13ec5b] to-[#0b8a35] p-6 text-white shadow-xl">
+                                <div className="absolute -right-10 -top-10 h-40 w-40 rounded-full bg-white/10 blur-2xl"></div>
+                                <div className="absolute -bottom-10 -left-10 h-40 w-40 rounded-full bg-white/10 blur-2xl"></div>
+                                <div className="relative z-10 flex flex-col gap-4">
+                                    <h4 className="text-sm font-semibold uppercase tracking-wider opacity-90">Preview do Card</h4>
+                                    <div className="flex items-center gap-4">
+                                        <div className="flex h-16 w-16 items-center justify-center rounded-full bg-white/20 backdrop-blur-sm border border-white/30">
+                                            <span className="material-symbols-outlined text-3xl">add_a_photo</span>
+                                        </div>
+                                        <div>
+                                            <h3 className="text-xl font-bold truncate max-w-[180px]">{name || "Nome do Grupo"}</h3>
+                                            <p className="text-sm opacity-90">{defaultMaxMembers || "?"} vagas disponíveis</p>
+                                        </div>
+                                    </div>
+                                    <div className="mt-2 flex flex-wrap gap-2">
+                                        <span className="inline-flex items-center rounded-full bg-black/20 px-3 py-1 text-xs font-medium backdrop-blur-md">
+                                            <span className="material-symbols-outlined mr-1 text-[14px]">calendar_today</span>
+                                            {getDayLabel(defaultDay) || "Dia"}
+                                        </span>
+                                        <span className="inline-flex items-center rounded-full bg-black/20 px-3 py-1 text-xs font-medium backdrop-blur-md">
+                                            <span className="material-symbols-outlined mr-1 text-[14px]">schedule</span>
+                                            {defaultTimeStart || "Horário"}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Action Buttons */}
+                            <div className="flex flex-col gap-3 rounded-xl border border-[#e7f3eb] bg-white p-6 dark:border-[#2a4533] dark:bg-[#1a3322]">
+                                <button
+                                    onClick={handleCreateGroup}
+                                    disabled={loading}
+                                    className="flex w-full items-center justify-center gap-2 rounded-full bg-[#13ec5b] px-6 py-4 text-base font-bold text-[#0d1b12] shadow-lg shadow-[#13ec5b]/25 hover:bg-[#0fd650] hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-70 disabled:cursor-not-allowed"
+                                >
+                                    {loading ? (
+                                        <span className="w-6 h-6 border-2 border-[#0d1b12] border-t-transparent rounded-full animate-spin"></span>
+                                    ) : (
+                                        <>
+                                            <span>Criar Grupo</span>
+                                            <span className="material-symbols-outlined text-xl">arrow_forward</span>
+                                        </>
+                                    )}
+                                </button>
+                                <Link
+                                    href="/dashboard/grupos"
+                                    className="flex items-center justify-center w-full rounded-full border border-transparent bg-transparent px-6 py-3 text-sm font-medium text-[#4c9a66] hover:bg-[#e7f3eb] dark:hover:bg-[#2a4533] transition-colors"
+                                >
+                                    Cancelar
+                                </Link>
+                            </div>
+
+                            {/* Help Box */}
+                            <div className="rounded-xl bg-[#e7f3eb] p-4 dark:bg-[#1a3322]">
+                                <div className="flex items-start gap-3">
+                                    <span className="material-symbols-outlined text-[#4c9a66] dark:text-gray-400">help</span>
+                                    <div className="flex flex-col gap-1">
+                                        <p className="text-sm font-bold text-[#0d1b12] dark:text-white">Precisa de ajuda?</p>
+                                        <p className="text-xs text-[#4c9a66] dark:text-gray-400">Confira nosso guia de como organizar a pelada perfeita.</p>
+                                        <a className="mt-1 text-xs font-medium text-[#13ec5b] hover:underline" href="#">Ler Guia</a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Mobile Footer Actions */}
+                    <div className="col-span-1 block pb-10 lg:hidden">
+                        <div className="flex flex-col gap-3">
+                            <button
+                                onClick={handleCreateGroup}
+                                disabled={loading}
+                                className="flex w-full items-center justify-center gap-2 rounded-full bg-[#13ec5b] px-6 py-4 text-base font-bold text-[#0d1b12] shadow-lg shadow-[#13ec5b]/25 disabled:opacity-70 disabled:cursor-not-allowed"
+                            >
+                                {loading ? "Criando..." : "Criar Grupo"}
+                            </button>
+                            <Link href="/dashboard/grupos" className="flex items-center justify-center w-full rounded-full px-6 py-3 text-sm font-medium text-[#4c9a66]">
+                                Cancelar
+                            </Link>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     );

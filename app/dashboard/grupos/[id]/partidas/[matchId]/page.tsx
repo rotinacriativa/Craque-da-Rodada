@@ -60,7 +60,7 @@ export default function MatchDetailsPage({ params }: { params: Promise<{ id: str
                         payment_status,
                         player_type,
                         team,
-                        profiles:user_id (
+                        profiles (
                             full_name,
                             position,
                             avatar_url
@@ -71,8 +71,14 @@ export default function MatchDetailsPage({ params }: { params: Promise<{ id: str
                 if (participantsError) throw participantsError;
                 setParticipants(participantsData as any);
 
-            } catch (error) {
+            } catch (error: any) {
                 console.error("Error fetching match data:", error);
+                console.error("Error details:", {
+                    message: error?.message,
+                    code: error?.code,
+                    details: error?.details,
+                    hint: error?.hint
+                });
             } finally {
                 setIsLoading(false);
             }
@@ -283,8 +289,8 @@ export default function MatchDetailsPage({ params }: { params: Promise<{ id: str
                                                 </td>
                                                 <td className="px-6 py-4 whitespace-nowrap">
                                                     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${player.player_type === 'mensalista'
-                                                            ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-300 border-purple-200 dark:border-purple-800'
-                                                            : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700'
+                                                        ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-300 border-purple-200 dark:border-purple-800'
+                                                        : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700'
                                                         }`}>
                                                         {player.player_type || 'Avulso'}
                                                     </span>
