@@ -1,146 +1,98 @@
-"use client";
-
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
-import { supabase } from "../../src/lib/client";
+import { createClient } from "../../src/lib/server";
 import { formatDateForMatchList } from "../../src/lib/utils";
+import ShareButton from "../components/ShareButton";
 
-export default function DashboardPage() {
-    const router = useRouter();
-    const [nextMatch, setNextMatch] = useState<any>(null);
-    const [nextMatchParticipants, setNextMatchParticipants] = useState<any[]>([]);
-    const [lastCraque, setLastCraque] = useState<any>(null);
-    const [loading, setLoading] = useState(true);
-    const [stats, setStats] = useState({ organized: 0, participated: 0 });
+export default async function DashboardPage() {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
 
-    useEffect(() => {
-        async function fetchDashboardData() {
-            try {
-                const { data: { user } } = await supabase.auth.getUser();
-                if (!user) return;
+    // Default States
+    let nextMatch = null;
+    let nextMatchParticipants: any[] = [];
+    let lastCraque = null;
+    let stats = { organized: 0, participated: 0 };
+    let loading = false; // It's server side, so loading is implicit until streaming
 
-                // 2. Fetch Next Match (Only where I am a participant)
-                // We use !inner to enforce the filter on the joined table to ensure I am playing
-                const { data: matches } = await supabase
-                    .from('matches')
-                    .select('*, groups(name), match_participants!inner(user_id)')
-                    .eq('match_participants.user_id', user.id)
-                    .gte('date', new Date().toISOString().split('T')[0])
-                    .order('date', { ascending: true })
-                    .limit(1);
+    if (user) {
+        // 1. Fetch Next Match
+        const { data: matches } = await supabase
+            .from('matches')
+            .select('*, groups(name), match_participants!inner(user_id)')
+            .eq('match_participants.user_id', user.id)
+            .gte('date', new Date().toISOString().split('T')[0])
+            .order('date', { ascending: true })
+            .limit(1);
 
-                if (matches && matches.length > 0) {
-                    const match = matches[0];
-                    setNextMatch(match);
+        if (matches && matches.length > 0) {
+            nextMatch = matches[0];
 
-                    // 2.1 Fetch Participants for Next Match
-                    const { data: partData } = await supabase
-                        .from('match_participants')
-                        .select('status, profile:profiles(id, full_name, avatar_url)')
-                        .eq('match_id', match.id)
-                        .eq('status', 'confirmed');
+            // 1.1 Fetch Participants
+            const { data: partData } = await supabase
+                .from('match_participants')
+                .select('status, profile:profiles(id, full_name, avatar_url)')
+                .eq('match_id', nextMatch.id)
+                .eq('status', 'confirmed');
 
-                    if (partData) {
-                        setNextMatchParticipants(partData.map((p: any) => p.profile));
-                    }
-                } else {
-                    setNextMatch(null);
-                }
+            if (partData) {
+                nextMatchParticipants = partData.map((p: any) => p.profile);
+            }
+        }
 
-                // 2.2 Fetch Last Match & Craque
-                const { data: lastMatches } = await supabase
-                    .from('matches')
-                    .select('id')
-                    .eq('match_participants.user_id', user.id)
-                    .lt('date', new Date().toISOString().split('T')[0])
-                    .order('date', { ascending: false })
-                    .limit(1);
+        // 2. Fetch Last Match & Craque
+        const { data: lastMatches } = await supabase
+            .from('matches')
+            .select('id')
+            .eq('match_participants.user_id', user.id)
+            .lt('date', new Date().toISOString().split('T')[0])
+            .order('date', { ascending: false })
+            .limit(1);
 
-                if (lastMatches && lastMatches.length > 0) {
-                    const lastMatchId = lastMatches[0].id;
+        if (lastMatches && lastMatches.length > 0) {
+            const lastMatchId = lastMatches[0].id;
+            const { data: votes } = await supabase
+                .from('match_votes')
+                .select('voted_user_id')
+                .eq('match_id', lastMatchId)
+                .eq('category', 'craque');
 
-                    // Fetch votes
-                    const { data: votes } = await supabase
-                        .from('match_votes')
-                        .select('voted_user_id')
-                        .eq('match_id', lastMatchId)
-                        .eq('category', 'craque');
-
-                    if (votes && votes.length > 0) {
-                        // Count votes
-                        const voteCounts: Record<string, number> = {};
-                        votes.forEach((v: any) => {
-                            voteCounts[v.voted_user_id] = (voteCounts[v.voted_user_id] || 0) + 1;
-                        });
-
-                        // Find winner
-                        let winnerId = null;
-                        let maxVotes = 0;
-                        Object.entries(voteCounts).forEach(([uid, count]) => {
-                            if (count > maxVotes) {
-                                maxVotes = count;
-                                winnerId = uid;
-                            }
-                        });
-
-                        if (winnerId) {
-                            const { data: profile } = await supabase
-                                .from('profiles')
-                                .select('full_name, avatar_url')
-                                .eq('id', winnerId)
-                                .single();
-
-                            if (profile) {
-                                setLastCraque({ ...profile, votes: maxVotes });
-                            }
-                        }
-                    }
-                }
-
-                // 3. Fetch Stats
-                // Organized: Groups created by me
-                const { count: groupsCreated } = await supabase
-                    .from('groups')
-                    .select('*', { count: 'exact', head: true })
-                    .eq('created_by', user.id);
-
-                setStats({
-                    organized: groupsCreated || 0,
-                    participated: 0
+            if (votes && votes.length > 0) {
+                const voteCounts: Record<string, number> = {};
+                votes.forEach((v: any) => {
+                    voteCounts[v.voted_user_id] = (voteCounts[v.voted_user_id] || 0) + 1;
                 });
 
-            } catch (error) {
-                console.error("Error loading dashboard home:", error);
-            } finally {
-                setLoading(false);
+                let winnerId = null;
+                let maxVotes = 0;
+                Object.entries(voteCounts).forEach(([uid, count]) => {
+                    if (count > maxVotes) {
+                        maxVotes = count;
+                        winnerId = uid;
+                    }
+                });
+
+                if (winnerId) {
+                    const { data: profile } = await supabase
+                        .from('profiles')
+                        .select('full_name, avatar_url')
+                        .eq('id', winnerId)
+                        .single();
+
+                    if (profile) {
+                        lastCraque = { ...profile, votes: maxVotes };
+                    }
+                }
             }
         }
-        fetchDashboardData();
-    }, []);
 
-    const handleShare = async () => {
-        const shareData = {
-            title: 'Craque da Rodada',
-            text: 'Bora organizar o jogo! Entra aí no Craque da Rodada.',
-            url: window.location.origin,
-        };
+        // 3. Fetch Stats
+        const { count: groupsCreated } = await supabase
+            .from('groups')
+            .select('*', { count: 'exact', head: true })
+            .eq('created_by', user.id);
 
-        if (navigator.share) {
-            try {
-                await navigator.share(shareData);
-            } catch (error) {
-                console.log('Error sharing:', error);
-            }
-        } else {
-            try {
-                await navigator.clipboard.writeText(shareData.url);
-                alert('Link copiado! Envie para seus amigos.');
-            } catch (err) {
-                alert('Copie este link: ' + shareData.url);
-            }
-        }
-    };
+        stats.organized = groupsCreated || 0;
+    }
 
     return (
         <>
@@ -176,7 +128,7 @@ export default function DashboardPage() {
                         </div>
                     </div>
                     <div className="mt-2 flex items-baseline gap-2">
-                        <p className="text-[#0d1b12] dark:text-white text-4xl font-bold leading-tight">{loading ? '-' : stats.organized}</p>
+                        <p className="text-[#0d1b12] dark:text-white text-4xl font-bold leading-tight">{stats.organized}</p>
                     </div>
                     <p className="text-xs text-[#8baaa0] mt-1">Total acumulado</p>
                 </div>
@@ -215,11 +167,7 @@ export default function DashboardPage() {
                     <Link className="text-[#13ec5b] text-sm font-bold hover:underline" href="/dashboard/grupos">Ver agenda completa</Link>
                 </div>
 
-                {loading ? (
-                    <div className="rounded-[2rem] bg-white dark:bg-[#1a2c20] p-10 text-center border border-[#e7f3eb]">
-                        <span className="size-8 block rounded-full border-4 border-[#13ec5b] border-r-transparent animate-spin mx-auto"></span>
-                    </div>
-                ) : nextMatch ? (
+                {nextMatch ? (
                     <div className="flex flex-col md:flex-row items-stretch gap-0 md:gap-6 rounded-[2rem] bg-white dark:bg-[#1a2c20] p-4 md:p-6 shadow-[0_4px_20px_rgba(0,0,0,0.05)] border border-[#e7f3eb] dark:border-[#2a4535]">
                         {/* Card Image */}
                         <div className="w-full md:w-2/5 aspect-video md:aspect-auto bg-center bg-no-repeat bg-cover rounded-2xl md:rounded-3xl relative overflow-hidden group" style={{ backgroundImage: "url('https://lh3.googleusercontent.com/aida-public/AB6AXuDn1zLjEVJzzbfA6TQsi4mPWz6DPyZISrjM0oARG6tm3U10eaDmXgvuI2GeKtu4JeDz9JDEk-owaU-S7vJfd4sIzvuVbq7ayVwMnDDe-3flpSS5MSRFQh0NF_iQA8zsBmgzUMSvcsWVjM52PW6HwezkjqUIJm0WTiw7GcwK6tIPhcG6iLsbKByd886Zta5l-e6_GVFpQy_33J5uZ4z-sdbLRaR8dQjp-08S4aOYRmdiQB_QUUL1Sj6KeNbAa1T6L-lyQfMRCKjY-Rg')" }}>
@@ -271,18 +219,13 @@ export default function DashboardPage() {
                             </div>
 
                             <div className="mt-auto flex gap-3 pt-4 border-t border-[#e7f3eb] dark:border-[#2a4535]">
-                                <button
-                                    onClick={() => router.push(`/dashboard/grupos/${nextMatch.group_id}/partidas/${nextMatch.id}`)}
-                                    className="flex-1 min-w-[120px] cursor-pointer items-center justify-center overflow-hidden rounded-full h-12 px-6 bg-[#13ec5b] text-[#0d1b12] text-sm font-bold leading-normal tracking-[0.015em] hover:bg-[#0fd651] transition-colors shadow-lg shadow-[#13ec5b]/20"
+                                <Link
+                                    href={`/dashboard/grupos/${nextMatch.group_id}/partidas/${nextMatch.id}`}
+                                    className="flex-1 min-w-[120px] cursor-pointer items-center justify-center overflow-hidden rounded-full h-12 px-6 bg-[#13ec5b] text-[#0d1b12] text-sm font-bold leading-normal tracking-[0.015em] hover:bg-[#0fd651] transition-colors shadow-lg shadow-[#13ec5b]/20 flex"
                                 >
                                     <span className="truncate">Ver Detalhes do Jogo</span>
-                                </button>
-                                <button
-                                    onClick={handleShare}
-                                    className="cursor-pointer items-center justify-center overflow-hidden rounded-full size-12 bg-[#e7f3eb] dark:bg-[#22382b] text-[#0d1b12] dark:text-white hover:bg-[#d8ebe0] dark:hover:bg-[#2a4535] transition-colors flex"
-                                >
-                                    <span className="material-symbols-outlined">share</span>
-                                </button>
+                                </Link>
+                                <ShareButton />
                             </div>
                         </div>
                     </div>
@@ -388,12 +331,7 @@ export default function DashboardPage() {
                     <div className="relative z-10">
                         <h4 className="text-white font-bold text-xl mb-2">Convide seus amigos</h4>
                         <p className="text-[#8baaa0] text-sm mb-6 max-w-[200px]">Aumente a resenha! Traga seus amigos para organizar o jogo com você.</p>
-                        <button
-                            onClick={handleShare}
-                            className="bg-[#13ec5b] text-[#0d1b12] font-bold py-3 px-6 rounded-full w-fit hover:bg-white transition-colors cursor-pointer"
-                        >
-                            Enviar Convite
-                        </button>
+                        <ShareButton />
                     </div>
                 </div>
             </section>

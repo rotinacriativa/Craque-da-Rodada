@@ -93,11 +93,10 @@ export default function MatchDetails({ params }: { params: Promise<{ id: string 
 
             setSuccessMessage("Jogo cancelado com sucesso.");
 
-            // Refresh and redirect
+            // Force refresh to clear cache and redirect
             router.refresh();
-            setTimeout(() => {
-                router.push(match?.group_id ? `/dashboard/grupos/${match.group_id}` : '/dashboard');
-            }, 1500);
+            // Use replace to prevent going back to deleted item
+            router.replace('/dashboard');
         } catch (error: any) {
             console.error(error);
             setErrorMessage("Erro ao cancelar jogo: " + (error?.message || "Erro desconhecido"));
