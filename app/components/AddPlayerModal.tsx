@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { toast } from "sonner";
 import { supabase } from "../../src/lib/client";
 
 interface AddPlayerModalProps {
@@ -76,9 +77,10 @@ export default function AddPlayerModal({ isOpen, onClose, matchId, groupId, exis
             onAdd(); // Refresh data
             // Remove from local list
             setMembers(prev => prev.filter(m => m.user_id !== userId));
+            toast.success('Jogador convocado! 👊');
         } catch (error) {
             console.error("Error adding player:", error);
-            alert("Erro ao adicionar jogador.");
+            toast.error("Erro ao adicionar jogador.");
         } finally {
             setAddingId(null);
         }

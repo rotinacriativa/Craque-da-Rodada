@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import { supabase } from "../../../src/lib/client";
 import Link from "next/link";
 
@@ -74,12 +75,15 @@ export default function CreateGroupPage() {
                 });
 
             // Success! Redirect
+            toast.success('Pelada criada! Agora é só convocar a galera. ⚽');
             router.push(`/dashboard/grupos/${group.id}`);
             router.refresh();
 
         } catch (err: any) {
             console.error("Error creating group:", err);
-            setError(err.message || "Erro ao criar grupo.");
+            const msg = err.message || "Erro ao criar grupo.";
+            setError(msg);
+            toast.error(msg);
         } finally {
             setLoading(false);
         }

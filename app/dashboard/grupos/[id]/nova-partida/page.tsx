@@ -3,6 +3,7 @@
 import { useState, use } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import AddressAutocomplete from "../../../../components/AddressAutocomplete";
 import MapSelectorModal from "../../../../components/MapSelectorModal";
 import { supabase } from "../../../../../src/lib/client";
@@ -119,13 +120,17 @@ function CreateMatchContent() {
 
             if (error) throw error;
 
+            toast.success('Jogo marcado! A convocação começou. 📣');
+
             // Redirect
             router.push(`/dashboard/grupos/${groupId}`);
             router.refresh();
 
         } catch (error: any) {
             console.error("Error creating match:", error);
-            alert("Erro ao criar partida: " + error.message);
+            const msg = "Erro ao criar partida: " + error.message;
+            alert(msg);
+            toast.error(msg);
         } finally {
             setIsLoading(false);
         }
