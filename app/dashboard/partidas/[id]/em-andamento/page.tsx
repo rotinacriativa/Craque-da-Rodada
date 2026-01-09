@@ -42,7 +42,7 @@ export default function LiveMatchPage({ params }: { params: Promise<{ id: string
     const [isEventModalOpen, setIsEventModalOpen] = useState(false);
     const [modalAction, setModalAction] = useState<MatchEvent['type'] | null>(null);
     const [modalTeam, setModalTeam] = useState<'A' | 'B'>('A');
-    const [modalStep, setModalStep] = useState<'scorer' | 'assister' | 'player'>('player');
+    const [modalStep, setModalStep] = useState<'scorer' | 'assister' | 'player' | 'foul_type'>('player');
     const [tempScorer, setTempScorer] = useState<{ id: string, name: string } | null>(null);
     const [searchTerm, setSearchTerm] = useState("");
 
@@ -145,7 +145,15 @@ export default function LiveMatchPage({ params }: { params: Promise<{ id: string
     const handleActionClick = (type: MatchEvent['type'], team: 'A' | 'B') => {
         setModalAction(type);
         setModalTeam(team);
-        setModalStep(type === 'goal' ? 'scorer' : 'player');
+
+        if (type === 'goal') {
+            setModalStep('scorer');
+        } else if (type === 'foul' || type === 'card_yellow') {
+            setModalStep('foul_type');
+        } else {
+            setModalStep('player');
+        }
+
         setTempScorer(null);
         setSearchTerm("");
         setIsEventModalOpen(true);
@@ -413,7 +421,7 @@ export default function LiveMatchPage({ params }: { params: Promise<{ id: string
                                 <h3 className="text-xl font-bold text-[#0d1b12] dark:text-white">
                                     {modalAction === 'goal'
                                         ? (modalStep === 'scorer' ? 'Quem fez o gol?' : 'Quem deu a assistência?')
-                                        : 'Selecione o jogador'}
+                                        : (modalStep === 'foul_type' ? 'O que aconteceu?' : 'Selecione o jogador')}
                                 </h3>
                                 <p className="text-sm text-slate-500">Time {modalTeam}</p>
                             </div>
@@ -422,38 +430,83 @@ export default function LiveMatchPage({ params }: { params: Promise<{ id: string
                             </button>
                         </div>
                         <div className="p-4">
-                            <div className="relative mb-4">
-                                <input
-                                    type="text"
-                                    placeholder="Buscar jogador..."
-                                    value={searchTerm}
-                                    onChange={(e) => setSearchTerm(e.target.value)}
-                                    className="w-full h-12 pl-12 pr-4 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#13ec5b] dark:text-white"
-                                />
-                                <span className="material-symbols-outlined absolute left-4 top-3 text-slate-400">search</span>
-                            </div>
-                            <div className="max-h-80 overflow-y-auto space-y-2 pr-2 custom-scrollbar">
-                                {modalPlayers.map((player: any) => (
+                            {modalStep === 'foul_type' ? (
+                                <div className="flex flex-col gap-3 py-2">
                                     <button
-                                        key={player.id}
-                                        onClick={() => handlePlayerSelect(player)}
-                                        className="w-full flex items-center gap-3 p-3 rounded-2xl hover:bg-slate-50 dark:hover:bg-[#13ec5b]/10 transition-colors text-left group border border-transparent hover:border-slate-200 dark:hover:border-[#13ec5b]/20"
+                                        onClick={() => { setModalAction('foul'); setModalStep('player'); }}
+                                        className="w-full flex items-center justify-between p-5 rounded-2xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 hover:border-slate-400 dark:hover:border-slate-500 transition-all group"
                                     >
-                                        <div className="size-10 rounded-full bg-slate-200 bg-cover bg-center" style={{ backgroundImage: `url('${player.avatar_url || "https://upload.wikimedia.org/wikipedia/commons/7/7c/Profile_avatar_placeholder_large.png"}')` }}></div>
-                                        <span className="font-bold text-slate-700 dark:text-slate-200 group-hover:text-[#13ec5b]">{player.full_name}</span>
-                                        <span className="material-symbols-outlined ml-auto text-slate-300 opacity-0 group-hover:opacity-100 transition-opacity">chevron_right</span>
+                                        <div className="flex items-center gap-4">
+                                            <div className="size-12 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
+                                                <span className="material-symbols-outlined text-slate-500">pan_tool</span>
+                                            </div>
+                                            <span className="font-bold text-slate-800 dark:text-slate-200 text-lg">Falta Simples</span>
+                                        </div>
+                                        <span className="material-symbols-outlined text-slate-300 group-hover:translate-x-1 transition-transform">chevron_right</span>
                                     </button>
-                                ))}
-                                {modalStep === 'assister' && (
+
                                     <button
-                                        onClick={skipAssistance}
-                                        className="w-full flex items-center justify-center gap-2 p-4 rounded-2xl border-2 border-dashed border-slate-200 dark:border-slate-700 text-slate-500 font-bold hover:bg-slate-50 dark:hover:bg-white/5 transition-all"
+                                        onClick={() => { setModalAction('card_yellow'); setModalStep('player'); }}
+                                        className="w-full flex items-center justify-between p-5 rounded-2xl bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900 hover:border-amber-400 dark:hover:border-amber-800 transition-all group"
                                     >
-                                        <span className="material-symbols-outlined">block</span>
-                                        Sem assistência
+                                        <div className="flex items-center gap-4">
+                                            <div className="size-12 rounded-full bg-amber-100 dark:bg-amber-900/50 flex items-center justify-center">
+                                                <span className="material-symbols-outlined text-amber-500">style</span>
+                                            </div>
+                                            <span className="font-bold text-amber-900 dark:text-amber-200 text-lg">Cartão Amarelo</span>
+                                        </div>
+                                        <span className="material-symbols-outlined text-amber-300 group-hover:translate-x-1 transition-transform">chevron_right</span>
                                     </button>
-                                )}
-                            </div>
+
+                                    <button
+                                        onClick={() => { setModalAction('card_red'); setModalStep('player'); }}
+                                        className="w-full flex items-center justify-between p-5 rounded-2xl bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900 hover:border-red-400 dark:hover:border-red-800 transition-all group"
+                                    >
+                                        <div className="flex items-center gap-4">
+                                            <div className="size-12 rounded-full bg-red-100 dark:bg-red-900/50 flex items-center justify-center">
+                                                <span className="material-symbols-outlined text-red-500">style</span>
+                                            </div>
+                                            <span className="font-bold text-red-900 dark:text-red-200 text-lg">Cartão Vermelho</span>
+                                        </div>
+                                        <span className="material-symbols-outlined text-red-300 group-hover:translate-x-1 transition-transform">chevron_right</span>
+                                    </button>
+                                </div>
+                            ) : (
+                                <>
+                                    <div className="relative mb-4">
+                                        <input
+                                            type="text"
+                                            placeholder="Buscar jogador..."
+                                            value={searchTerm}
+                                            onChange={(e) => setSearchTerm(e.target.value)}
+                                            className="w-full h-12 pl-12 pr-4 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#13ec5b] dark:text-white"
+                                        />
+                                        <span className="material-symbols-outlined absolute left-4 top-3 text-slate-400">search</span>
+                                    </div>
+                                    <div className="max-h-80 overflow-y-auto space-y-2 pr-2 custom-scrollbar">
+                                        {modalPlayers.map((player: any) => (
+                                            <button
+                                                key={player.id}
+                                                onClick={() => handlePlayerSelect(player)}
+                                                className="w-full flex items-center gap-3 p-3 rounded-2xl hover:bg-slate-50 dark:hover:bg-[#13ec5b]/10 transition-colors text-left group border border-transparent hover:border-slate-200 dark:hover:border-[#13ec5b]/20"
+                                            >
+                                                <div className="size-10 rounded-full bg-slate-200 bg-cover bg-center" style={{ backgroundImage: `url('${player.avatar_url || "https://upload.wikimedia.org/wikipedia/commons/7/7c/Profile_avatar_placeholder_large.png"}')` }}></div>
+                                                <span className="font-bold text-slate-700 dark:text-slate-200 group-hover:text-[#13ec5b]">{player.full_name}</span>
+                                                <span className="material-symbols-outlined ml-auto text-slate-300 opacity-0 group-hover:opacity-100 transition-opacity">chevron_right</span>
+                                            </button>
+                                        ))}
+                                        {modalStep === 'assister' && (
+                                            <button
+                                                onClick={skipAssistance}
+                                                className="w-full flex items-center justify-center gap-2 p-4 rounded-2xl border-2 border-dashed border-slate-200 dark:border-slate-700 text-slate-500 font-bold hover:bg-slate-50 dark:hover:bg-white/5 transition-all"
+                                            >
+                                                <span className="material-symbols-outlined">block</span>
+                                                Sem assistência
+                                            </button>
+                                        )}
+                                    </div>
+                                </>
+                            )}
                         </div>
                     </div>
                 </div>
