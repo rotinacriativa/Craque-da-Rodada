@@ -21,6 +21,8 @@ export default function DashboardLayout({
     const router = useRouter();
     const pathname = usePathname();
 
+    const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
     useEffect(() => {
         async function fetchUser() {
             const { data: { user } } = await supabase.auth.getUser();
@@ -50,6 +52,11 @@ export default function DashboardLayout({
         router.push("/login"); // Use router.push/replace instead of plain link
     };
 
+    // Auto-close mobile menu on route change
+    useEffect(() => {
+        setIsMobileMenuOpen(false);
+    }, [pathname]);
+
     // If we are in an Admin Panel route (e.g. /dashboard/grupos/123/admin/...),
     // we want to bypass this main Dashboard Sidebar so the Admin Layout can take full control.
     if (pathname?.includes("/admin")) {
@@ -63,13 +70,65 @@ export default function DashboardLayout({
         );
     }
 
+    const NavigationLinks = ({ onLinkClick }: { onLinkClick?: () => void }) => {
+        const isActive = (path: string) => pathname === path || (path !== '/dashboard' && pathname?.startsWith(path));
+
+        const linkClass = (path: string) => cn(
+            "flex items-center gap-3 px-4 py-3 rounded-full transition-all",
+            isActive(path)
+                ? "bg-[#13ec5b] text-[#0d1b12] font-bold shadow-md shadow-[#13ec5b]/20 hover:scale-[1.02]"
+                : "text-[#0d1b12] dark:text-white font-medium hover:bg-[#e7f3eb] dark:hover:bg-[#2a4535]"
+        );
+
+        const iconStyle = (path: string) => isActive(path) ? { fontVariationSettings: "'FILL' 1" } : {};
+
+        return (
+            <>
+                <Link className={linkClass("/dashboard")} href="/dashboard" onClick={onLinkClick}>
+                    <span className="material-symbols-outlined" style={iconStyle("/dashboard")}>dashboard</span>
+                    <span>Dashboard</span>
+                </Link>
+
+                <Link className={linkClass("/dashboard/grupos")} href="/dashboard/grupos" onClick={onLinkClick}>
+                    <span className="material-symbols-outlined" style={iconStyle("/dashboard/grupos")}>groups</span>
+                    <span>Meus Grupos</span>
+                </Link>
+
+                <Link className={linkClass("/dashboard/ranking")} href="/dashboard/ranking" onClick={onLinkClick}>
+                    <span className="material-symbols-outlined" style={iconStyle("/dashboard/ranking")}>emoji_events</span>
+                    <span>Ranking</span>
+                </Link>
+
+                <Link className={linkClass("/dashboard/explorar")} href="/dashboard/explorar" onClick={onLinkClick}>
+                    <span className="material-symbols-outlined" style={iconStyle("/dashboard/explorar")}>explore</span>
+                    <span>Explorar</span>
+                </Link>
+
+                <Link className={linkClass("/dashboard/perfil")} href="/dashboard/perfil" onClick={onLinkClick}>
+                    <span className="material-symbols-outlined" style={iconStyle("/dashboard/perfil")}>person</span>
+                    <span>Perfil</span>
+                </Link>
+
+                <Link className={linkClass("/dashboard/configuracoes")} href="/dashboard/configuracoes" onClick={onLinkClick}>
+                    <span className="material-symbols-outlined" style={iconStyle("/dashboard/configuracoes")}>settings</span>
+                    <span>Configurações</span>
+                </Link>
+
+                <button onClick={() => { handleSignOut(); onLinkClick?.(); }} className="flex items-center gap-3 px-4 py-3 text-[#0d1b12] dark:text-white hover:bg-red-50 dark:hover:bg-red-900/10 hover:text-red-500 dark:hover:text-red-400 rounded-full font-medium transition-colors mt-auto mb-2 w-full text-left">
+                    <span className="material-symbols-outlined">logout</span>
+                    <span>Sair</span>
+                </button>
+            </>
+        );
+    };
+
     return (
         <div className={`${lexend.className} bg-[#f6f8f6] dark:bg-[#102216] font-sans text-[#0d1b12] dark:text-white h-screen overflow-hidden flex selection:bg-[#13ec5b] selection:text-[#0d1b12]`}>
             <OnboardingModal />
             {/* Material Symbols Font */}
             <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" />
 
-            {/* Sidebar Navigation */}
+            {/* Desktop Sidebar */}
             <aside className="w-72 bg-white dark:bg-[#1a2c20] border-r border-[#e7f3eb] dark:border-[#2a4535] flex flex-col h-full shrink-0 z-30 hidden md:flex">
                 {/* Brand Logo */}
                 <div className="p-6 flex items-center gap-3">
@@ -83,61 +142,7 @@ export default function DashboardLayout({
                 </div>
                 {/* Navigation Links */}
                 <nav className="flex-1 px-4 flex flex-col gap-2 mt-2">
-                    {/* Helper to determine if link is active */}
-                    {/* Navigation Links Helper */}
-                    {
-                        (function () {
-                            const isActive = (path: string) => pathname === path || (path !== '/dashboard' && pathname?.startsWith(path));
-
-                            const linkClass = (path: string) => cn(
-                                "flex items-center gap-3 px-4 py-3 rounded-full transition-all",
-                                isActive(path)
-                                    ? "bg-[#13ec5b] text-[#0d1b12] font-bold shadow-md shadow-[#13ec5b]/20 hover:scale-[1.02]"
-                                    : "text-[#0d1b12] dark:text-white font-medium hover:bg-[#e7f3eb] dark:hover:bg-[#2a4535]"
-                            );
-
-                            const iconStyle = (path: string) => isActive(path) ? { fontVariationSettings: "'FILL' 1" } : {};
-
-                            return (
-                                <>
-                                    <Link className={linkClass("/dashboard")} href="/dashboard">
-                                        <span className="material-symbols-outlined" style={iconStyle("/dashboard")}>dashboard</span>
-                                        <span>Dashboard</span>
-                                    </Link>
-
-                                    <Link className={linkClass("/dashboard/grupos")} href="/dashboard/grupos">
-                                        <span className="material-symbols-outlined" style={iconStyle("/dashboard/grupos")}>groups</span>
-                                        <span>Meus Grupos</span>
-                                    </Link>
-
-                                    <Link className={linkClass("/dashboard/ranking")} href="/dashboard/ranking">
-                                        <span className="material-symbols-outlined" style={iconStyle("/dashboard/ranking")}>emoji_events</span>
-                                        <span>Ranking</span>
-                                    </Link>
-
-                                    <Link className={linkClass("/dashboard/explorar")} href="/dashboard/explorar">
-                                        <span className="material-symbols-outlined" style={iconStyle("/dashboard/explorar")}>explore</span>
-                                        <span>Explorar</span>
-                                    </Link>
-
-                                    <Link className={linkClass("/dashboard/perfil")} href="/dashboard/perfil">
-                                        <span className="material-symbols-outlined" style={iconStyle("/dashboard/perfil")}>person</span>
-                                        <span>Perfil</span>
-                                    </Link>
-
-                                    <Link className={linkClass("/dashboard/configuracoes")} href="/dashboard/configuracoes">
-                                        <span className="material-symbols-outlined" style={iconStyle("/dashboard/configuracoes")}>settings</span>
-                                        <span>Configurações</span>
-                                    </Link>
-
-                                    <button onClick={handleSignOut} className="flex items-center gap-3 px-4 py-3 text-[#0d1b12] dark:text-white hover:bg-red-50 dark:hover:bg-red-900/10 hover:text-red-500 dark:hover:text-red-400 rounded-full font-medium transition-colors mt-auto mb-2 w-full text-left">
-                                        <span className="material-symbols-outlined">logout</span>
-                                        <span>Sair</span>
-                                    </button>
-                                </>
-                            );
-                        })()
-                    }
+                    <NavigationLinks />
                 </nav>
                 {/* Sidebar CTA */}
                 <div className="p-6 border-t border-[#e7f3eb] dark:border-[#2a4535]">
@@ -148,12 +153,53 @@ export default function DashboardLayout({
                 </div>
             </aside>
 
+            {/* Mobile Sidebar Overlay */}
+            {isMobileMenuOpen && (
+                <div className="fixed inset-0 z-50 flex md:hidden">
+                    {/* Backdrop */}
+                    <div
+                        className="absolute inset-0 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200"
+                        onClick={() => setIsMobileMenuOpen(false)}
+                    ></div>
+
+                    {/* Drawer */}
+                    <aside className="w-[80%] max-w-sm bg-white dark:bg-[#1a2c20] flex flex-col h-full shadow-2xl animate-in slide-in-from-left duration-200 relative z-50">
+                        <div className="p-6 flex items-center justify-between border-b border-[#e7f3eb] dark:border-[#2a4535]">
+                            <div className="flex items-center gap-3">
+                                <div className="size-8 bg-[#13ec5b] rounded-lg flex items-center justify-center text-[#0d1b12]">
+                                    <span className="material-symbols-outlined text-xl" style={{ fontVariationSettings: "'FILL' 1" }}>sports_soccer</span>
+                                </div>
+                                <h1 className="text-[#0d1b12] dark:text-white text-base font-bold">Craque da Rodada</h1>
+                            </div>
+                            <button
+                                onClick={() => setIsMobileMenuOpen(false)}
+                                className="p-2 -mr-2 text-[#0d1b12] dark:text-white hover:bg-gray-100 dark:hover:bg-white/10 rounded-full transition-colors"
+                            >
+                                <span className="material-symbols-outlined">close</span>
+                            </button>
+                        </div>
+                        <nav className="flex-1 px-4 flex flex-col gap-2 mt-4 overflow-y-auto">
+                            <NavigationLinks onLinkClick={() => setIsMobileMenuOpen(false)} />
+                        </nav>
+                        <div className="p-4 border-t border-[#e7f3eb] dark:border-[#2a4535]">
+                            <Link href="/dashboard/grupos" className="w-full group flex items-center justify-center gap-2 bg-[#0d1b12] dark:bg-white text-white dark:text-[#0d1b12] py-3.5 rounded-full font-bold hover:opacity-90 hover:shadow-lg transition-all" onClick={() => setIsMobileMenuOpen(false)}>
+                                <span className="material-symbols-outlined text-xl group-hover:rotate-90 transition-transform">add</span>
+                                <span className="truncate">Criar Nova Pelada</span>
+                            </Link>
+                        </div>
+                    </aside>
+                </div>
+            )}
+
             {/* Main Content Wrapper */}
             <div className="flex-1 flex flex-col min-w-0 h-full relative">
                 {/* Top Navigation Bar */}
                 <header className="h-20 bg-white/80 dark:bg-[#1a2c20]/80 backdrop-blur-md border-b border-[#e7f3eb] dark:border-[#2a4535] flex items-center justify-between px-6 md:px-10 sticky top-0 z-20">
                     {/* Mobile Menu Trigger (Visible only on mobile) */}
-                    <button className="md:hidden p-2 -ml-2 text-[#0d1b12] dark:text-white">
+                    <button
+                        className="md:hidden p-2 -ml-2 text-[#0d1b12] dark:text-white hover:bg-gray-100 dark:hover:bg-white/5 rounded-full transition-colors"
+                        onClick={() => setIsMobileMenuOpen(true)}
+                    >
                         <span className="material-symbols-outlined">menu</span>
                     </button>
 

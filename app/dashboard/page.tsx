@@ -18,31 +18,21 @@ export default function DashboardPage() {
                 const { data: { user } } = await supabase.auth.getUser();
                 if (!user) return;
 
-                // 1. Get User's Group IDs
-                const { data: userGroups } = await supabase
-                    .from('group_members')
-                    .select('group_id')
-                    .eq('user_id', user.id)
-                    .eq('status', 'active');
+                // 2. Fetch Next Match (Only where I am a participant)
+                // We use !inner to enforce the filter on the joined table to ensure I am playing
+                const { data: matches } = await supabase
+                    .from('matches')
+                    .select('*, groups(name), match_participants!inner(user_id)')
+                    .eq('match_participants.user_id', user.id)
+                    .gte('date', new Date().toISOString().split('T')[0])
+                    .order('date', { ascending: true })
+                    .limit(1);
 
-                const groupIds = userGroups?.map(g => g.group_id) || [];
-
-                // 2. Fetch Next Match (Only from my groups)
-                let nextMatchData = null;
-                if (groupIds.length > 0) {
-                    const { data: matches } = await supabase
-                        .from('matches')
-                        .select('*, groups(name)')
-                        .in('group_id', groupIds) // Filter by my groups
-                        .gte('date', new Date().toISOString().split('T')[0])
-                        .order('date', { ascending: true })
-                        .limit(1);
-
-                    if (matches && matches.length > 0) {
-                        nextMatchData = matches[0];
-                    }
+                if (matches && matches.length > 0) {
+                    setNextMatch(matches[0]);
+                } else {
+                    setNextMatch(null);
                 }
-                setNextMatch(nextMatchData);
 
                 // 3. Fetch Stats
                 // Organized: Groups created by me

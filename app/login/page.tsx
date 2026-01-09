@@ -13,6 +13,7 @@ export default function Login() {
     const router = useRouter();
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
+    const [showPassword, setShowPassword] = useState(false);
     const [loading, setLoading] = useState(false);
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -148,13 +149,19 @@ export default function Login() {
                                     <input
                                         className="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-full text-[#0d1b12] dark:text-white focus:outline-0 focus:ring-2 focus:ring-[#13ec5b]/50 border border-[#cfe7d7] dark:border-[#2a4030] bg-white dark:bg-[#1c2e22] focus:border-[#13ec5b] h-12 pl-12 pr-12 placeholder:text-[#4c9a66]/50 text-base font-normal leading-normal transition-all disabled:opacity-50"
                                         placeholder="Digite sua senha"
-                                        type="password"
+                                        type={showPassword ? "text" : "password"}
                                         value={password}
                                         onChange={(e) => setPassword(e.target.value)}
                                         disabled={loading}
                                     />
-                                    <button className="absolute right-4 text-[#4c9a66] hover:text-[#0d1b12] dark:hover:text-white transition-colors cursor-pointer flex items-center" type="button">
-                                        <span className="material-symbols-outlined text-[20px]">visibility</span>
+                                    <button
+                                        className="absolute right-4 text-[#4c9a66] hover:text-[#0d1b12] dark:hover:text-white transition-colors cursor-pointer flex items-center"
+                                        type="button"
+                                        onClick={() => setShowPassword(!showPassword)}
+                                    >
+                                        <span className="material-symbols-outlined text-[20px]">
+                                            {showPassword ? "visibility_off" : "visibility"}
+                                        </span>
                                     </button>
                                 </div>
                             </label>

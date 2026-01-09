@@ -87,8 +87,49 @@ export default function SettingsPage() {
         }
     };
 
-    const handleDownloadData = () => {
-        alert("Seus dados estão sendo processados. Você receberá um link para download no seu email em até 24h.");
+    const [exporting, setExporting] = useState(false);
+
+    const handleDownloadData = async () => {
+        setExporting(true);
+        try {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) return;
+
+            // Fetch all related data
+            const { data: profile } = await supabase.from('profiles').select('*').eq('id', user.id).single();
+            const { data: myGroups } = await supabase.from('groups').select('*').eq('created_by', user.id);
+            const { data: memberships } = await supabase.from('group_members').select('*, groups(*)').eq('user_id', user.id);
+            const { data: participations } = await supabase.from('match_participants').select('*, matches(*)').eq('user_id', user.id);
+
+            const exportData = {
+                user: {
+                    id: user.id,
+                    email: user.email,
+                    profile: profile
+                },
+                groups_created: myGroups || [],
+                group_memberships: memberships || [],
+                match_participations: participations || [],
+                export_date: new Date().toISOString()
+            };
+
+            // Create and trigger download
+            const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `craque-da-rodada-dados-${new Date().toISOString().split('T')[0]}.json`;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+
+        } catch (error) {
+            console.error(error);
+            alert("Erro ao exportar dados.");
+        } finally {
+            setExporting(false);
+        }
     };
 
     const handleDeleteAccount = async () => {
@@ -228,12 +269,23 @@ export default function SettingsPage() {
                                 <h2 className="text-xl font-bold text-[#0d1b12] dark:text-white">Privacidade</h2>
                             </div>
                             <div className="flex flex-col md:flex-row gap-4">
-                                <button onClick={handleDownloadData} type="button" className="flex-1 flex items-center justify-between p-4 rounded-2xl bg-gray-50 dark:bg-[#102216] border border-[#e7f3eb] dark:border-[#1f3b29] group hover:border-[#13ec5b]/50 transition-all text-left">
+                                <button
+                                    onClick={handleDownloadData}
+                                    type="button"
+                                    disabled={exporting}
+                                    className={`flex-1 flex items-center justify-between p-4 rounded-2xl bg-gray-50 dark:bg-[#102216] border border-[#e7f3eb] dark:border-[#1f3b29] group hover:border-[#13ec5b]/50 transition-all text-left ${exporting ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                >
                                     <div>
-                                        <p className="font-bold text-[#0d1b12] dark:text-white group-hover:text-[#13ec5b] transition-colors">Gerenciar Dados</p>
-                                        <p className="text-xs text-[#4c9a66] dark:text-[#8fcba5]">Baixar uma cópia das suas informações.</p>
+                                        <p className="font-bold text-[#0d1b12] dark:text-white group-hover:text-[#13ec5b] transition-colors">
+                                            {exporting ? 'Gerando arquivo...' : 'Gerenciar Dados'}
+                                        </p>
+                                        <p className="text-xs text-[#4c9a66] dark:text-[#8fcba5]">
+                                            {exporting ? 'Isso pode levar alguns segundos.' : 'Baixar uma cópia das suas informações.'}
+                                        </p>
                                     </div>
-                                    <span className="material-symbols-outlined text-[#4c9a66] group-hover:text-[#13ec5b] transition-colors">download</span>
+                                    <span className={`material-symbols-outlined text-[#4c9a66] group-hover:text-[#13ec5b] transition-colors ${exporting ? 'animate-spin' : ''}`}>
+                                        {exporting ? 'progress_activity' : 'download'}
+                                    </span>
                                 </button>
                                 <button onClick={handleDeleteAccount} type="button" className="flex-1 flex items-center justify-between p-4 rounded-2xl bg-red-50 dark:bg-red-900/10 border border-red-100 dark:border-red-900/20 group hover:bg-red-100 dark:hover:bg-red-900/20 transition-all text-left">
                                     <div>
