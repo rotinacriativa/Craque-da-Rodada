@@ -132,7 +132,6 @@ function CreateMatchContent() {
     };
 
     // Map State
-    const [isMapOpen, setIsMapOpen] = useState(false);
 
     const handleMapSelect = (data: { lat: number; lon: number; address: string }) => {
         setFormData(prev => ({
