@@ -71,8 +71,17 @@ export default function MatchDetails({ params }: { params: Promise<{ id: string 
         setIsCanceling(true);
         try {
             // 1. Delete Dependencies (Participants & Votes)
-            await supabase.from('match_participants').delete().eq('match_id', matchId);
-            await supabase.from('match_votes').delete().eq('match_id', matchId);
+            const { error: partError } = await supabase.from('match_participants').delete().eq('match_id', matchId);
+            if (partError) {
+                console.error("Error deleting participants:", partError);
+                throw new Error("Erro ao remover jogadores: " + partError.message);
+            }
+
+            const { error: voteError } = await supabase.from('match_votes').delete().eq('match_id', matchId);
+            if (voteError) {
+                console.error("Error deleting votes:", voteError);
+                throw new Error("Erro ao remover votos: " + voteError.message);
+            }
 
             // 2. Delete the Match
             const { error } = await supabase
@@ -83,9 +92,12 @@ export default function MatchDetails({ params }: { params: Promise<{ id: string 
             if (error) throw error;
 
             setSuccessMessage("Jogo cancelado com sucesso.");
-            // Slight delay or immediate redirect
-            router.push(match?.group_id ? `/dashboard/grupos/${match.group_id}` : '/dashboard');
+
+            // Refresh and redirect
             router.refresh();
+            setTimeout(() => {
+                router.push(match?.group_id ? `/dashboard/grupos/${match.group_id}` : '/dashboard');
+            }, 1500);
         } catch (error: any) {
             console.error(error);
             setErrorMessage("Erro ao cancelar jogo: " + (error?.message || "Erro desconhecido"));
