@@ -1,281 +1,217 @@
 "use client";
 
-import { use, useEffect, useState } from "react";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { supabase } from "../../../../../../src/lib/client";
+import { use } from "react";
+import { useState } from "react";
 
 export default function GroupSettingsPage({ params }: { params: Promise<{ id: string }> }) {
     const { id } = use(params);
     const groupId = id;
-    const router = useRouter();
 
-    const [loading, setLoading] = useState(true);
-    const [saving, setSaving] = useState(false);
-
-    // Form State
-    const [name, setName] = useState("");
-    const [description, setDescription] = useState("");
-    const [rules, setRules] = useState("");
-    const [privacy, setPrivacy] = useState("private"); // public | private
-
-    useEffect(() => {
-        async function fetchGroup() {
-            try {
-                const { data, error } = await supabase
-                    .from('groups')
-                    .select('*')
-                    .eq('id', groupId)
-                    .single();
-
-                if (data) {
-                    setName(data.name || "");
-                    setDescription(data.description || "");
-                    // Assuming 'rules' and 'privacy' columns might exist or will be added. 
-                    // For now, mapping to existing or placeholder state.
-                    // If columns don't exist yet in DB, these might just hold local state for now.
-                    // setRules(data.rules || ""); 
-                    // setPrivacy(data.privacy || "private");
-                }
-            } catch (error) {
-                console.error("Error fetching group settings:", error);
-            } finally {
-                setLoading(false);
-            }
-        }
-        if (groupId) fetchGroup();
-    }, [groupId]);
-
-    const handleSave = async (e: React.FormEvent) => {
-        e.preventDefault();
-        setSaving(true);
-        try {
-            const { error } = await supabase
-                .from('groups')
-                .update({
-                    name,
-                    description,
-                    // rules: rules, 
-                    // privacy: privacy
-                })
-                .eq('id', groupId);
-
-            if (error) throw error;
-
-            // Show success feedback (could use a toast library here)
-            alert("Configurações salvas com sucesso!");
-            router.refresh();
-        } catch (error) {
-            console.error("Error updating group:", error);
-            alert("Erro ao salvar alterações.");
-        } finally {
-            setSaving(false);
-        }
-    };
-
-    if (loading) {
-        return (
-            <div className="flex items-center justify-center h-full min-h-[500px]">
-                <span className="size-10 block rounded-full border-4 border-[#13ec5b] border-r-transparent animate-spin"></span>
-            </div>
-        );
-    }
+    // Use state for form handling later, sticking to visual port for now
+    const [groupName, setGroupName] = useState("Craque da Rodada FC");
+    const [location, setLocation] = useState("Arena Society Central");
+    const [description, setDescription] = useState("Grupo oficial para as peladas de terça-feira. Respeito e bom futebol acima de tudo!");
 
     return (
-        <div className="flex flex-col flex-1 h-full pb-20 relative">
-            {/* Breadcrumbs */}
-            <nav aria-label="Breadcrumb" className="flex mb-6">
-                <ol className="inline-flex items-center space-x-1 md:space-x-3">
-                    <li className="inline-flex items-center">
-                        <Link className="inline-flex items-center text-sm font-medium text-gray-500 hover:text-[#13ec5b] dark:text-gray-400 dark:hover:text-white transition-colors" href="/dashboard">
-                            <span className="material-symbols-outlined mr-2 text-[20px]">home</span>
-                            Home
-                        </Link>
-                    </li>
-                    <li>
-                        <div className="flex items-center">
-                            <span className="material-symbols-outlined text-gray-400 text-sm">chevron_right</span>
-                            <Link className="ml-1 text-sm font-medium text-gray-500 hover:text-[#13ec5b] md:ml-2 dark:text-gray-400 dark:hover:text-white transition-colors" href={`/dashboard/grupos/${groupId}`}>
-                                Meus Grupos
-                            </Link>
-                        </div>
-                    </li>
-                    <li>
-                        <div className="flex items-center">
-                            <span className="material-symbols-outlined text-gray-400 text-sm">chevron_right</span>
-                            <Link className="ml-1 text-sm font-medium text-gray-500 hover:text-[#13ec5b] md:ml-2 dark:text-gray-400 dark:hover:text-white transition-colors" href={`/dashboard/grupos/${groupId}/admin`}>
-                                Admin
-                            </Link>
-                        </div>
-                    </li>
-                    <li>
-                        <div className="flex items-center">
-                            <span className="material-symbols-outlined text-gray-400 text-sm">chevron_right</span>
-                            <span className="ml-1 text-sm font-medium text-[#0d1b12] md:ml-2 dark:text-white">Configurações</span>
-                        </div>
-                    </li>
-                </ol>
-            </nav>
-
-            {/* Header Section */}
-            <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-8">
-                <div>
-                    <h1 className="text-3xl md:text-4xl font-black tracking-tight text-[#0d1b12] dark:text-white mb-2">
-                        Configurações do Grupo
-                    </h1>
-                    <p className="text-gray-500 dark:text-gray-400 text-lg font-light max-w-2xl">
-                        Gerencie as informações principais, regras e privacidade da sua pelada.
-                    </p>
+        <div className="flex-1 w-full max-w-5xl mx-auto px-6 py-8 pb-12 flex flex-col gap-8">
+            <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
+                <div className="flex flex-col gap-2">
+                    <h2 className="text-3xl md:text-3xl font-black tracking-tight text-[#0d1b12] dark:text-white">Configurações do Grupo</h2>
+                    <p className="text-gray-500 dark:text-gray-400 text-lg">Gerencie informações, regras e permissões.</p>
                 </div>
             </div>
 
-            <form onSubmit={handleSave} className="flex flex-col gap-6">
-                {/* Identity Card */}
-                <div className="bg-white dark:bg-[#1a2c20] rounded-[2rem] p-6 md:p-8 shadow-sm border border-[#e7f3eb] dark:border-[#2a4032]">
-                    <div className="flex flex-col md:flex-row gap-8 items-start">
-                        {/* Avatar Upload */}
-                        <div className="flex flex-col items-center gap-3 flex-shrink-0">
-                            <div className="relative group cursor-pointer">
-                                <div className="size-32 rounded-full bg-cover bg-center border-4 border-[#f0fdf4] dark:border-[#13ec5b]/10 shadow-inner bg-gray-100" style={{ backgroundImage: "url('https://lh3.googleusercontent.com/aida-public/AB6AXuCJwN-cOTkiGzovotXrGX2yGTY2Dih4dLtBkx2JEzL8dyG1IkALXWQhHE-81JI89mvuw8bvn7PBzkMzj-Kcir0rQzGGiPWIX2t63Of_Xwe-33l-wfh3ghjB7GLYSGEXjF_iPICtaGurCZcps39qXMo9KwdpFFE_TXahf4n2yE3yBbA-Uyuet7U1PidQzKy5JDLZB-nOpwSDu7WiDOS97DLkYgGooG6ID30KY6kNUZ05h_jjGNDfVLz4ztGPVyv2W3DJ9k4svy1RPQk')" }}>
-                                </div>
-                                <div className="absolute inset-0 bg-black/40 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                    <span className="material-symbols-outlined text-white">edit</span>
-                                </div>
-                                <div className="absolute bottom-1 right-1 bg-[#13ec5b] text-white p-1.5 rounded-full shadow-lg border-2 border-white dark:border-[#1a3322] flex items-center justify-center">
-                                    <span className="material-symbols-outlined text-[18px]">photo_camera</span>
-                                </div>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                {/* Coluna Principal - Esquerda (2/3) */}
+                <div className="lg:col-span-2 flex flex-col gap-6">
+                    {/* Dados do Grupo */}
+                    <div className="bg-white dark:bg-[#1a2c20] p-6 rounded-2xl shadow-sm border border-[#e7f3eb] dark:border-[#2a4032]">
+                        <div className="flex items-center gap-3 mb-6 pb-4 border-b border-[#e7f3eb] dark:border-[#2a4032]">
+                            <div className="w-10 h-10 rounded-full bg-gray-100 dark:bg-[#25382e] flex items-center justify-center text-gray-600 dark:text-gray-300">
+                                <span className="material-symbols-outlined">badge</span>
                             </div>
-                            <p className="text-xs text-gray-400 font-medium">Recomendado 500x500px</p>
+                            <h3 className="text-xl font-bold text-[#0d1b12] dark:text-white">Dados do Grupo</h3>
                         </div>
-                        {/* Basic Info Fields */}
-                        <div className="flex-1 w-full grid gap-6">
-                            <div className="grid gap-2">
-                                <label className="text-sm font-bold text-gray-700 dark:text-gray-200 ml-1" htmlFor="groupName">Nome do Grupo</label>
-                                <div className="relative">
-                                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                                        <span className="material-symbols-outlined text-gray-400">groups</span>
+                        <form className="flex flex-col gap-6" onSubmit={(e) => e.preventDefault()}>
+                            <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6">
+                                <div className="flex flex-col items-center gap-2">
+                                    <div className="relative w-24 h-24 rounded-2xl bg-gray-100 dark:bg-[#25382e] border-2 border-dashed border-gray-300 dark:border-gray-600 flex items-center justify-center overflow-hidden group cursor-pointer hover:border-[#13ec5b] transition-colors">
+                                        <span className="material-symbols-outlined text-gray-400 text-3xl">add_a_photo</span>
+                                        <input className="absolute inset-0 opacity-0 cursor-pointer" type="file" />
                                     </div>
-                                    <input
-                                        type="text"
-                                        id="groupName"
-                                        value={name}
-                                        onChange={(e) => setName(e.target.value)}
-                                        className="w-full pl-11 pr-4 py-3.5 bg-[#f6f8f6] dark:bg-[#102216] border border-transparent focus:border-[#13ec5b] focus:ring-0 rounded-2xl text-[#0d1b12] dark:text-white placeholder-gray-400 transition-all font-medium"
-                                        placeholder="Ex: Pelada dos Amigos"
-                                    />
+                                    <button className="text-xs font-bold text-[#13ec5b] hover:text-[#0fd652]">Alterar Logo</button>
+                                </div>
+                                <div className="flex-1 w-full space-y-4">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Nome do Grupo</label>
+                                            <input
+                                                className="w-full rounded-xl border-[#e7f3eb] dark:border-[#2a4032] bg-gray-50 dark:bg-[#102216]/50 px-4 py-3 text-[#0d1b12] dark:text-white focus:ring-2 focus:ring-[#13ec5b] focus:border-transparent outline-none transition-all placeholder:text-gray-400"
+                                                type="text"
+                                                value={groupName}
+                                                onChange={(e) => setGroupName(e.target.value)}
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Local Padrão</label>
+                                            <div className="relative">
+                                                <span className="material-symbols-outlined absolute left-3 top-3 text-gray-400 text-[20px]">location_on</span>
+                                                <input
+                                                    className="w-full rounded-xl border-[#e7f3eb] dark:border-[#2a4032] bg-gray-50 dark:bg-[#102216]/50 pl-10 pr-4 py-3 text-[#0d1b12] dark:text-white focus:ring-2 focus:ring-[#13ec5b] focus:border-transparent outline-none transition-all placeholder:text-gray-400"
+                                                    type="text"
+                                                    value={location}
+                                                    onChange={(e) => setLocation(e.target.value)}
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Descrição</label>
+                                        <textarea
+                                            className="w-full rounded-xl border-[#e7f3eb] dark:border-[#2a4032] bg-gray-50 dark:bg-[#102216]/50 px-4 py-3 text-[#0d1b12] dark:text-white focus:ring-2 focus:ring-[#13ec5b] focus:border-transparent outline-none transition-all placeholder:text-gray-400 resize-none"
+                                            rows={2}
+                                            value={description}
+                                            onChange={(e) => setDescription(e.target.value)}
+                                        ></textarea>
+                                    </div>
+                                    <div className="flex justify-end pt-2">
+                                        <button className="bg-[#13ec5b] hover:bg-[#0fd652] text-[#0d1b12] font-bold py-3 px-8 rounded-xl transition-colors shadow-lg shadow-[#13ec5b]/20">
+                                            Salvar Dados
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
-                            <div className="grid gap-2">
-                                <label className="text-sm font-bold text-gray-700 dark:text-gray-200 ml-1" htmlFor="description">Descrição Curta</label>
-                                <textarea
-                                    id="description"
-                                    value={description}
-                                    onChange={(e) => setDescription(e.target.value)}
-                                    rows={3}
-                                    className="w-full p-4 bg-[#f6f8f6] dark:bg-[#102216] border border-transparent focus:border-[#13ec5b] focus:ring-0 rounded-2xl text-[#0d1b12] dark:text-white placeholder-gray-400 transition-all resize-none"
-                                    placeholder="Uma breve descrição sobre o grupo..."
-                                ></textarea>
-                            </div>
-                        </div>
+                        </form>
                     </div>
-                </div>
 
-                {/* Rules Card */}
-                <div className="bg-white dark:bg-[#1a2c20] rounded-[2rem] p-6 md:p-8 shadow-sm border border-[#e7f3eb] dark:border-[#2a4032]">
-                    <div className="flex items-center gap-3 mb-6">
-                        <div className="p-2 bg-orange-100 dark:bg-orange-900/20 rounded-xl text-orange-600 dark:text-orange-400 flex items-center justify-center">
-                            <span className="material-symbols-outlined">gavel</span>
-                        </div>
-                        <div>
-                            <h2 className="text-xl font-bold text-[#0d1b12] dark:text-white">Regras e Conduta</h2>
-                            <p className="text-sm text-gray-500 dark:text-gray-400">Defina as regras para pagamento, horários e comportamento.</p>
-                        </div>
-                    </div>
-                    <div className="relative">
-                        <textarea
-                            id="rules"
-                            value={rules}
-                            onChange={(e) => setRules(e.target.value)}
-                            rows={8}
-                            className="w-full p-5 bg-[#f6f8f6] dark:bg-[#102216] border border-transparent focus:border-[#13ec5b] focus:ring-0 rounded-2xl text-[#0d1b12] dark:text-white placeholder-gray-400 transition-all"
-                            placeholder="1. Pagamento até 24h antes do jogo..."
-                        ></textarea>
-                        <div className="absolute bottom-3 right-3 text-xs text-gray-400 bg-white dark:bg-[#1a2c20] px-2 py-1 rounded-lg opacity-80">Markdown suportado</div>
-                    </div>
-                </div>
-
-                {/* Privacy Card */}
-                <div className="bg-white dark:bg-[#1a2c20] rounded-[2rem] p-6 md:p-8 shadow-sm border border-[#e7f3eb] dark:border-[#2a4032]">
-                    <div className="flex items-center gap-3 mb-6">
-                        <div className="p-2 bg-blue-100 dark:bg-blue-900/20 rounded-xl text-blue-600 dark:text-blue-400 flex items-center justify-center">
-                            <span className="material-symbols-outlined">lock</span>
-                        </div>
-                        <div>
-                            <h2 className="text-xl font-bold text-[#0d1b12] dark:text-white">Privacidade</h2>
-                            <p className="text-sm text-gray-500 dark:text-gray-400">Controle quem pode ver e entrar no seu grupo.</p>
-                        </div>
-                    </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {/* Public Option */}
-                        <label className={`relative flex flex-col p-5 bg-[#f6f8f6] dark:bg-[#102216] rounded-2xl border-2 cursor-pointer transition-all group ${privacy === 'public' ? 'border-[#13ec5b] bg-[#13ec5b]/5' : 'border-transparent hover:border-[#13ec5b]/50'}`}>
-                            <div className="flex justify-between items-start mb-2">
-                                <div className="bg-white dark:bg-[#1a3322] p-2 rounded-full shadow-sm">
-                                    <span className="material-symbols-outlined text-gray-600 dark:text-gray-300">public</span>
+                    {/* Administradores - Moved here for better flow or keep bottom? Keeping bottom might be better for hierarchy. Let's put Admins below Dados. */}
+                    <div className="bg-white dark:bg-[#1a2c20] p-6 rounded-2xl shadow-sm border border-[#e7f3eb] dark:border-[#2a4032]">
+                        <div className="flex items-center justify-between mb-6 pb-4 border-b border-[#e7f3eb] dark:border-[#2a4032]">
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-full bg-gray-100 dark:bg-[#25382e] flex items-center justify-center text-gray-600 dark:text-gray-300">
+                                    <span className="material-symbols-outlined">admin_panel_settings</span>
                                 </div>
-                                <input
-                                    type="radio"
-                                    name="privacy"
-                                    value="public"
-                                    checked={privacy === 'public'}
-                                    onChange={() => setPrivacy('public')}
-                                    className="size-5 text-[#13ec5b] border-gray-300 focus:ring-[#13ec5b] bg-gray-100 dark:bg-gray-700"
-                                />
+                                <h3 className="text-xl font-bold text-[#0d1b12] dark:text-white">Administradores</h3>
                             </div>
-                            <span className="text-lg font-bold text-gray-900 dark:text-white mb-1">Grupo Público</span>
-                            <span className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed">Qualquer pessoa pode encontrar o grupo na busca e solicitar participação.</span>
-                        </label>
-                        {/* Private Option */}
-                        <label className={`relative flex flex-col p-5 bg-[#f6f8f6] dark:bg-[#102216] rounded-2xl border-2 cursor-pointer transition-all group ${privacy === 'private' ? 'border-[#13ec5b] bg-[#13ec5b]/5' : 'border-transparent hover:border-[#13ec5b]/50'}`}>
-                            <div className="flex justify-between items-start mb-2">
-                                <div className="bg-white dark:bg-[#1a3322] p-2 rounded-full shadow-sm">
-                                    <span className="material-symbols-outlined text-gray-600 dark:text-gray-300">verified_user</span>
+                            <button className="text-[#13ec5b] hover:text-[#0fd652] font-bold text-sm flex items-center gap-1 bg-[#13ec5b]/10 px-3 py-1.5 rounded-lg transition-colors">
+                                <span className="material-symbols-outlined text-[18px]">add</span> Novo Admin
+                            </button>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                            <div className="flex items-center justify-between p-3 rounded-xl bg-gray-50 dark:bg-[#102216]/50 border border-gray-100 dark:border-[#2a4032]">
+                                <div className="flex items-center gap-3">
+                                    <div className="h-10 w-10 rounded-full bg-[#13ec5b]/20 flex items-center justify-center text-[#0d1b12] dark:text-white font-bold text-sm">PF</div>
+                                    <div className="min-w-0">
+                                        <p className="text-sm font-bold text-[#0d1b12] dark:text-white truncate">Craque da Rodada (Você)</p>
+                                        <p className="text-xs text-emerald-500 font-medium">Proprietário</p>
+                                    </div>
                                 </div>
-                                <input
-                                    type="radio"
-                                    name="privacy"
-                                    value="private"
-                                    checked={privacy === 'private'}
-                                    onChange={() => setPrivacy('private')}
-                                    className="size-5 text-[#13ec5b] border-gray-300 focus:ring-[#13ec5b] bg-gray-100 dark:bg-gray-700"
-                                />
+                                <span className="px-2 py-1 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 text-xs font-bold rounded">Ativo</span>
                             </div>
-                            <span className="text-lg font-bold text-gray-900 dark:text-white mb-1">Grupo Privado</span>
-                            <span className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed">O grupo fica oculto. Novos membros entram apenas através de convite direto.</span>
-                        </label>
+                            <div className="flex items-center justify-between p-3 rounded-xl bg-gray-50 dark:bg-[#102216]/50 border border-gray-100 dark:border-[#2a4032] group hover:border-gray-300 dark:hover:border-gray-600 transition-colors">
+                                <div className="flex items-center gap-3">
+                                    <div className="h-10 w-10 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center text-amber-700 dark:text-amber-400 font-bold text-sm">JS</div>
+                                    <div className="min-w-0">
+                                        <p className="text-sm font-bold text-[#0d1b12] dark:text-white truncate">João Silva</p>
+                                        <p className="text-xs text-gray-500">Adicionado em 12 Out</p>
+                                    </div>
+                                </div>
+                                <button className="text-gray-400 hover:text-red-500 transition-colors p-2 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20" title="Remover admin">
+                                    <span className="material-symbols-outlined text-[20px]">delete</span>
+                                </button>
+                            </div>
+                            <div className="flex items-center justify-between p-3 rounded-xl bg-gray-50 dark:bg-[#102216]/50 border border-gray-100 dark:border-[#2a4032] group hover:border-gray-300 dark:hover:border-gray-600 transition-colors">
+                                <div className="flex items-center gap-3">
+                                    <div className="h-10 w-10 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-blue-700 dark:text-blue-400 font-bold text-sm">CM</div>
+                                    <div className="min-w-0">
+                                        <p className="text-sm font-bold text-[#0d1b12] dark:text-white truncate">Carlos Mendes</p>
+                                        <p className="text-xs text-gray-500">Adicionado em 05 Set</p>
+                                    </div>
+                                </div>
+                                <button className="text-gray-400 hover:text-red-500 transition-colors p-2 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20" title="Remover admin">
+                                    <span className="material-symbols-outlined text-[20px]">delete</span>
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
-                {/* Sticky Footer Action Bar */}
-                <div className="fixed bottom-0 left-0 lg:left-72 right-0 p-4 bg-white/80 dark:bg-[#102216]/80 backdrop-blur-md border-t border-[#e7f3eb] dark:border-[#2a4032] flex items-center justify-end gap-3 z-10 transition-all duration-300">
-                    <button type="button" onClick={() => router.back()} className="px-6 py-3 rounded-full text-sm font-bold text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
-                        Cancelar
-                    </button>
-                    <button
-                        type="submit"
-                        disabled={saving}
-                        className="px-8 py-3 rounded-full text-sm font-bold bg-[#13ec5b] text-[#0d1b12] hover:bg-[#0fd650] hover:shadow-lg hover:shadow-[#13ec5b]/20 transition-all flex items-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
-                    >
-                        {saving ? (
-                            <span className="size-5 block rounded-full border-2 border-[#0d1b12] border-r-transparent animate-spin"></span>
-                        ) : (
-                            <span className="material-symbols-outlined text-[20px]">check</span>
-                        )}
-                        {saving ? 'Salvando...' : 'Salvar Alterações'}
-                    </button>
-                </div>
-            </form>
+                {/* Coluna Lateral - Direita (1/3) */}
+                <div className="flex flex-col gap-6">
+                    {/* Regras da Pelada */}
+                    <div className="bg-white dark:bg-[#1a2c20] p-6 rounded-2xl shadow-sm border border-[#e7f3eb] dark:border-[#2a4032] h-fit">
+                        <div className="flex items-center gap-3 mb-6 pb-4 border-b border-[#e7f3eb] dark:border-[#2a4032]">
+                            <div className="w-10 h-10 rounded-full bg-gray-100 dark:bg-[#25382e] flex items-center justify-center text-gray-600 dark:text-gray-300">
+                                <span className="material-symbols-outlined">rule</span>
+                            </div>
+                            <h3 className="text-xl font-bold text-[#0d1b12] dark:text-white">Regras</h3>
+                        </div>
+                        <form className="flex flex-col gap-5" onSubmit={(e) => e.preventDefault()}>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-xs font-bold uppercase text-gray-500 mb-1.5">Duração</label>
+                                    <div className="relative">
+                                        <input className="w-full rounded-lg border-[#e7f3eb] dark:border-[#2a4032] bg-gray-50 dark:bg-[#102216]/50 px-3 py-2 text-[#0d1b12] dark:text-white text-sm focus:ring-2 focus:ring-[#13ec5b] focus:border-transparent outline-none" type="number" defaultValue="60" />
+                                        <span className="absolute right-3 top-2 text-gray-400 text-xs">min</span>
+                                    </div>
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-bold uppercase text-gray-500 mb-1.5">Jogadores</label>
+                                    <div className="relative">
+                                        <input className="w-full rounded-lg border-[#e7f3eb] dark:border-[#2a4032] bg-gray-50 dark:bg-[#102216]/50 px-3 py-2 text-[#0d1b12] dark:text-white text-sm focus:ring-2 focus:ring-[#13ec5b] focus:border-transparent outline-none" type="number" defaultValue="14" />
+                                        <span className="absolute right-3 top-2 text-gray-400 text-xs">pax</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div>
+                                <div className="flex items-center justify-between mb-2">
+                                    <label className="block text-xs font-bold uppercase text-gray-500">Tolerância</label>
+                                    <span className="bg-gray-100 dark:bg-[#25382e] text-[#0d1b12] dark:text-white px-2 py-0.5 rounded text-[10px] font-bold">15 min</span>
+                                </div>
+                                <input className="w-full h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer dark:bg-gray-700 accent-[#13ec5b]" max="60" min="0" type="range" defaultValue="15" />
+                            </div>
+                            <button className="w-full bg-[#13ec5b] hover:bg-[#0fd652] text-[#0d1b12] font-bold py-2.5 rounded-xl transition-colors shadow-lg shadow-[#13ec5b]/10 text-sm">
+                                Salvar Regras
+                            </button>
+                        </form>
+                    </div>
 
-            <div className="h-20"></div> {/* Spacer for sticky footer */}
+                    {/* Privacidade e Visibilidade */}
+                    <div className="bg-white dark:bg-[#1a2c20] p-6 rounded-2xl shadow-sm border border-[#e7f3eb] dark:border-[#2a4032] h-fit">
+                        <div className="flex items-center gap-3 mb-6 pb-4 border-b border-[#e7f3eb] dark:border-[#2a4032]">
+                            <div className="w-10 h-10 rounded-full bg-gray-100 dark:bg-[#25382e] flex items-center justify-center text-gray-600 dark:text-gray-300">
+                                <span className="material-symbols-outlined">lock</span>
+                            </div>
+                            <h3 className="text-xl font-bold text-[#0d1b12] dark:text-white">Privacidade</h3>
+                        </div>
+                        <div className="flex flex-col gap-4">
+                            <div className="flex items-center justify-between">
+                                <div className="flex flex-col gap-0.5">
+                                    <p className="font-bold text-[#0d1b12] dark:text-white text-sm">Grupo Privado</p>
+                                    <p className="text-xs text-gray-500">Apenas convidados.</p>
+                                </div>
+                                <label className="relative inline-flex items-center cursor-pointer flex-shrink-0 ml-4">
+                                    <input defaultChecked className="sr-only peer" type="checkbox" />
+                                    <div className="w-9 h-5 bg-gray-300 peer-focus:outline-none rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#13ec5b]"></div>
+                                </label>
+                            </div>
+                            <div className="flex items-center justify-between">
+                                <div className="flex flex-col gap-0.5">
+                                    <p className="font-bold text-[#0d1b12] dark:text-white text-sm">Aprovação Manual</p>
+                                    <p className="text-xs text-gray-500">Admin aprova membros.</p>
+                                </div>
+                                <label className="relative inline-flex items-center cursor-pointer flex-shrink-0 ml-4">
+                                    <input className="sr-only peer" type="checkbox" />
+                                    <div className="w-9 h-5 bg-gray-300 peer-focus:outline-none rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#13ec5b]"></div>
+                                </label>
+                            </div>
+                            <button className="w-full bg-[#13ec5b] hover:bg-[#0fd652] text-[#0d1b12] font-bold py-2.5 rounded-xl transition-colors shadow-lg shadow-[#13ec5b]/10 text-sm mt-2">
+                                Salvar Privacidade
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
     );
 }

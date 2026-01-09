@@ -50,6 +50,19 @@ export default function DashboardLayout({
         router.push("/login"); // Use router.push/replace instead of plain link
     };
 
+    // If we are in an Admin Panel route (e.g. /dashboard/grupos/123/admin/...),
+    // we want to bypass this main Dashboard Sidebar so the Admin Layout can take full control.
+    if (pathname?.includes("/admin")) {
+        return (
+            <div className={`${lexend.className} bg-[#f6f8f6] dark:bg-[#102216] font-sans text-[#0d1b12] dark:text-white h-screen overflow-hidden`}>
+                <OnboardingModal />
+                {/* Material Symbols Font */}
+                <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" />
+                {children}
+            </div>
+        );
+    }
+
     return (
         <div className={`${lexend.className} bg-[#f6f8f6] dark:bg-[#102216] font-sans text-[#0d1b12] dark:text-white h-screen overflow-hidden flex selection:bg-[#13ec5b] selection:text-[#0d1b12]`}>
             <OnboardingModal />
@@ -92,9 +105,9 @@ export default function DashboardLayout({
                                         <span>Dashboard</span>
                                     </Link>
 
-                                    <Link className={linkClass("/dashboard/entrar-grupo")} href="/dashboard/entrar-grupo">
-                                        <span className="material-symbols-outlined" style={iconStyle("/dashboard/entrar-grupo")}>groups</span>
-                                        <span>Grupos</span>
+                                    <Link className={linkClass("/dashboard/grupos")} href="/dashboard/grupos">
+                                        <span className="material-symbols-outlined" style={iconStyle("/dashboard/grupos")}>groups</span>
+                                        <span>Meus Grupos</span>
                                     </Link>
 
                                     <Link className={linkClass("/dashboard/ranking")} href="/dashboard/ranking">
@@ -128,7 +141,7 @@ export default function DashboardLayout({
                 </nav>
                 {/* Sidebar CTA */}
                 <div className="p-6 border-t border-[#e7f3eb] dark:border-[#2a4535]">
-                    <Link href="/dashboard" className="w-full group flex items-center justify-center gap-2 bg-[#0d1b12] dark:bg-white text-white dark:text-[#0d1b12] py-3.5 rounded-full font-bold hover:opacity-90 hover:shadow-lg transition-all">
+                    <Link href="/dashboard/grupos" className="w-full group flex items-center justify-center gap-2 bg-[#0d1b12] dark:bg-white text-white dark:text-[#0d1b12] py-3.5 rounded-full font-bold hover:opacity-90 hover:shadow-lg transition-all">
                         <span className="material-symbols-outlined text-xl group-hover:rotate-90 transition-transform">add</span>
                         <span className="truncate">Criar Nova Pelada</span>
                     </Link>
@@ -174,7 +187,7 @@ export default function DashboardLayout({
                             >
                                 <div
                                     className="size-9 rounded-full bg-gray-200 bg-cover bg-center border-2 border-white dark:border-[#2a4535] shadow-sm group-hover:border-[#13ec5b] transition-colors"
-                                    style={{ backgroundImage: `url('${userAvatar || "https://upload.wikimedia.org/wikipedia/commons/7/7c/Profile_avatar_placeholder_large.png"}')` }}
+                                    style={{ backgroundImage: `url('${userAvatar || "https://lh3.googleusercontent.com/aida-public/AB6AXuB3vt9JQw3REUMc3ih_xWDe-F6VKiXrMCAGPIhj4e9ra_bDGcwiVf7OxA2h6_FXedMT77YDVGJJGTBRfD6Kf0WEG45K41ENoWNGa7MOqAa3YHxkXtpSoZ-QSPJB0BU5U5SSyZJ_13xwBC5uS3PrHNoOnVhJXFDJu_Xtd2kv0Tk7wTwRDnQ6LLZxeO12-_ZQXRXoc-Ik6ck8yUSqOubRqzWXKl_He7aZAu6aUTzyjUZ39NroZW0od4wgYhK81XigTzv__kekDBnJNu4"}')` }}
                                 ></div>
                                 <span className="hidden md:block text-sm font-bold text-[#0d1b12] dark:text-white">{userName}</span>
                                 <span className="hidden md:block material-symbols-outlined text-[#4c9a66] transition-transform duration-200" style={{ transform: isDropdownOpen ? 'rotate(180deg)' : 'rotate(0deg)' }}>expand_more</span>

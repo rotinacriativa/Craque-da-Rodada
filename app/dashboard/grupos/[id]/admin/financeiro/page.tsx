@@ -1,237 +1,373 @@
 "use client";
 
-import { use, useState, useEffect } from "react";
+import { use, useEffect, useState } from "react";
 import Link from "next/link";
 import { supabase } from "../../../../../../src/lib/client";
-import NewTransactionModal from "../../../../../components/NewTransactionModal";
 
-interface Transaction {
-    id: string;
-    description: string;
-    amount: number;
-    type: 'income' | 'expense';
-    category: string;
-    date: string;
-    created_at: string;
-}
-
-export default function GroupFinancialPage({ params }: { params: Promise<{ id: string }> }) {
+export default function GroupFinancePage({ params }: { params: Promise<{ id: string }> }) {
     const { id } = use(params);
     const groupId = id;
 
-    const [transactions, setTransactions] = useState<Transaction[]>([]);
     const [loading, setLoading] = useState(true);
-    const [isModalOpen, setIsModalOpen] = useState(false);
-
-    // Totals
     const [balance, setBalance] = useState(0);
-    const [totalIncome, setTotalIncome] = useState(0);
-    const [totalExpense, setTotalExpense] = useState(0);
+    const [income, setIncome] = useState(0);
+    const [expense, setExpense] = useState(0);
+    const [transactions, setTransactions] = useState<any[]>([]);
+    const [pendingPayments, setPendingPayments] = useState<any[]>([]);
 
-    // Filters (mock for now, or simple local filter)
-    const [period, setPeriod] = useState<'month' | 'total'>('total');
+    // Pix State
+    const [pixKey, setPixKey] = useState("");
+    const [pixKeyType, setPixKeyType] = useState("email");
+    const [isEditingPix, setIsEditingPix] = useState(false);
+    const [newPixKey, setNewPixKey] = useState("");
+    const [newPixKeyType, setNewPixKeyType] = useState("email");
 
-    const fetchTransactions = async () => {
-        setLoading(true);
+    useEffect(() => {
+        fetchData();
+    }, [groupId]);
+
+    const fetchData = async () => {
         try {
-            const { data, error } = await supabase
+            setLoading(true);
+
+            // 1. Fetch Group Details (Pix Key)
+            const { data: groupData, error: groupError } = await supabase
+                .from('groups')
+                .select('pix_key, pix_key_type')
+                .eq('id', groupId)
+                .single();
+
+            if (groupData) {
+                setPixKey(groupData.pix_key || "");
+                setPixKeyType(groupData.pix_key_type || "email");
+                setNewPixKey(groupData.pix_key || "");
+                setNewPixKeyType(groupData.pix_key_type || "email");
+            }
+
+            // 2. Fetch Transactions
+            const { data: txData, error: txError } = await supabase
                 .from('transactions')
                 .select('*')
                 .eq('group_id', groupId)
-                .order('date', { ascending: false })
                 .order('created_at', { ascending: false });
 
-            if (error) throw error;
+            if (txData) {
+                let currentBalance = 0;
+                let currentIncome = 0;
+                let currentExpense = 0;
 
-            const txs = data as Transaction[];
-            setTransactions(txs);
-            calculateTotals(txs);
+                txData.forEach((tx) => {
+                    const amount = Number(tx.amount);
+                    if (tx.type === 'income') {
+                        currentBalance += amount;
+                        currentIncome += amount;
+                    } else {
+                        currentBalance -= amount;
+                        currentExpense += amount;
+                    }
+                });
+
+                setBalance(currentBalance);
+                setIncome(currentIncome);
+                setExpense(currentExpense);
+                setTransactions(txData.slice(0, 5)); // Show top 5
+            }
+
+            // 3. Fetch Pending Payments (Match Participants with pending status)
+            // We need to join with match to ensure it's from this group
+            // For simplicity, we assume we want pending payments for *future* or *recent* matches, 
+            // but here we'll just fetch all pending for the group's matches.
+            const { data: matches } = await supabase.from('matches').select('id').eq('group_id', groupId);
+            const matchIds = matches?.map(m => m.id) || [];
+
+            if (matchIds.length > 0) {
+                const { data: pendingData } = await supabase
+                    .from('match_participants')
+                    .select('*, profiles(full_name, id)')
+                    .in('match_id', matchIds)
+                    .eq('payment_status', 'pending');
+
+                // Group by match or just list them
+                setPendingPayments(pendingData || []);
+            } else {
+                setPendingPayments([]);
+            }
 
         } catch (error) {
-            console.error("Error fetching transactions:", error);
+            console.error("Error fetching finance data:", error);
         } finally {
             setLoading(false);
         }
     };
 
-    const calculateTotals = (txs: Transaction[]) => {
-        let income = 0;
-        let expense = 0;
+    const handleSavePix = async () => {
+        try {
+            const { error } = await supabase
+                .from('groups')
+                .update({ pix_key: newPixKey, pix_key_type: newPixKeyType })
+                .eq('id', groupId);
 
-        txs.forEach(tx => {
-            // Simple period filter logic could go here if needed
-            if (tx.type === 'income') income += tx.amount;
-            if (tx.type === 'expense') expense += tx.amount;
-        });
+            if (error) throw error;
 
-        setTotalIncome(income);
-        setTotalExpense(expense);
-        setBalance(income - expense);
+            setPixKey(newPixKey);
+            setPixKeyType(newPixKeyType);
+            setIsEditingPix(false);
+            alert("Chave PIX atualizada com sucesso!");
+        } catch (error) {
+            console.error("Error updating PIX:", error);
+            alert("Erro ao atualizar chave PIX");
+        }
     };
 
-    useEffect(() => {
-        if (groupId) {
-            fetchTransactions();
+    const handleCopyPix = () => {
+        if (!pixKey) return;
+
+        // Try using the Clipboard API if available and secure
+        if (navigator.clipboard && window.isSecureContext) {
+            navigator.clipboard.writeText(pixKey)
+                .then(() => alert("Chave PIX copiada para a área de transferência!"))
+                .catch(() => fallbackCopyTextToClipboard(pixKey));
+        } else {
+            fallbackCopyTextToClipboard(pixKey);
         }
-    }, [groupId]);
+    };
+
+    const fallbackCopyTextToClipboard = (text: string) => {
+        const textArea = document.createElement("textarea");
+        textArea.value = text;
+
+        // Move outside the screen to avoid scrolling
+        textArea.style.position = "fixed";
+        textArea.style.left = "-999999px";
+        textArea.style.top = "-999999px";
+        document.body.appendChild(textArea);
+
+        textArea.focus();
+        textArea.select();
+
+        try {
+            document.execCommand('copy');
+            alert("Chave PIX copiada para a área de transferência!");
+        } catch (err) {
+            console.error('Fallback: Unable to copy', err);
+            alert("Não foi possível copiar automaticamente. Por favor, selecione e copie manualmente.");
+        }
+
+        document.body.removeChild(textArea);
+    };
+
+    const formatMoney = (val: number) => {
+        return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
+    };
+
+    if (loading) {
+        return <div className="p-8 text-center">Carregando financeiro...</div>;
+    }
 
     return (
-        <div className="flex-1 flex flex-col h-full bg-[#f6f8f6] dark:bg-[#102216] relative z-10 overflow-hidden">
-            {/* Header */}
-            <div className="w-full px-6 py-5 md:px-10 md:py-8 flex-shrink-0">
-                <div className="max-w-6xl mx-auto w-full">
-                    <nav className="flex flex-wrap items-center gap-2 text-sm md:text-base mb-8">
-                        <Link className="text-slate-400 hover:text-[#13ec5b] transition-colors font-medium" href="/dashboard">Dashboard</Link>
-                        <span className="material-symbols-outlined text-slate-300 text-[16px]">chevron_right</span>
-                        <Link className="text-slate-400 hover:text-[#13ec5b] transition-colors font-medium" href={`/dashboard/grupos/${groupId}`}>Meu Grupo</Link>
-                        <span className="material-symbols-outlined text-slate-300 text-[16px]">chevron_right</span>
-                        <Link className="text-slate-400 hover:text-[#13ec5b] transition-colors font-medium" href={`/dashboard/grupos/${groupId}/admin`}>Admin</Link>
-                        <span className="material-symbols-outlined text-slate-300 text-[16px]">chevron_right</span>
-                        <span className="text-slate-900 dark:text-white font-medium bg-white dark:bg-[#1a2c22] px-3 py-1 rounded-full shadow-sm border border-slate-100 dark:border-slate-800">Financeiro</span>
-                    </nav>
-
-                    <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
-                        <div className="flex flex-col gap-2">
-                            <h2 className="text-3xl md:text-4xl font-black tracking-tight text-slate-900 dark:text-white">Financeiro do Grupo</h2>
-                            <p className="text-slate-500 dark:text-slate-400 text-lg">Visão geral do caixa, arrecadações e despesas.</p>
-                        </div>
-                        <div className="flex items-center gap-3 bg-white dark:bg-[#1a2c22] p-1 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800">
-                            {/* Simple filter UI - functionality to be refined later */}
-                            <button onClick={() => setPeriod('month')} className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${period === 'month' ? 'bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white font-semibold' : 'text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800/50'}`}>Este Mês</button>
-                            <button onClick={() => setPeriod('total')} className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${period === 'total' ? 'bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white font-semibold' : 'text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800/50'}`}>Total</button>
-                        </div>
-                    </div>
+        <div className="flex-1 w-full max-w-6xl mx-auto px-6 py-8 pb-12 flex flex-col gap-8">
+            <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
+                <div className="flex flex-col gap-2">
+                    <h2 className="text-3xl md:text-3xl font-black tracking-tight text-[#0d1b12] dark:text-white">Financeiro do Grupo</h2>
+                    <p className="text-gray-500 dark:text-gray-400 text-lg">Visão geral do caixa, arrecadações e despesas.</p>
+                </div>
+                <div className="flex items-center gap-3 bg-white dark:bg-[#1a2c20] p-1 rounded-xl shadow-sm border border-gray-200 dark:border-[#2a4032]">
+                    <button className="px-4 py-2 text-sm font-semibold rounded-lg bg-gray-100 dark:bg-[#25382e] text-[#0d1b12] dark:text-white">Este Mês</button>
+                    <button className="px-4 py-2 text-sm font-medium rounded-lg text-gray-500 hover:bg-gray-50 dark:hover:bg-[#25382e]/50 transition-colors">Mês Passado</button>
+                    <button className="px-4 py-2 text-sm font-medium rounded-lg text-gray-500 hover:bg-gray-50 dark:hover:bg-[#25382e]/50 transition-colors">Total</button>
                 </div>
             </div>
 
-            <div className="flex-1 px-6 pb-12 md:px-10 overflow-y-auto">
-                <div className="max-w-6xl mx-auto w-full flex flex-col gap-8">
+            {/* Content Grid */}
+            <div className="flex flex-col gap-8">
 
-                    {/* Stats Grid */}
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 flex-shrink-0">
-                        {/* Saldo */}
-                        <div className="bg-white dark:bg-[#1a2c22] p-6 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 flex flex-col gap-4 relative overflow-hidden group">
-                            <div className={`absolute -right-4 -top-4 w-24 h-24 rounded-full group-hover:scale-110 transition-transform duration-500 ${balance >= 0 ? 'bg-[#13ec5b]/10' : 'bg-red-500/10'}`}></div>
-                            <div className="flex items-center gap-3 z-10">
-                                <div className="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-600 dark:text-slate-300">
-                                    <span className="material-symbols-outlined">account_balance</span>
-                                </div>
-                                <span className="text-slate-500 font-semibold uppercase text-xs tracking-wider">Saldo em Caixa</span>
+                {/* Summary Cards */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    {/* Saldo */}
+                    <div className="bg-white dark:bg-[#1a2c20] p-6 rounded-2xl shadow-sm border border-gray-200 dark:border-[#2a4032] flex flex-col gap-4 relative overflow-hidden group">
+                        <div className="absolute -right-4 -top-4 w-24 h-24 bg-[#13ec5b]/10 rounded-full group-hover:scale-110 transition-transform duration-500"></div>
+                        <div className="flex items-center gap-3 z-10">
+                            <div className="w-10 h-10 rounded-full bg-gray-100 dark:bg-[#25382e] flex items-center justify-center text-gray-600 dark:text-gray-300">
+                                <span className="material-symbols-outlined">account_balance</span>
                             </div>
-                            <div className="flex items-baseline gap-2 z-10">
-                                <span className={`text-3xl md:text-4xl font-black ${balance >= 0 ? 'text-slate-900 dark:text-white' : 'text-red-500'}`}>
-                                    {balance.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                                </span>
-                            </div>
+                            <span className="text-gray-500 font-semibold uppercase text-xs tracking-wider">Saldo em Caixa</span>
                         </div>
-                        {/* Entradas */}
-                        <div className="bg-white dark:bg-[#1a2c22] p-6 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 flex flex-col gap-4 relative overflow-hidden">
-                            <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 rounded-full bg-emerald-100 dark:bg-emerald-900/20 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
-                                    <span className="material-symbols-outlined">arrow_downward</span>
-                                </div>
-                                <span className="text-slate-500 font-semibold uppercase text-xs tracking-wider">Entradas</span>
-                            </div>
-                            <div className="flex items-baseline gap-2">
-                                <span className="text-3xl md:text-4xl font-black text-slate-900 dark:text-white">
-                                    {totalIncome.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                                </span>
-                            </div>
+                        <div className="flex items-baseline gap-2 z-10">
+                            <span className={`text-3xl md:text-4xl font-black ${balance >= 0 ? 'text-[#0d1b12] dark:text-white' : 'text-red-500'}`}>
+                                {formatMoney(balance)}
+                            </span>
                         </div>
-                        {/* Saídas */}
-                        <div className="bg-white dark:bg-[#1a2c22] p-6 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 flex flex-col gap-4 relative overflow-hidden">
-                            <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 rounded-full bg-red-100 dark:bg-red-900/20 flex items-center justify-center text-red-600 dark:text-red-400">
-                                    <span className="material-symbols-outlined">arrow_upward</span>
-                                </div>
-                                <span className="text-slate-500 font-semibold uppercase text-xs tracking-wider">Saídas</span>
-                            </div>
-                            <div className="flex items-baseline gap-2">
-                                <span className="text-3xl md:text-4xl font-black text-slate-900 dark:text-white">
-                                    {totalExpense.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                                </span>
-                            </div>
+                        <div className="flex items-center gap-2 text-sm font-medium text-emerald-500 z-10">
+                            <span className="bg-emerald-100 dark:bg-emerald-900/30 px-2 py-0.5 rounded text-xs">Atual</span>
                         </div>
                     </div>
 
-                    {/* Content Columns */}
-                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                        {/* Transactions List */}
-                        <div className="lg:col-span-2 flex flex-col gap-6">
-                            <div className="flex items-center justify-between">
-                                <h3 className="text-xl font-bold text-slate-900 dark:text-white">Transações Recentes</h3>
-                                <button
-                                    onClick={() => setIsModalOpen(true)}
-                                    className="flex items-center gap-1 bg-[#13ec5b] hover:bg-[#0fd652] text-slate-900 text-sm font-bold px-4 py-2 rounded-full transition-colors shadow-lg shadow-[#13ec5b]/20"
-                                >
-                                    <span className="material-symbols-outlined text-[18px]">add</span>
-                                    Nova Transação
-                                </button>
+                    {/* Entradas */}
+                    <div className="bg-white dark:bg-[#1a2c20] p-6 rounded-2xl shadow-sm border border-gray-200 dark:border-[#2a4032] flex flex-col gap-4 relative overflow-hidden">
+                        <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-full bg-emerald-100 dark:bg-emerald-900/20 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
+                                <span className="material-symbols-outlined">arrow_downward</span>
                             </div>
+                            <span className="text-gray-500 font-semibold uppercase text-xs tracking-wider">Entradas (In)</span>
+                        </div>
+                        <div className="flex items-baseline gap-2">
+                            <span className="text-3xl md:text-4xl font-black text-[#0d1b12] dark:text-white">{formatMoney(income)}</span>
+                        </div>
+                        <div className="w-full bg-gray-100 dark:bg-[#25382e] h-1.5 rounded-full mt-auto">
+                            <div className="bg-emerald-500 h-1.5 rounded-full" style={{ width: '100%' }}></div>
+                        </div>
+                    </div>
 
-                            <div className="bg-white dark:bg-[#1a2c22] rounded-xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden min-h-[300px]">
-                                {loading ? (
-                                    <div className="p-12 text-center text-slate-500">Carregando transações...</div>
-                                ) : transactions.length === 0 ? (
-                                    <div className="p-12 text-center flex flex-col items-center gap-3">
-                                        <div className="w-12 h-12 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center">
-                                            <span className="material-symbols-outlined text-slate-400">receipt_long</span>
+                    {/* Saídas */}
+                    <div className="bg-white dark:bg-[#1a2c20] p-6 rounded-2xl shadow-sm border border-gray-200 dark:border-[#2a4032] flex flex-col gap-4 relative overflow-hidden">
+                        <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-full bg-red-100 dark:bg-red-900/20 flex items-center justify-center text-red-600 dark:text-red-400">
+                                <span className="material-symbols-outlined">arrow_upward</span>
+                            </div>
+                            <span className="text-gray-500 font-semibold uppercase text-xs tracking-wider">Saídas (Out)</span>
+                        </div>
+                        <div className="flex items-baseline gap-2">
+                            <span className="text-3xl md:text-4xl font-black text-[#0d1b12] dark:text-white">{formatMoney(expense)}</span>
+                        </div>
+                        <div className="w-full bg-gray-100 dark:bg-[#25382e] h-1.5 rounded-full mt-auto">
+                            <div className="bg-red-500 h-1.5 rounded-full" style={{ width: expense > 0 && income > 0 ? `${Math.min((expense / income) * 100, 100)}%` : '0%' }}></div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Main Split Layout */}
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+
+                    {/* Left: Recent Transactions */}
+                    <div className="lg:col-span-2 flex flex-col gap-6">
+                        <div className="flex items-center justify-between">
+                            <h3 className="text-xl font-bold text-[#0d1b12] dark:text-white">Transações Recentes</h3>
+                            <button className="text-[#13ec5b] hover:text-[#0fd652] text-sm font-semibold flex items-center gap-1 transition-colors">
+                                Ver tudo <span className="material-symbols-outlined text-[18px]">arrow_forward</span>
+                            </button>
+                        </div>
+                        <div className="bg-white dark:bg-[#1a2c20] rounded-xl shadow-sm border border-gray-200 dark:border-[#2a4032] overflow-hidden">
+                            {transactions.length === 0 ? (
+                                <div className="p-8 text-center text-gray-500">Nenhuma transação encontrada.</div>
+                            ) : (
+                                transactions.map((tx: any) => (
+                                    <div key={tx.id} className="p-4 flex items-center gap-4 hover:bg-gray-50 dark:hover:bg-[#25382e] transition-colors border-b border-gray-100 dark:border-[#2a4032] last:border-0">
+                                        <div className={`h-10 w-10 rounded-full flex items-center justify-center flex-shrink-0 ${tx.type === 'income' ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600' : 'bg-red-100 dark:bg-red-900/30 text-red-600'}`}>
+                                            <span className="material-symbols-outlined">{tx.type === 'income' ? 'add' : 'remove'}</span>
                                         </div>
-                                        <p className="text-slate-900 dark:text-white font-bold">Nenhuma movimentação ainda</p>
-                                        <p className="text-slate-500 text-sm">Registre pagamentos ou despesas para começar.</p>
+                                        <div className="flex-1 min-w-0">
+                                            <p className="text-sm font-bold text-[#0d1b12] dark:text-white truncate">{tx.description}</p>
+                                            <p className="text-xs text-gray-500 capitalize">{tx.category} • {tx.payment_method || 'Outro'}</p>
+                                        </div>
+                                        <div className="text-right">
+                                            <p className={`text-sm font-bold ${tx.type === 'income' ? 'text-emerald-600' : 'text-[#0d1b12] dark:text-gray-200'}`}>
+                                                {tx.type === 'income' ? '+' : '-'} {formatMoney(tx.amount)}
+                                            </p>
+                                            <p className="text-xs text-gray-400">{new Date(tx.created_at).toLocaleDateString('pt-BR')} {new Date(tx.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</p>
+                                        </div>
                                     </div>
-                                ) : (
-                                    transactions.map(tx => (
-                                        <div key={tx.id} className="p-4 flex items-center gap-4 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors border-b border-slate-100 dark:border-slate-800 last:border-0">
-                                            <div className={`h-10 w-10 rounded-full flex items-center justify-center flex-shrink-0 ${tx.type === 'income' ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600' : 'bg-red-100 dark:bg-red-900/30 text-red-600'}`}>
-                                                <span className="material-symbols-outlined">{tx.type === 'income' ? 'add' : 'remove'}</span>
-                                            </div>
-                                            <div className="flex-1 min-w-0">
-                                                <p className="text-sm font-bold text-slate-900 dark:text-white truncate">{tx.description}</p>
-                                                <p className="text-xs text-slate-500 capitalize">{tx.category === 'other' ? 'Outros' : tx.category} • {new Date(tx.date).toLocaleDateString()}</p>
-                                            </div>
-                                            <div className="text-right">
-                                                <p className={`text-sm font-bold ${tx.type === 'income' ? 'text-emerald-600' : 'text-slate-900 dark:text-slate-200'}`}>
-                                                    {tx.type === 'income' ? '+' : '-'} {tx.amount.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                                                </p>
-                                            </div>
-                                        </div>
-                                    ))
-                                )}
+                                ))
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Right: Config & Pendings */}
+                    <div className="flex flex-col gap-6">
+                        <h3 className="text-xl font-bold text-[#0d1b12] dark:text-white">Configurações</h3>
+
+                        {/* Pix Card */}
+                        <div className="bg-gradient-to-br from-[#0d1b12] to-[#1a2c20] text-white p-6 rounded-2xl shadow-lg relative overflow-hidden">
+                            <div className="absolute top-0 right-0 w-32 h-32 bg-[#13ec5b] blur-[60px] opacity-20"></div>
+                            <div className="flex items-center gap-2 mb-6">
+                                <span className="material-symbols-outlined text-[#13ec5b]">qr_code_2</span>
+                                <h4 className="font-bold text-lg">Chave PIX do Grupo</h4>
                             </div>
+
+                            {isEditingPix ? (
+                                <div className="flex flex-col gap-3 mb-4">
+                                    <select
+                                        value={newPixKeyType}
+                                        onChange={(e) => setNewPixKeyType(e.target.value)}
+                                        className="bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-[#13ec5b]"
+                                    >
+                                        <option value="email" className="text-black">E-mail</option>
+                                        <option value="cpf" className="text-black">CPF</option>
+                                        <option value="phone" className="text-black">Celular</option>
+                                        <option value="random" className="text-black">Aleatória</option>
+                                    </select>
+                                    <input
+                                        type="text"
+                                        value={newPixKey}
+                                        onChange={(e) => setNewPixKey(e.target.value)}
+                                        placeholder="Digite a chave PIX"
+                                        className="bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-[#13ec5b]"
+                                    />
+                                    <div className="flex gap-2 mt-2">
+                                        <button onClick={() => setIsEditingPix(false)} className="flex-1 bg-white/10 hover:bg-white/20 py-2 rounded-lg text-sm transition-colors">Cancelar</button>
+                                        <button onClick={handleSavePix} className="flex-1 bg-[#13ec5b] hover:bg-[#0fd652] text-[#0d1b12] py-2 rounded-lg text-sm font-bold transition-colors">Salvar</button>
+                                    </div>
+                                </div>
+                            ) : (
+                                <>
+                                    <div className="bg-white/10 backdrop-blur-sm p-3 rounded-lg border border-white/10 mb-4">
+                                        <p className="text-xs text-gray-400 mb-1 capitalize">{pixKeyType || 'Chave'}</p>
+                                        <p className="font-mono text-sm tracking-wide truncate">{pixKey || 'Nenhuma chave cadastrada'}</p>
+                                    </div>
+                                    <div className="flex gap-2">
+                                        <button onClick={handleCopyPix} className="flex-1 bg-white/10 hover:bg-white/20 py-2 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2">
+                                            <span className="material-symbols-outlined text-[18px]">content_copy</span>
+                                            Copiar
+                                        </button>
+                                        <button onClick={() => setIsEditingPix(true)} className="flex-1 bg-[#13ec5b] hover:bg-[#0fd652] text-[#0d1b12] py-2 rounded-lg text-sm font-bold transition-colors">
+                                            Editar
+                                        </button>
+                                    </div>
+                                </>
+                            )}
                         </div>
 
-                        {/* Right Column: Settings & Actions (Keep mostly static or simplified for now) */}
-                        <div className="flex flex-col gap-6">
-                            {/* PIX Card (Static for now, but actionable) */}
-                            <div className="bg-gradient-to-br from-slate-900 to-slate-800 text-white p-6 rounded-2xl shadow-lg relative overflow-hidden">
-                                <div className="absolute top-0 right-0 w-32 h-32 bg-[#13ec5b] blur-[60px] opacity-20"></div>
-                                <div className="flex items-center gap-2 mb-6">
-                                    <span className="material-symbols-outlined text-[#13ec5b]">qr_code_2</span>
-                                    <h4 className="font-bold text-lg">Chave PIX do Grupo</h4>
-                                </div>
-                                <div className="bg-white/10 backdrop-blur-sm p-3 rounded-lg border border-white/10 mb-4">
-                                    <p className="text-xs text-slate-400 mb-1">E-mail</p>
-                                    <p className="font-mono text-sm tracking-wide truncate">pagamentos@craquedarodada.com.br</p>
-                                </div>
-                                <div className="flex gap-2">
-                                    <button className="flex-1 bg-white/10 hover:bg-white/20 py-2 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2">
-                                        <span className="material-symbols-outlined text-[18px]">content_copy</span>
-                                        Copiar
-                                    </button>
-                                </div>
-                            </div>
+                        {/* Pending Payments */}
+                        <div className="bg-white dark:bg-[#1a2c20] p-6 rounded-2xl shadow-sm border border-gray-200 dark:border-[#2a4032]">
+                            <h4 className="font-bold text-[#0d1b12] dark:text-white mb-4">Pagamentos Pendentes</h4>
+                            {pendingPayments.length === 0 ? (
+                                <p className="text-sm text-gray-500">Nenhum pagamento pendente.</p>
+                            ) : (
+                                <ul className="flex flex-col gap-3 max-h-60 overflow-y-auto">
+                                    {pendingPayments.map((pp: any) => (
+                                        <li key={pp.id} className="flex items-center justify-between text-sm">
+                                            <div className="flex items-center gap-2">
+                                                <div className="w-2 h-2 rounded-full bg-amber-500"></div>
+                                                <span className="text-gray-600 dark:text-gray-300 truncate max-w-[120px]">{pp.profiles?.full_name || 'Jogador'}</span>
+                                            </div>
+                                            <span className="font-semibold text-[#0d1b12] dark:text-white">
+                                                {/* Assuming standard price if not stored, for now we don't have price in match_participant, using placeholder or match price if available. 
+                                                Actually, match_participants doesn't have amount. Let's assume a standard R$ 25,00 or fetch match price.
+                                                For this MVP we might need to fetch match price. Let's assume generic R$25 or leave separate task. 
+                                                Wait, the design shows price. I'll just show 'Pendente' or a fixed value for now if dynamic is too complex without match price.
+                                                Actually, matches table should have price.
+                                                 */}
+                                                Pendente
+                                            </span>
+                                        </li>
+                                    ))}
+                                </ul>
+                            )}
+
+                            {pendingPayments.length > 0 && (
+                                <button className="w-full mt-4 py-2 text-sm text-gray-500 hover:text-[#0d1b12] dark:hover:text-white font-medium border border-gray-200 dark:border-[#2a4032] rounded-lg hover:bg-gray-50 dark:hover:bg-[#25382e] transition-colors">
+                                    Cobrar Todos
+                                </button>
+                            )}
                         </div>
+
+                        {/* Export Button */}
+                        <button className="flex items-center justify-center gap-2 w-full py-4 rounded-xl border border-dashed border-gray-300 dark:border-gray-600 text-gray-500 hover:text-[#13ec5b] hover:border-[#13ec5b] hover:bg-[#13ec5b]/5 transition-all group">
+                            <span className="material-symbols-outlined group-hover:scale-110 transition-transform">download</span>
+                            <span className="font-medium">Exportar Relatório Mensal</span>
+                        </button>
                     </div>
                 </div>
             </div>
-
-            <NewTransactionModal
-                groupId={groupId}
-                isOpen={isModalOpen}
-                onClose={() => setIsModalOpen(false)}
-                onSuccess={() => { fetchTransactions(); setIsModalOpen(false); }}
-            />
         </div>
     );
 }

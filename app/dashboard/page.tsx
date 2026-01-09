@@ -56,19 +56,25 @@ export default function DashboardPage() {
     }, []);
 
     const handleShare = async () => {
+        const shareData = {
+            title: 'Craque da Rodada',
+            text: 'Bora organizar o jogo! Entra aí no Craque da Rodada.',
+            url: window.location.origin,
+        };
+
         if (navigator.share) {
             try {
-                await navigator.share({
-                    title: 'Craque da Rodada',
-                    text: 'Bora organizar o jogo! Entra aí no Craque da Rodada.',
-                    url: window.location.origin,
-                });
+                await navigator.share(shareData);
             } catch (error) {
                 console.log('Error sharing:', error);
             }
         } else {
-            alert('Link copiado para a área de transferência!');
-            navigator.clipboard.writeText(window.location.origin);
+            try {
+                await navigator.clipboard.writeText(shareData.url);
+                alert('Link copiado! Envie para seus amigos.');
+            } catch (err) {
+                alert('Copie este link: ' + shareData.url);
+            }
         }
     };
 

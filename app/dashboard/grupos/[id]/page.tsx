@@ -10,6 +10,7 @@ export default function GroupDashboard({ params }: { params: Promise<{ id: strin
     const { id } = use(params);
     const groupId = id;
 
+    const [currentUser, setCurrentUser] = useState<any>(null);
     const [matches, setMatches] = useState<any[]>([]);
     const [group, setGroup] = useState<any>(null);
     const [error, setError] = useState<string | null>(null);
@@ -18,6 +19,10 @@ export default function GroupDashboard({ params }: { params: Promise<{ id: strin
     useEffect(() => {
         async function fetchData() {
             try {
+                // Get Current User
+                const { data: { user } } = await supabase.auth.getUser();
+                setCurrentUser(user);
+
                 // Fetch Group Details
                 const { data: groupData, error: groupError } = await supabase
                     .from('groups')
@@ -60,6 +65,8 @@ export default function GroupDashboard({ params }: { params: Promise<{ id: strin
             fetchData();
         }
     }, [groupId]);
+
+    const isAdmin = currentUser && group && currentUser.id === group.created_by;
 
     if (isLoading) {
         return (
@@ -129,7 +136,11 @@ export default function GroupDashboard({ params }: { params: Promise<{ id: strin
                             <div className="flex flex-col gap-1">
                                 <div className="flex items-center gap-3 flex-wrap">
                                     <h1 className="text-2xl md:text-3xl font-bold text-[#0d1b12] dark:text-white tracking-tight">{group.name}</h1>
-                                    <span className="px-3 py-1 bg-[#13ec5b]/20 text-[#0ea841] dark:text-[#13ec5b] text-xs font-bold uppercase rounded-full tracking-wide">Membro</span>
+                                    {isAdmin ? (
+                                        <span className="px-3 py-1 bg-[#13ec5b] text-[#102216] text-xs font-bold uppercase rounded-full tracking-wide shadow-sm shadow-[#13ec5b]/20">Admin</span>
+                                    ) : (
+                                        <span className="px-3 py-1 bg-[#13ec5b]/20 text-[#0ea841] dark:text-[#13ec5b] text-xs font-bold uppercase rounded-full tracking-wide">Membro</span>
+                                    )}
                                 </div>
                                 <p className="text-gray-500 dark:text-gray-400 text-base md:text-lg">{group.description || "Sem descrição."}</p>
                                 <div className="flex items-center gap-4 mt-2 text-sm text-gray-500 dark:text-gray-400">
@@ -141,10 +152,12 @@ export default function GroupDashboard({ params }: { params: Promise<{ id: strin
                                         <span className="material-symbols-outlined text-lg">location_on</span>
                                         <span>{group.location || "Local não definido"}</span>
                                     </div>
-                                    <button className="flex items-center gap-2 px-4 py-2.5 bg-white/10 hover:bg-white/20 text-white rounded-full font-bold transition-colors backdrop-blur-sm">
+                                    <button className="flex items-center gap-2 px-4 py-2.5 bg-gray-100 hover:bg-gray-200 dark:bg-[#2a4031] dark:hover:bg-[#35503d] text-[#0d1b12] dark:text-white rounded-full font-bold transition-colors">
                                         <span className="material-symbols-outlined text-lg">share</span>
                                         <span>Convidar galera</span>
                                     </button>
+
+                                    {/* Create Match (Always visible for simplified flow or check logic later) */}
                                     <Link
                                         href={`/dashboard/grupos/${groupId}/nova-partida`}
                                         className="flex items-center gap-2 px-4 py-2.5 bg-[#13ec5b] hover:bg-[#0fd650] text-[#0d1b12] rounded-full font-bold transition-colors shadow-lg shadow-black/10"
@@ -152,13 +165,17 @@ export default function GroupDashboard({ params }: { params: Promise<{ id: strin
                                         <span className="material-symbols-outlined text-lg">add_circle</span>
                                         <span>Criar Pelada</span>
                                     </Link>
-                                    <Link
-                                        href={`/dashboard/grupos/${groupId}/admin`}
-                                        className="flex items-center gap-2 px-4 py-2.5 bg-white/10 hover:bg-white/20 text-white rounded-full font-bold transition-colors backdrop-blur-sm"
-                                    >
-                                        <span className="material-symbols-outlined text-lg">settings</span>
-                                        <span>Gerenciar</span>
-                                    </Link>
+
+                                    {/* Admin Button - Only visible if admin */}
+                                    {isAdmin && (
+                                        <Link
+                                            href={`/dashboard/grupos/${groupId}/admin`}
+                                            className="flex items-center gap-2 px-4 py-2.5 bg-[#0d1b12] hover:bg-[#1a2c20] dark:bg-white dark:hover:bg-gray-200 text-white dark:text-[#0d1b12] rounded-full font-bold transition-colors shadow-md"
+                                        >
+                                            <span className="material-symbols-outlined text-lg">settings</span>
+                                            <span>Gerenciar</span>
+                                        </Link>
+                                    )}
                                 </div>
                             </div>
                         </div>
