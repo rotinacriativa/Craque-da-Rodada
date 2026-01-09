@@ -733,8 +733,9 @@ export default function MatchDetails({ params }: { params: Promise<{ id: string 
                                                 Presença Confirmada
                                             </span>
                                         </button>
-                                        <button onClick={handleLeave} disabled={actionLoading} className="w-full h-12 rounded-full border border-gray-200 dark:border-gray-700 text-red-500 font-bold hover:bg-gray-50 dark:hover:bg-white/5 transition-colors">
-                                            Não posso mais ir
+                                        <button onClick={handleLeave} disabled={actionLoading} className="w-full h-12 rounded-full border border-gray-200 dark:border-gray-700 text-red-500 font-bold hover:bg-red-50 dark:hover:bg-red-900/10 transition-colors flex items-center justify-center gap-2">
+                                            <span className="material-symbols-outlined">close</span>
+                                            Sair do Jogo (Liberar Vaga)
                                         </button>
                                     </>
                                 ) : (
@@ -746,8 +747,8 @@ export default function MatchDetails({ params }: { params: Promise<{ id: string 
                                         >
                                             <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300"></div>
                                             <span className="relative flex items-center gap-2">
-                                                {spotsLeft <= 0 ? 'Lotado' : 'Confirmar Presença'}
-                                                <span className="material-symbols-outlined">arrow_forward</span>
+                                                {spotsLeft <= 0 ? 'Entrar na Lista de Espera' : 'Garantir minha Vaga'}
+                                                <span className="material-symbols-outlined">sports_soccer</span>
                                             </span>
                                         </button>
                                         {!isConfirmed && (

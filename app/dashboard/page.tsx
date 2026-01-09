@@ -181,30 +181,30 @@ export default function DashboardPage() {
                     <p className="text-xs text-[#8baaa0] mt-1">Total acumulado</p>
                 </div>
                 {/* Card 2 */}
-                <div className="flex flex-col gap-2 rounded-xl p-6 bg-white dark:bg-[#1a2c20] border border-[#cfe7d7] dark:border-[#2a4535] shadow-[0_2px_8px_rgba(0,0,0,0.04)] hover:shadow-[0_4px_12px_rgba(19,236,91,0.15)] transition-shadow group">
+                <div className="flex flex-col gap-2 rounded-xl p-6 bg-white dark:bg-[#1a2c20] border border-[#cfe7d7] dark:border-[#2a4535] shadow-sm opacity-60">
                     <div className="flex justify-between items-start">
                         <p className="text-[#4c9a66] text-sm font-bold uppercase tracking-wider">Partidas</p>
-                        <div className="p-2 bg-[#e7f3eb] dark:bg-[#22382b] text-[#13ec5b] rounded-lg group-hover:bg-[#13ec5b] group-hover:text-[#0d1b12] transition-colors">
+                        <div className="p-2 bg-gray-100 dark:bg-[#22382b] text-gray-400 rounded-lg">
                             <span className="material-symbols-outlined text-xl">directions_run</span>
                         </div>
                     </div>
                     <div className="mt-2 flex items-baseline gap-2">
-                        <p className="text-[#0d1b12] dark:text-white text-4xl font-bold leading-tight">0</p>
+                        <p className="text-gray-400 text-2xl font-bold leading-tight">Em breve</p>
                     </div>
-                    <p className="text-xs text-[#8baaa0] mt-1">Em breve</p>
+                    <p className="text-xs text-gray-400 mt-1">Estatísticas de jogos</p>
                 </div>
                 {/* Card 3 */}
-                <div className="flex flex-col gap-2 rounded-xl p-6 bg-white dark:bg-[#1a2c20] border border-[#cfe7d7] dark:border-[#2a4535] shadow-[0_2px_8px_rgba(0,0,0,0.04)] hover:shadow-[0_4px_12px_rgba(19,236,91,0.15)] transition-shadow group">
+                <div className="flex flex-col gap-2 rounded-xl p-6 bg-white dark:bg-[#1a2c20] border border-[#cfe7d7] dark:border-[#2a4535] shadow-sm opacity-60">
                     <div className="flex justify-between items-start">
                         <p className="text-[#4c9a66] text-sm font-bold uppercase tracking-wider">Gols</p>
-                        <div className="p-2 bg-[#e7f3eb] dark:bg-[#22382b] text-[#13ec5b] rounded-lg group-hover:bg-[#13ec5b] group-hover:text-[#0d1b12] transition-colors">
+                        <div className="p-2 bg-gray-100 dark:bg-[#22382b] text-gray-400 rounded-lg">
                             <span className="material-symbols-outlined text-xl">sports_soccer</span>
                         </div>
                     </div>
                     <div className="mt-2 flex items-baseline gap-2">
-                        <p className="text-[#0d1b12] dark:text-white text-4xl font-bold leading-tight">0</p>
+                        <p className="text-gray-400 text-2xl font-bold leading-tight">Em breve</p>
                     </div>
-                    <p className="text-xs text-[#8baaa0] mt-1">Em breve</p>
+                    <p className="text-xs text-gray-400 mt-1">Ranking de artilharia</p>
                 </div>
             </section>
 
@@ -327,18 +327,12 @@ export default function DashboardPage() {
                             <span className="material-symbols-outlined">more_horiz</span>
                         </button>
                     </div>
-                    <div className="flex flex-col gap-4 opacity-50">
-                        {/* Mock items */}
-                        <div className="flex items-center gap-4 pb-4 border-b border-[#f0f7f2] dark:border-[#2a4535] last:border-0 last:pb-0">
-                            <div className="size-10 rounded-full bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
-                                <span className="material-symbols-outlined text-xl">payments</span>
-                            </div>
-                            <div className="flex-1 min-w-0">
-                                <p className="text-sm font-bold text-[#0d1b12] dark:text-white truncate">Pagamento Recebido</p>
-                                <p className="text-xs text-[#4c9a66] truncate">Mensalidade de Outubro</p>
-                            </div>
-                            <span className="text-xs font-bold text-[#0d1b12] dark:text-white">R$ 30,00</span>
+                    <div className="flex flex-col items-center justify-center py-8 opacity-50">
+                        <div className="w-10 h-10 bg-gray-100 dark:bg-[#22382b] rounded-full flex items-center justify-center mb-2">
+                            <span className="material-symbols-outlined text-gray-400">notifications_off</span>
                         </div>
+                        <p className="text-sm font-bold text-[#0d1b12] dark:text-white">Nenhuma atividade recente</p>
+                        <p className="text-xs text-[#4c9a66]">Suas notificações aparecerão aqui.</p>
                     </div>
                 </div>
 
