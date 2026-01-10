@@ -138,14 +138,36 @@ export default function GroupDashboard({ params }: { params: Promise<{ id: strin
         if (!group) return;
         const url = window.location.href;
 
-        const copyToClipboard = async (text: string) => {
-            try {
-                await navigator.clipboard.writeText(text);
-                return true;
-            } catch (err) {
-                console.error('Failed to copy:', err);
-                return false;
+        // Função de cópia com múltiplos fallbacks
+        const copyToClipboard = async (text: string): Promise<boolean> => {
+            // Método 1: Clipboard API (moderno, requer HTTPS)
+            if (navigator.clipboard && window.isSecureContext) {
+                try {
+                    await navigator.clipboard.writeText(text);
+                    return true;
+                } catch (err) {
+                    console.warn('Clipboard API failed:', err);
+                }
             }
+
+            // Método 2: document.execCommand (fallback antigo mas funciona)
+            try {
+                const textArea = document.createElement('textarea');
+                textArea.value = text;
+                textArea.style.position = 'fixed';
+                textArea.style.left = '-999999px';
+                textArea.style.top = '-999999px';
+                document.body.appendChild(textArea);
+                textArea.focus();
+                textArea.select();
+                const successful = document.execCommand('copy');
+                document.body.removeChild(textArea);
+                if (successful) return true;
+            } catch (err) {
+                console.warn('execCommand failed:', err);
+            }
+
+            return false;
         };
 
         const shareData = {
@@ -154,25 +176,31 @@ export default function GroupDashboard({ params }: { params: Promise<{ id: strin
             url: url,
         };
 
+        // Tentar compartilhamento nativo primeiro (mobile)
         if (navigator.share) {
             try {
                 await navigator.share(shareData);
+                setInviteCopied(true);
+                setTimeout(() => setInviteCopied(false), 3000);
                 return;
             } catch (error) {
-                if ((error as any).name !== 'AbortError') {
-                    console.log('Share failed, trying copy');
-                } else {
+                // Se usuário cancelou, não fazer nada
+                if ((error as any).name === 'AbortError') {
                     return;
                 }
+                // Se falhou por outro motivo, tentar copiar
+                console.log('Share failed, trying copy');
             }
         }
 
+        // Fallback: copiar para clipboard
         const success = await copyToClipboard(url);
         if (success) {
             setInviteCopied(true);
             setTimeout(() => setInviteCopied(false), 3000);
         } else {
-            prompt('Copie o link do grupo:', url);
+            // Último recurso: mostrar prompt para copiar manualmente
+            alert(`Link do grupo:\n\n${url}\n\nCopie e compartilhe com seus amigos!`);
         }
     };
 
