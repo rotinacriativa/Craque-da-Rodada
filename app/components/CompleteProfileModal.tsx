@@ -81,6 +81,7 @@ export default function CompleteProfileModal({ isOpen, userId, onComplete, initi
         try {
             console.log("Updating profile for user:", userId);
             const updates = {
+                id: userId,
                 full_name: fullName,
                 position: position,
                 skill_level: skillLevel,
@@ -90,8 +91,7 @@ export default function CompleteProfileModal({ isOpen, userId, onComplete, initi
 
             const { error: updateError } = await supabase
                 .from("profiles")
-                .update(updates)
-                .eq("id", userId);
+                .upsert(updates)
 
             if (updateError) {
                 console.error("Supabase update error:", updateError);
