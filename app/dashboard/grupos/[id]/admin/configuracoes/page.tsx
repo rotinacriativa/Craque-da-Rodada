@@ -41,8 +41,10 @@ export default function GroupSettingsPage({ params }: { params: Promise<{ id: st
     const [tolerance, setTolerance] = useState(15);
 
     // Finance Data
+    const [financialType, setFinancialType] = useState("diarista");
     const [priceMensalista, setPriceMensalista] = useState(0);
     const [priceAvulso, setPriceAvulso] = useState(0);
+    const [autoPresence, setAutoPresence] = useState(false);
 
     // Privacy Data
     const [isPrivate, setIsPrivate] = useState(false);
@@ -66,7 +68,7 @@ export default function GroupSettingsPage({ params }: { params: Promise<{ id: st
             // 1. Fetch Group Details
             const { data: groupData, error: groupError } = await supabase
                 .from("groups")
-                .select("name, location, description, max_members, visibility, image_url, manual_approval, price_mensalista, price_avulso")
+                .select("name, location, description, max_members, visibility, image_url, manual_approval, price_mensalista, price_avulso, financial_type, auto_presenca_mensalista")
                 .eq("id", groupId)
                 .single();
 
@@ -81,8 +83,11 @@ export default function GroupSettingsPage({ params }: { params: Promise<{ id: st
                 if (groupData.max_members) setMaxPlayers(groupData.max_members);
                 setIsPrivate(groupData.visibility === 'private');
                 setManualApproval(groupData.manual_approval || false);
+                setFinancialType(groupData.financial_type || "diarista");
+                setFinancialType(groupData.financial_type || "diarista");
                 setPriceMensalista(groupData.price_mensalista || 0);
                 setPriceAvulso(groupData.price_avulso || 0);
+                setAutoPresence(groupData.auto_presenca_mensalista || false);
             }
 
             // 2. Fetch All Members (to separate admins and potential admins)
@@ -185,8 +190,10 @@ export default function GroupSettingsPage({ params }: { params: Promise<{ id: st
                     max_members: maxPlayers,
                     visibility: isPrivate ? 'private' : 'public',
                     manual_approval: manualApproval,
-                    price_mensalista: priceMensalista,
-                    price_avulso: priceAvulso
+                    financial_type: financialType,
+                    price_mensalista: financialType === 'mensalista' ? priceMensalista : 0,
+                    price_avulso: financialType !== 'mensalista' ? priceAvulso : 0,
+                    auto_presenca_mensalista: financialType === 'mensalista' ? autoPresence : false
                 })
                 .eq("id", groupId);
 
@@ -505,31 +512,84 @@ export default function GroupSettingsPage({ params }: { params: Promise<{ id: st
                             </div>
 
                             {/* Preços */}
-                            <div className="grid grid-cols-2 gap-4">
+                            {/* Preços / Regra Financeira */}
+                            <div className="space-y-4 pt-2 border-t border-slate-100 dark:border-slate-800">
                                 <div>
-                                    <label className="block text-xs font-bold text-gray-500 mb-1 uppercase">Preço Mensalista</label>
-                                    <div className="flex items-center gap-2">
-                                        <span className="text-sm font-medium text-gray-400">R$</span>
-                                        <input
-                                            type="number"
-                                            value={priceMensalista}
-                                            onChange={(e) => setPriceMensalista(Number(e.target.value))}
-                                            className="w-full bg-gray-50 dark:bg-[#102216]/50 border border-gray-200 dark:border-[#2a4032] rounded-lg p-2 text-center font-bold text-[#0d1b12] dark:text-white"
-                                        />
+                                    <label className="block text-xs font-bold text-gray-500 mb-2 uppercase">Regra Financeira</label>
+                                    <div className="grid grid-cols-3 gap-2">
+                                        {['mensalista', 'diarista', 'convidado'].map((type) => (
+                                            <button
+                                                key={type}
+                                                onClick={() => setFinancialType(type)}
+                                                className={`py-2 px-1 rounded-xl text-xs font-bold capitalize border-2 transition-all ${financialType === type
+                                                    ? 'border-[#13ec5b] bg-[#13ec5b]/10 text-[#0d1b12]'
+                                                    : 'border-transparent bg-gray-50 dark:bg-[#102216] text-gray-500 hover:bg-gray-200 dark:hover:bg-[#1a3322]'
+                                                    }`}
+                                            >
+                                                {type}
+                                            </button>
+                                        ))}
                                     </div>
                                 </div>
-                                <div>
-                                    <label className="block text-xs font-bold text-gray-500 mb-1 uppercase">Preço Diarista</label>
-                                    <div className="flex items-center gap-2">
-                                        <span className="text-sm font-medium text-gray-400">R$</span>
-                                        <input
-                                            type="number"
-                                            value={priceAvulso}
-                                            onChange={(e) => setPriceAvulso(Number(e.target.value))}
-                                            className="w-full bg-gray-50 dark:bg-[#102216]/50 border border-gray-200 dark:border-[#2a4032] rounded-lg p-2 text-center font-bold text-[#0d1b12] dark:text-white"
-                                        />
+
+                                {financialType === 'mensalista' && (
+                                    <div>
+                                        <label className="block text-xs font-bold text-gray-500 mb-1 uppercase">Valor Mensal</label>
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-sm font-medium text-gray-400">R$</span>
+                                            <input
+                                                type="number"
+                                                value={priceMensalista}
+                                                onChange={(e) => setPriceMensalista(Number(e.target.value))}
+                                                className="w-full bg-gray-50 dark:bg-[#102216]/50 border border-gray-200 dark:border-[#2a4032] rounded-lg p-2 text-center font-bold text-[#0d1b12] dark:text-white"
+                                            />
+                                        </div>
+                                        <div className="pt-4 border-t border-slate-100 dark:border-slate-800 mt-4">
+                                            <div className="flex items-center justify-between">
+                                                <div className="flex flex-col">
+                                                    <span className="text-sm font-bold text-[#0d1b12] dark:text-white">Confirmar automaticamente mensalistas</span>
+                                                    <span className="text-xs text-gray-400">Ao criar partida, mensalistas entram como "Confirmado".</span>
+                                                </div>
+                                                <button
+                                                    onClick={() => setAutoPresence(!autoPresence)}
+                                                    className={`w-12 h-6 rounded-full relative transition-colors ${autoPresence ? 'bg-[#13ec5b]' : 'bg-gray-300 dark:bg-gray-600'}`}
+                                                >
+                                                    <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all shadow-sm ${autoPresence ? 'left-7' : 'left-1'}`}></div>
+                                                </button>
+                                            </div>
+                                        </div>
                                     </div>
-                                </div>
+                                )}
+
+                                {financialType === 'diarista' && (
+                                    <div>
+                                        <label className="block text-xs font-bold text-gray-500 mb-1 uppercase">Valor por Jogo</label>
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-sm font-medium text-gray-400">R$</span>
+                                            <input
+                                                type="number"
+                                                value={priceAvulso}
+                                                onChange={(e) => setPriceAvulso(Number(e.target.value))}
+                                                className="w-full bg-gray-50 dark:bg-[#102216]/50 border border-gray-200 dark:border-[#2a4032] rounded-lg p-2 text-center font-bold text-[#0d1b12] dark:text-white"
+                                            />
+                                        </div>
+                                    </div>
+                                )}
+
+                                {financialType === 'convidado' && (
+                                    <div>
+                                        <label className="block text-xs font-bold text-gray-500 mb-1 uppercase">Valor do Convidado</label>
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-sm font-medium text-gray-400">R$</span>
+                                            <input
+                                                type="number"
+                                                value={priceAvulso}
+                                                onChange={(e) => setPriceAvulso(Number(e.target.value))}
+                                                className="w-full bg-gray-50 dark:bg-[#102216]/50 border border-gray-200 dark:border-[#2a4032] rounded-lg p-2 text-center font-bold text-[#0d1b12] dark:text-white"
+                                            />
+                                        </div>
+                                    </div>
+                                )}
                             </div>
 
                             <button
@@ -616,50 +676,52 @@ export default function GroupSettingsPage({ params }: { params: Promise<{ id: st
             </div>
 
             {/* Modal Novo Admin */}
-            {showAddAdminModal && (
-                <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4 backdrop-blur-sm">
-                    <div className="bg-white dark:bg-[#1a2c20] rounded-2xl w-full max-w-md overflow-hidden shadow-2xl border border-[#e7f3eb] dark:border-[#2a4032]">
-                        <div className="p-4 border-b border-[#e7f3eb] dark:border-[#2a4032] flex justify-between items-center">
-                            <h3 className="text-lg font-bold text-[#0d1b12] dark:text-white">Adicionar Administrador</h3>
-                            <button onClick={() => setShowAddAdminModal(false)} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
-                                <span className="material-symbols-outlined">close</span>
-                            </button>
-                        </div>
-                        <div className="p-4 max-h-[60vh] overflow-y-auto">
-                            {members.length === 0 ? (
-                                <p className="text-center text-gray-500 py-8">
-                                    Todos os membros já são administradores ou não há outros membros no grupo.
-                                </p>
-                            ) : (
-                                <ul className="space-y-3">
-                                    {members.map(member => (
-                                        <li key={member.id} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-[#102216]/50 rounded-xl">
-                                            <div className="flex items-center gap-3">
-                                                <div className="w-10 h-10 rounded-full bg-gray-200 dark:bg-gray-700 overflow-hidden">
-                                                    {member.profile?.avatar_url ? (
-                                                        <img src={member.profile.avatar_url} alt={member.profile.full_name} className="w-full h-full object-cover" />
-                                                    ) : (
-                                                        <div className="w-full h-full flex items-center justify-center text-gray-500 font-bold">
-                                                            {member.profile?.full_name?.charAt(0).toUpperCase() || "M"}
-                                                        </div>
-                                                    )}
+            {
+                showAddAdminModal && (
+                    <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4 backdrop-blur-sm">
+                        <div className="bg-white dark:bg-[#1a2c20] rounded-2xl w-full max-w-md overflow-hidden shadow-2xl border border-[#e7f3eb] dark:border-[#2a4032]">
+                            <div className="p-4 border-b border-[#e7f3eb] dark:border-[#2a4032] flex justify-between items-center">
+                                <h3 className="text-lg font-bold text-[#0d1b12] dark:text-white">Adicionar Administrador</h3>
+                                <button onClick={() => setShowAddAdminModal(false)} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
+                                    <span className="material-symbols-outlined">close</span>
+                                </button>
+                            </div>
+                            <div className="p-4 max-h-[60vh] overflow-y-auto">
+                                {members.length === 0 ? (
+                                    <p className="text-center text-gray-500 py-8">
+                                        Todos os membros já são administradores ou não há outros membros no grupo.
+                                    </p>
+                                ) : (
+                                    <ul className="space-y-3">
+                                        {members.map(member => (
+                                            <li key={member.id} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-[#102216]/50 rounded-xl">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="w-10 h-10 rounded-full bg-gray-200 dark:bg-gray-700 overflow-hidden">
+                                                        {member.profile?.avatar_url ? (
+                                                            <img src={member.profile.avatar_url} alt={member.profile.full_name} className="w-full h-full object-cover" />
+                                                        ) : (
+                                                            <div className="w-full h-full flex items-center justify-center text-gray-500 font-bold">
+                                                                {member.profile?.full_name?.charAt(0).toUpperCase() || "M"}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                    <span className="font-bold text-[#0d1b12] dark:text-white text-sm">{member.profile?.full_name}</span>
                                                 </div>
-                                                <span className="font-bold text-[#0d1b12] dark:text-white text-sm">{member.profile?.full_name}</span>
-                                            </div>
-                                            <button
-                                                onClick={() => handlePromoteAdmin(member.id)}
-                                                className="bg-[#13ec5b]/10 hover:bg-[#13ec5b]/20 text-[#13ec5b] font-bold text-xs px-3 py-2 rounded-lg transition-colors"
-                                            >
-                                                Promover
-                                            </button>
-                                        </li>
-                                    ))}
-                                </ul>
-                            )}
+                                                <button
+                                                    onClick={() => handlePromoteAdmin(member.id)}
+                                                    className="bg-[#13ec5b]/10 hover:bg-[#13ec5b]/20 text-[#13ec5b] font-bold text-xs px-3 py-2 rounded-lg transition-colors"
+                                                >
+                                                    Promover
+                                                </button>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                )}
+                            </div>
                         </div>
                     </div>
-                </div>
-            )}
+                )
+            }
 
             <ConfirmationModal
                 isOpen={isDeleteModalOpen}
@@ -672,6 +734,6 @@ export default function GroupSettingsPage({ params }: { params: Promise<{ id: st
                 isLoading={isDeleting}
                 verificationText={groupName}
             />
-        </div>
+        </div >
     );
 }

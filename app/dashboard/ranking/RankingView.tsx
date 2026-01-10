@@ -2,19 +2,9 @@
 
 import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { PlayerStat, SortMode } from "@/src/lib/types/player";
 
-interface PlayerStat {
-    user_id: string;
-    full_name: string;
-    avatar_url: string;
-    position: string;
-    matches_played: number;
-    goals: number;
-    assists: number;
-    wins: number;
-    avg_rating: number;
-    total_score: number;
-}
+
 
 interface RankingViewProps {
     players: PlayerStat[];
@@ -22,7 +12,7 @@ interface RankingViewProps {
     currentGroupId?: string;
 }
 
-type SortMode = 'goals' | 'assists' | 'rating';
+
 
 export default function RankingView({ players, groups, currentGroupId }: RankingViewProps) {
     const router = useRouter();

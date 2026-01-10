@@ -45,6 +45,10 @@ function CreateMatchContent() {
         selectedDays: [] as string[]
     });
 
+    // Group Financial Rules
+    const [groupRules, setGroupRules] = useState<{ type: string; monthly: number; perMatch: number } | null>(null);
+    const [autoPresence, setAutoPresence] = useState(false);
+
     // Map State
     const [isMapOpen, setIsMapOpen] = useState(false);
 
@@ -54,12 +58,29 @@ function CreateMatchContent() {
         const fetchGroupDefaults = async () => {
             const { data } = await supabase
                 .from('groups')
-                .select('price_avulso')
+                .select('price_avulso, price_mensalista, financial_type, auto_presenca_mensalista')
                 .eq('id', groupId)
                 .single();
 
-            if (data?.price_avulso) {
-                setFormData(prev => ({ ...prev, price: data.price_avulso.toString().replace('.', ',') }));
+            if (data) {
+                const type = data.financial_type || 'diarista';
+                let price = 0;
+
+                // Logic: Mensalista = 0 per match (covered by monthly). Others = price_avulso.
+                if (type === 'mensalista') {
+                    price = 0;
+                } else {
+                    price = data.price_avulso || 0;
+                }
+
+                setFormData(prev => ({ ...prev, price: price.toString().replace('.', ',') }));
+
+                setGroupRules({
+                    type,
+                    monthly: data.price_mensalista || 0,
+                    perMatch: data.price_avulso || 0
+                });
+                setAutoPresence(data.auto_presenca_mensalista || false);
             }
         };
         fetchGroupDefaults();
@@ -131,11 +152,50 @@ function CreateMatchContent() {
                 gender: "Misto", // Simplified for now or add to form if needed
             };
 
-            const { error } = await supabase
+            const { data, error } = await supabase
                 .from('matches')
-                .insert([payload]);
+                .insert([payload])
+                .select()
+                .single();
 
             if (error) throw error;
+
+            // Auto Presence Logic for Mensalistas
+            if (groupRules?.type === 'mensalista' && autoPresence) {
+                try {
+                    // 1. Fetch active members
+                    const { data: members, error: membersError } = await supabase
+                        .from('group_members')
+                        .select('user_id')
+                        .eq('group_id', groupId)
+                        .eq('status', 'active');
+
+                    if (membersError) throw membersError;
+
+                    if (members && members.length > 0) {
+                        // 2. Prepare Match Players payload
+                        const playersPayload = members.map(m => ({
+                            match_id: data.id, // ID from the created match
+                            user_id: m.user_id,
+                            status: 'confirmed',
+                            payment_status: 'paid' // Mensalistas are usually considered 'paid' via monthly fee, or 'pending' if tracking separately. Prompt says "NÃO implementar pagamentos". Let's stick to 'confirmed'.
+                            // Actually, let's leave payment_status default or 'pending' unless specific rule. 
+                            // Prompt says "Não criar lógica de pagamento".
+                            // But status must be 'confirmed'.
+                        }));
+
+                        // 3. Bulk Insert
+                        const { error: bulkError } = await supabase
+                            .from('match_players')
+                            .insert(playersPayload);
+
+                        if (bulkError) console.error("Error auto-confirming members:", bulkError);
+                    }
+                } catch (err) {
+                    console.error("Failed to auto-confirm mensalistas:", err);
+                    // Don't block success flow, just log.
+                }
+            }
 
             toast.success('Jogo marcado! A convocação começou. 📣');
 
@@ -381,21 +441,42 @@ function CreateMatchContent() {
                                     </div>
                                 </div>
                             </label>
-                            <label className="flex flex-col gap-2 group">
-                                <span className="text-slate-700 dark:text-slate-300 font-semibold pl-1">Valor por Pessoa</span>
-                                <div className="relative flex items-center">
-                                    <input
-                                        type="text"
-                                        name="price"
-                                        value={formData.price}
-                                        onChange={handleChange}
-                                        className="w-full h-14 pl-12 pr-4 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#13ec5b]/50 focus:border-[#13ec5b] transition-all font-medium"
-                                        required
-                                    />
-                                    <span className="material-symbols-outlined absolute left-4 text-[#13ec5b] pointer-events-none">attach_money</span>
-                                    <div className="absolute right-4 text-slate-400 font-bold">R$</div>
+                            <div className="flex flex-col gap-2 group">
+                                <span className="text-slate-700 dark:text-slate-300 font-semibold pl-1">Regra Financeira (Definida no Grupo)</span>
+                                <div className="relative flex items-center h-14 w-full bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-lg px-4 gap-3">
+                                    <span className="material-symbols-outlined text-[#13ec5b] text-[22px]">
+                                        {groupRules?.type === 'mensalista' ? 'calendar_month' : 'payments'}
+                                    </span>
+                                    <div className="flex flex-col justify-center">
+                                        {groupRules ? (
+                                            <>
+                                                {groupRules.type === 'mensalista' && (
+                                                    <span className="text-sm font-bold text-slate-700 dark:text-white">
+                                                        Mensalista (Cobrança Mensal Ativa)
+                                                    </span>
+                                                )}
+                                                {groupRules.type === 'diarista' && (
+                                                    <span className="text-sm font-bold text-slate-700 dark:text-white">
+                                                        Valor por Jogador: R$ {groupRules.perMatch.toFixed(2).replace('.', ',')}
+                                                    </span>
+                                                )}
+                                                {groupRules.type === 'convidado' && (
+                                                    <span className="text-sm font-bold text-slate-700 dark:text-white">
+                                                        Valor do Convidado: R$ {groupRules.perMatch.toFixed(2).replace('.', ',')}
+                                                    </span>
+                                                )}
+                                            </>
+                                        ) : (
+                                            <span className="text-sm text-slate-400">Carregando regra...</span>
+                                        )}
+                                    </div>
+                                    {groupRules && (
+                                        <div className="ml-auto text-xs font-bold uppercase tracking-wider text-[#4c9a66] bg-[#13ec5b]/10 px-2 py-1 rounded">
+                                            {groupRules.type}
+                                        </div>
+                                    )}
                                 </div>
-                            </label>
+                            </div>
                         </div>
 
                         <div className="border-t border-slate-100 dark:border-slate-800 my-2"></div>

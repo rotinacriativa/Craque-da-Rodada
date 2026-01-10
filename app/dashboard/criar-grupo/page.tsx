@@ -22,6 +22,7 @@ export default function CreateGroupPage() {
     const [defaultMaxMembers] = useState("20");
 
     // Finance Defaults
+    const [financialType, setFinancialType] = useState("diarista");
     const [priceMensalista, setPriceMensalista] = useState(0);
     const [priceAvulso, setPriceAvulso] = useState(0);
 
@@ -43,6 +44,11 @@ export default function CreateGroupPage() {
 
             if (!name) throw new Error("Preencha o nome da sua pelada.");
 
+            // Financial Validations
+            if (financialType === 'mensalista' && priceMensalista <= 0) throw new Error("O valor da mensalidade deve ser maior que zero.");
+            if (financialType === 'diarista' && priceAvulso <= 0) throw new Error("O valor por jogo deve ser maior que zero.");
+            if (financialType === 'convidado' && priceAvulso <= 0) throw new Error("O valor do convidado deve ser maior que zero.");
+
             // Smart Defaults
             const finalDescription = description || "Pelada organizada pelo Craque da Rodada.";
             const finalLocation = location || "Campo do Bairro";
@@ -58,8 +64,9 @@ export default function CreateGroupPage() {
                 default_day: defaultDay,
                 default_time_start: defaultTimeStart,
                 logo_url: logoUrl,
-                price_mensalista: priceMensalista,
-                price_avulso: priceAvulso
+                financial_type: financialType,
+                price_mensalista: financialType === 'mensalista' ? priceMensalista : 0,
+                price_avulso: financialType !== 'mensalista' ? priceAvulso : 0
             };
 
             // 1. Create Group
@@ -239,33 +246,73 @@ export default function CreateGroupPage() {
                                         className="h-24 w-full rounded-xl border border-[#e7f3eb] bg-white px-4 py-3 text-sm resize-none outline-none focus:border-[#13ec5b] dark:border-gray-600 dark:bg-[#1a3322] dark:text-white"
                                         placeholder="Descrição breve da pelada..."
                                     ></textarea>
-                                    <div className="grid grid-cols-2 gap-4">
+                                    <div className="col-span-1 md:col-span-2 space-y-4">
                                         <div>
-                                            <label className="block text-xs font-bold text-[#4c9a66] dark:text-gray-400 mb-1 ml-1 uppercase tracking-wide">Preço Mensalista</label>
-                                            <div className="flex items-center gap-2 bg-white dark:bg-[#1a3322] border border-[#e7f3eb] dark:border-gray-600 rounded-xl px-4 py-2">
-                                                <span className="text-gray-400 text-sm">R$</span>
-                                                <input
-                                                    type="number"
-                                                    value={priceMensalista}
-                                                    onChange={(e) => setPriceMensalista(Number(e.target.value))}
-                                                    className="w-full bg-transparent text-sm font-bold outline-none dark:text-white"
-                                                    placeholder="0"
-                                                />
+                                            <label className="block text-xs font-bold text-[#4c9a66] dark:text-gray-400 mb-2 ml-1 uppercase tracking-wide">Regra Financeira (Tipo do Grupo)</label>
+                                            <div className="grid grid-cols-3 gap-2">
+                                                {['mensalista', 'diarista', 'convidado'].map((type) => (
+                                                    <button
+                                                        key={type}
+                                                        type="button"
+                                                        onClick={() => setFinancialType(type)}
+                                                        className={`py-2 px-1 rounded-xl text-xs font-bold capitalize border-2 transition-all ${financialType === type
+                                                            ? 'border-[#13ec5b] bg-[#13ec5b]/10 text-[#0d1b12]'
+                                                            : 'border-transparent bg-gray-100 dark:bg-[#102216] text-gray-500 hover:bg-gray-200 dark:hover:bg-[#1a3322]'
+                                                            }`}
+                                                    >
+                                                        {type}
+                                                    </button>
+                                                ))}
                                             </div>
                                         </div>
-                                        <div>
-                                            <label className="block text-xs font-bold text-[#4c9a66] dark:text-gray-400 mb-1 ml-1 uppercase tracking-wide">Preço Diarista</label>
-                                            <div className="flex items-center gap-2 bg-white dark:bg-[#1a3322] border border-[#e7f3eb] dark:border-gray-600 rounded-xl px-4 py-2">
-                                                <span className="text-gray-400 text-sm">R$</span>
-                                                <input
-                                                    type="number"
-                                                    value={priceAvulso}
-                                                    onChange={(e) => setPriceAvulso(Number(e.target.value))}
-                                                    className="w-full bg-transparent text-sm font-bold outline-none dark:text-white"
-                                                    placeholder="0"
-                                                />
+
+                                        {financialType === 'mensalista' && (
+                                            <div>
+                                                <label className="block text-xs font-bold text-[#4c9a66] dark:text-gray-400 mb-1 ml-1 uppercase tracking-wide">Valor Mensal (Cobrança Fixa)</label>
+                                                <div className="flex items-center gap-2 bg-white dark:bg-[#1a3322] border border-[#e7f3eb] dark:border-gray-600 rounded-xl px-4 py-2">
+                                                    <span className="text-gray-400 text-sm">R$</span>
+                                                    <input
+                                                        type="number"
+                                                        value={priceMensalista}
+                                                        onChange={(e) => setPriceMensalista(Number(e.target.value))}
+                                                        className="w-full bg-transparent text-sm font-bold outline-none dark:text-white"
+                                                        placeholder="0,00"
+                                                    />
+                                                </div>
                                             </div>
-                                        </div>
+                                        )}
+
+                                        {financialType === 'diarista' && (
+                                            <div>
+                                                <label className="block text-xs font-bold text-[#4c9a66] dark:text-gray-400 mb-1 ml-1 uppercase tracking-wide">Valor por Jogo (Por Pessoa)</label>
+                                                <div className="flex items-center gap-2 bg-white dark:bg-[#1a3322] border border-[#e7f3eb] dark:border-gray-600 rounded-xl px-4 py-2">
+                                                    <span className="text-gray-400 text-sm">R$</span>
+                                                    <input
+                                                        type="number"
+                                                        value={priceAvulso}
+                                                        onChange={(e) => setPriceAvulso(Number(e.target.value))}
+                                                        className="w-full bg-transparent text-sm font-bold outline-none dark:text-white"
+                                                        placeholder="0,00"
+                                                    />
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {financialType === 'convidado' && (
+                                            <div>
+                                                <label className="block text-xs font-bold text-[#4c9a66] dark:text-gray-400 mb-1 ml-1 uppercase tracking-wide">Valor do Convidado</label>
+                                                <div className="flex items-center gap-2 bg-white dark:bg-[#1a3322] border border-[#e7f3eb] dark:border-gray-600 rounded-xl px-4 py-2">
+                                                    <span className="text-gray-400 text-sm">R$</span>
+                                                    <input
+                                                        type="number"
+                                                        value={priceAvulso}
+                                                        onChange={(e) => setPriceAvulso(Number(e.target.value))}
+                                                        className="w-full bg-transparent text-sm font-bold outline-none dark:text-white"
+                                                        placeholder="0,00"
+                                                    />
+                                                </div>
+                                            </div>
+                                        )}
                                     </div>
                                     <div className="flex items-center gap-4">
                                         <button

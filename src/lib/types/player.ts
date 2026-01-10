@@ -140,3 +140,18 @@ export interface LoadingState {
   loading: boolean;
   error: string | null;
 }
+
+export interface PlayerStat {
+  user_id: string;
+  full_name: string;
+  avatar_url: string | null;
+  position: string;
+  matches_played: number;
+  goals: number;
+  assists: number;
+  wins: number;
+  avg_rating: number;
+  total_score: number;
+}
+
+export type SortMode = 'goals' | 'assists' | 'rating';
