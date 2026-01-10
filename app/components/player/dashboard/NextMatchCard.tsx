@@ -52,10 +52,16 @@ export function NextMatchCard({ match, groupName, participants }: NextMatchCardP
                         {match.name} - {groupName}
                     </h3>
 
-                    <div className="flex items-center gap-2 text-[#4c9a66] text-sm md:text-base font-medium mt-1">
+                    <a
+                        href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(match.location)}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-2 text-[#4c9a66] hover:text-[#13ec5b] text-sm md:text-base font-medium mt-1 transition-colors"
+                        onClick={(e) => e.stopPropagation()}
+                    >
                         <span className="material-symbols-outlined text-lg">location_on</span>
                         {match.location}
-                    </div>
+                    </a>
                 </div>
 
                 {/* Players Section */}

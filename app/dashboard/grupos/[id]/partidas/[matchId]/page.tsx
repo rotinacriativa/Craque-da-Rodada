@@ -280,10 +280,15 @@ export default function MatchDetailsPage({ params }: { params: Promise<{ id: str
                                     <span className="material-symbols-outlined text-[20px] text-[#13ec5b]">calendar_month</span>
                                     <span>{formattedDate}</span>
                                 </div>
-                                <div className="flex items-center gap-2">
+                                <a
+                                    href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(match.location)}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="flex items-center gap-2 hover:text-[#13ec5b] transition-colors"
+                                >
                                     <span className="material-symbols-outlined text-[20px] text-[#13ec5b]">location_on</span>
                                     <span>{match.location}</span>
-                                </div>
+                                </a>
                             </div>
                         </div>
 

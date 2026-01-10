@@ -74,7 +74,7 @@ export default function GroupsPage() {
 
                 <div className="flex gap-3">
                     <Link
-                        href="/dashboard/entrar-grupo"
+                        href="/dashboard/explorar"
                         className="h-12 px-6 rounded-full border-2 border-[#e7f3eb] dark:border-[#2a4535] text-[#0d1b12] dark:text-white font-bold flex items-center gap-2 hover:bg-[#f6f8f6] dark:hover:bg-[#1a2c20] transition-colors"
                     >
                         <span className="material-symbols-outlined">group_add</span>

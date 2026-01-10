@@ -6,22 +6,56 @@ import { supabase } from "../../src/lib/client";
 interface CompleteProfileModalProps {
     isOpen: boolean;
     userId: string;
-    onComplete: () => void;
+    onComplete: (data?: { full_name: string; avatar_url: string | null }) => void;
     initialData?: {
         full_name?: string;
         position?: string;
+
         skill_level?: string;
+        avatar_url?: string;
     };
 }
 
 export default function CompleteProfileModal({ isOpen, userId, onComplete, initialData }: CompleteProfileModalProps) {
     const [fullName, setFullName] = useState(initialData?.full_name || "");
     const [position, setPosition] = useState(initialData?.position || "");
+
     const [skillLevel, setSkillLevel] = useState(initialData?.skill_level || "");
+    const [avatarUrl, setAvatarUrl] = useState(initialData?.avatar_url || null);
+    const [isUploading, setIsUploading] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
     if (!isOpen) return null;
+
+    const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (!e.target.files || e.target.files.length === 0) return;
+
+        try {
+            setIsUploading(true);
+            const file = e.target.files[0];
+            const fileExt = file.name.split('.').pop();
+            const fileName = `${userId}-${Math.random()}.${fileExt}`;
+            const filePath = `${fileName}`;
+
+            const { error: uploadError } = await supabase.storage
+                .from('avatars')
+                .upload(filePath, file);
+
+            if (uploadError) throw uploadError;
+
+            const { data: { publicUrl } } = supabase.storage
+                .from('avatars')
+                .getPublicUrl(filePath);
+
+            setAvatarUrl(publicUrl);
+        } catch (error) {
+            console.error('Error uploading avatar:', error);
+            setError("Erro ao fazer upload da foto.");
+        } finally {
+            setIsUploading(false);
+        }
+    };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -41,13 +75,15 @@ export default function CompleteProfileModal({ isOpen, userId, onComplete, initi
                     full_name: fullName,
                     position: position,
                     skill_level: skillLevel,
+
+                    avatar_url: avatarUrl,
                     updated_at: new Date().toISOString(),
                 })
                 .eq("id", userId);
 
             if (updateError) throw updateError;
 
-            onComplete();
+            onComplete({ full_name: fullName, avatar_url: avatarUrl });
         } catch (err: any) {
             console.error("Error updating profile:", err);
             setError("Erro ao salvar perfil. Tente novamente.");
@@ -62,8 +98,31 @@ export default function CompleteProfileModal({ isOpen, userId, onComplete, initi
 
                 {/* Header */}
                 <div className="bg-[#13ec5b] p-6 text-center">
-                    <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center mx-auto mb-3 shadow-lg">
-                        <span className="material-symbols-outlined text-3xl text-[#13ec5b]">person_edit</span>
+                    <div className="relative mx-auto mb-3 w-24 h-24">
+                        <label
+                            className={`block w-24 h-24 rounded-full bg-white shadow-lg cursor-pointer overflow-hidden border-4 border-white transition-transform hover:scale-105 ${isUploading ? 'opacity-50' : ''}`}
+                        >
+                            <input
+                                type="file"
+                                className="hidden"
+                                accept="image/*"
+                                onChange={handleAvatarUpload}
+                                disabled={isUploading}
+                            />
+                            {avatarUrl ? (
+                                <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
+                            ) : (
+                                <div className="w-full h-full flex items-center justify-center text-[#13ec5b]">
+                                    <span className="material-symbols-outlined text-4xl">add_a_photo</span>
+                                </div>
+                            )}
+
+                            {isUploading && (
+                                <div className="absolute inset-0 flex items-center justify-center bg-black/30 text-white">
+                                    <span className="material-symbols-outlined animate-spin text-2xl">refresh</span>
+                                </div>
+                            )}
+                        </label>
                     </div>
                     <h2 className="text-2xl font-black text-[#0d1b12] uppercase tracking-tight">Complete seu Perfil</h2>
                     <p className="text-[#0d1b12]/80 font-medium text-sm mt-1">Para entrar em campo, precisamos dos seus dados!</p>

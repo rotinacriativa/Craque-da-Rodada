@@ -46,7 +46,12 @@ export default function DashboardLayout({
                     // Check Completion
                     // We consider incomplete if: no name OR no position OR no skill_level
                     if (!profile.full_name || !profile.position || !profile.skill_level) {
-                        setInitialProfileData(profile);
+                        setInitialProfileData({
+                            full_name: profile.full_name,
+                            position: profile.position,
+                            skill_level: profile.skill_level,
+                            avatar_url: profile.avatar_url
+                        });
                         setIsProfileCompleteModalOpen(true);
                     }
 
@@ -150,9 +155,13 @@ export default function DashboardLayout({
                     isOpen={isProfileCompleteModalOpen}
                     userId={currentUserId}
                     initialData={initialProfileData}
-                    onComplete={() => {
+                    onComplete={(data) => {
                         setIsProfileCompleteModalOpen(false);
-                        window.location.reload(); // Reload to update UI everywhere
+                        if (data) {
+                            if (data.full_name) setUserName(data.full_name.split(' ')[0]);
+                            if (data.avatar_url) setUserAvatar(data.avatar_url);
+                        }
+                        router.refresh();
                     }}
                 />
             )}
