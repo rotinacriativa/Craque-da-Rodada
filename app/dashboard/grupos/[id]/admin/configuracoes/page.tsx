@@ -519,7 +519,7 @@ export default function GroupSettingsPage({ params }: { params: Promise<{ id: st
                                     </div>
                                 </div>
                                 <div>
-                                    <label className="block text-xs font-bold text-gray-500 mb-1 uppercase">Preço Avulso</label>
+                                    <label className="block text-xs font-bold text-gray-500 mb-1 uppercase">Preço Diarista</label>
                                     <div className="flex items-center gap-2">
                                         <span className="text-sm font-medium text-gray-400">R$</span>
                                         <input

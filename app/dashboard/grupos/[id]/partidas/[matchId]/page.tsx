@@ -410,7 +410,7 @@ export default function MatchDetailsPage({ params }: { params: Promise<{ id: str
                                                         ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-300 border-purple-200 dark:border-purple-800'
                                                         : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700'
                                                         }`}>
-                                                        {player.player_type || 'Avulso'}
+                                                        {player.player_type || 'Diarista'}
                                                     </span>
                                                 </td>
                                                 <td className="px-6 py-4 whitespace-nowrap">

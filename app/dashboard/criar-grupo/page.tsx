@@ -254,7 +254,7 @@ export default function CreateGroupPage() {
                                             </div>
                                         </div>
                                         <div>
-                                            <label className="block text-xs font-bold text-[#4c9a66] dark:text-gray-400 mb-1 ml-1 uppercase tracking-wide">Preço Avulso</label>
+                                            <label className="block text-xs font-bold text-[#4c9a66] dark:text-gray-400 mb-1 ml-1 uppercase tracking-wide">Preço Diarista</label>
                                             <div className="flex items-center gap-2 bg-white dark:bg-[#1a3322] border border-[#e7f3eb] dark:border-gray-600 rounded-xl px-4 py-2">
                                                 <span className="text-gray-400 text-sm">R$</span>
                                                 <input

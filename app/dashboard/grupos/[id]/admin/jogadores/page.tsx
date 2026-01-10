@@ -8,7 +8,7 @@ interface Member {
     user_id: string;
     role: string;
     status: string; // 'active', 'pending', 'banned'
-    payment_type: 'MENSALISTA' | 'AVULSO' | 'CONVIDADO';
+    payment_type: 'MENSALISTA' | 'DIARISTA' | 'CONVIDADO';
     monthly_price_override: number | null;
     joined_at: string;
     profiles: {
@@ -121,7 +121,7 @@ export default function PlayersAdminPage({ params }: { params: Promise<{ id: str
     // Stats
     const totalPlayers = members.length;
     const mensalistas = members.filter(m => m.payment_type === 'MENSALISTA').length;
-    const avulsos = members.filter(m => m.payment_type === 'AVULSO').length;
+    const diaristas = members.filter(m => m.payment_type === 'DIARISTA').length;
     const convidados = members.filter(m => m.payment_type === 'CONVIDADO').length;
     const inativos = members.filter(m => m.status === 'banned' || m.status === 'inactive').length;
 
@@ -135,8 +135,8 @@ export default function PlayersAdminPage({ params }: { params: Promise<{ id: str
             ? true
             : typeFilter === "Mensalistas"
                 ? member.payment_type === 'MENSALISTA'
-                : typeFilter === "Avulsos"
-                    ? member.payment_type === 'AVULSO'
+                : typeFilter === "Diaristas"
+                    ? member.payment_type === 'DIARISTA'
                     : member.payment_type === 'CONVIDADO';
 
         const matchesStatus = statusFilter === "Status: Todos"
@@ -220,8 +220,8 @@ export default function PlayersAdminPage({ params }: { params: Promise<{ id: str
                             <span className="material-symbols-outlined icon-filled">sports_soccer</span>
                         </div>
                         <div>
-                            <p className="text-sm font-medium text-slate-500 dark:text-slate-400">Avulsos</p>
-                            <p className="text-2xl font-black text-slate-900 dark:text-white">{avulsos}</p>
+                            <p className="text-sm font-medium text-slate-500 dark:text-slate-400">Diaristas</p>
+                            <p className="text-2xl font-black text-slate-900 dark:text-white">{diaristas}</p>
                         </div>
                     </div>
                     <div className="bg-white dark:bg-[#1a2c22] p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex items-center gap-4">
@@ -257,7 +257,7 @@ export default function PlayersAdminPage({ params }: { params: Promise<{ id: str
                         >
                             <option>Todos os tipos</option>
                             <option>Mensalistas</option>
-                            <option>Avulsos</option>
+                            <option>Diaristas</option>
                             <option>Convidados</option>
                         </select>
                         <select
@@ -328,12 +328,12 @@ export default function PlayersAdminPage({ params }: { params: Promise<{ id: str
                                                     onChange={(e) => handleUpdatePaymentType(member.id, e.target.value)}
                                                     className={`text-xs font-bold border rounded-full px-2 py-0.5 outline-none cursor-pointer transition-colors ${member.payment_type === 'MENSALISTA'
                                                         ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800'
-                                                        : member.payment_type === 'AVULSO'
+                                                        : member.payment_type === 'DIARISTA'
                                                             ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-800'
                                                             : 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400 border-purple-200 dark:border-purple-800'
                                                         }`}
                                                 >
-                                                    <option value="AVULSO">Avulso</option>
+                                                    <option value="DIARISTA">Diarista</option>
                                                     <option value="MENSALISTA">Mensalista</option>
                                                     <option value="CONVIDADO">Convidado</option>
                                                 </select>
