@@ -21,7 +21,7 @@ export default async function DashboardPage() {
         // 1. Fetch Next Match
         const { data: matches } = await supabase
             .from('matches')
-            .select('*, groups(name), match_participants!inner(user_id)')
+            .select('*, groups(name, logo_url), match_participants!inner(user_id)')
             .eq('match_participants.user_id', user.id)
             .gte('date', new Date().toISOString().split('T')[0])
             .order('date', { ascending: true })
@@ -141,7 +141,9 @@ export default async function DashboardPage() {
                             date: nextMatch.date,
                             start_time: nextMatch.start_time,
                             location: nextMatch.location,
-                            group_id: nextMatch.group_id
+                            group_id: nextMatch.group_id,
+                            image_url: nextMatch.image_url,
+                            group_logo_url: nextMatch.groups?.logo_url
                         }}
                         groupName={nextMatch.groups?.name || 'Grupo'}
                         participants={nextMatchParticipants}

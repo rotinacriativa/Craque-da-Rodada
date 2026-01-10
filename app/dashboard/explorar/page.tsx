@@ -25,7 +25,7 @@ export default function ExplorePage() {
 
             const { data, error } = await supabase
                 .from('matches')
-                .select('*, group:groups(name, image_url), match_participants(count)')
+                .select('*, group:groups(name, image_url, logo_url), match_participants(count)')
                 .gte('date', today)
                 .order('date', { ascending: true })
                 .order('start_time', { ascending: true })
@@ -84,13 +84,13 @@ export default function ExplorePage() {
     return (
         <div className="flex flex-col gap-8 w-full max-w-[1280px] mx-auto">
             {/* Page Header & Smart Search */}
-            <div className="flex flex-col items-center gap-6 w-full text-center py-8">
-                <div className="space-y-3 max-w-2xl">
+            <div className="flex flex-col items-center gap-6 w-full text-center py-4 md:py-8">
+                <div className="space-y-2 max-w-2xl">
                     <h2 className="text-3xl md:text-5xl font-black tracking-tighter text-[#0d1b12] dark:text-white">
-                        Encontre sua <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#13ec5b] to-green-600">próxima pelada</span>
+                        Bora jogar hoje, <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#13ec5b] to-green-600">Craque?</span>
                     </h2>
-                    <p className="text-gray-500 dark:text-gray-400 text-lg md:text-xl">
-                        Busque por nome, bairro ou cole um <span className="text-[#0d1b12] dark:text-white font-bold">código de convite</span> para entrar direto.
+                    <p className="text-gray-500 dark:text-gray-400 text-base md:text-lg font-medium">
+                        Explore partidas na sua região ou use um <span className="text-[#0d1b12] dark:text-white font-bold">código de convite</span>.
                     </p>
                 </div>
 
@@ -103,7 +103,7 @@ export default function ExplorePage() {
                     </div>
                     <input
                         className={`block w-full pl-14 pr-36 py-5 bg-white dark:bg-[#1a2c20] border-2 ${isInviteCode ? 'border-[#13ec5b] ring-4 ring-[#13ec5b]/10' : 'border-transparent focus:border-[#13ec5b]/50'} text-[#0d1b12] dark:text-white placeholder-gray-400 rounded-3xl shadow-lg focus:outline-none focus:ring-0 transition-all text-lg font-medium`}
-                        placeholder="Nome da pelada ou código de convite..."
+                        placeholder="Digite o nome, bairro ou código..."
                         type="text"
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
@@ -164,7 +164,7 @@ export default function ExplorePage() {
                             className="group relative flex flex-col bg-white dark:bg-[#1a2c20] rounded-[2rem] p-3 shadow-sm hover:shadow-xl hover:shadow-[#13ec5b]/10 transition-all duration-300 border border-transparent dark:border-[#2a4535] hover:border-[#13ec5b]/20 dark:hover:border-[#13ec5b]/20 cursor-pointer"
                         >
                             <div className="relative aspect-[4/3] w-full overflow-hidden rounded-[1.5rem] bg-gray-200 dark:bg-[#102216]">
-                                <div className="w-full h-full bg-cover bg-center transition-transform duration-500 group-hover:scale-105" style={{ backgroundImage: `url('${match.group?.image_url || "https://images.unsplash.com/photo-1579952363873-27f3bade9f55?q=80&w=1000&auto=format&fit=crop"}')` }}></div>
+                                <div className="w-full h-full bg-cover bg-center transition-transform duration-500 group-hover:scale-105" style={{ backgroundImage: `url('${match.image_url || match.group?.logo_url || match.group?.image_url || "https://images.unsplash.com/photo-1579952363873-27f3bade9f55?q=80&w=1000&auto=format&fit=crop"}')` }}></div>
                                 <div className="absolute top-3 left-3 bg-white/90 dark:bg-black/80 backdrop-blur text-xs font-bold px-3 py-1.5 rounded-full text-[#0d1b12] dark:text-white shadow-sm flex items-center gap-1">
                                     <span className="material-symbols-outlined text-[14px] text-[#13ec5b]">schedule</span>
                                     {formatDate(match.date, match.start_time)}
@@ -191,9 +191,14 @@ export default function ExplorePage() {
                                             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#13ec5b] opacity-75"></span>
                                             <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-[#13ec5b]"></span>
                                         </span>
-                                        <span className="text-xs font-bold text-[#13ec5b]">
-                                            {match.match_participants?.[0]?.count || 0}/{match.capacity || 20} confirmados
-                                        </span>
+                                        <div className="flex flex-col leading-none">
+                                            <span className="text-xs font-bold text-[#0d1b12] dark:text-white">
+                                                Restam {(match.capacity || 20) - (match.match_participants?.[0]?.count || 0)} vagas
+                                            </span>
+                                            <span className="text-[10px] text-gray-400 font-medium">
+                                                {match.match_participants?.[0]?.count || 0}/{match.capacity || 20} confirmados
+                                            </span>
+                                        </div>
                                     </div>
                                     <div className="text-xs text-gray-400 font-bold">
                                         {match.group?.name || "Grupo"}
@@ -214,12 +219,12 @@ export default function ExplorePage() {
                         <span className="material-symbols-outlined text-[32px]">add</span>
                     </div>
                     <h3 className="text-xl font-bold text-[#0d1b12] dark:text-white text-center mb-2">Não encontrou?</h3>
-                    <p className="text-sm text-gray-500 dark:text-gray-400 text-center mb-6">Crie sua própria pelada e convide seus amigos para jogar.</p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400 text-center mb-6 px-4">Não achou o que queria? Crie a sua e chame a galera.</p>
                     <button
                         onClick={() => router.push('/dashboard/criar-grupo')}
                         className="w-full bg-[#13ec5b] hover:bg-[#0fd650] text-[#0d1b12] font-bold py-3 rounded-xl transition-all shadow-lg shadow-[#13ec5b]/20"
                     >
-                        Criar Pelada
+                        Organizar meu Jogo
                     </button>
                 </article>
             </div>

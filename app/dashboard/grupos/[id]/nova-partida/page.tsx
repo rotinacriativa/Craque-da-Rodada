@@ -24,6 +24,10 @@ function CreateMatchContent() {
 
     const [isLoading, setIsLoading] = useState(false);
 
+    // Image Upload
+    const [imageUrl, setImageUrl] = useState<string | null>(null);
+    const [uploadingImage, setUploadingImage] = useState(false);
+
     // Core Form Data
     const [formData, setFormData] = useState({
         date: "",
@@ -48,6 +52,7 @@ function CreateMatchContent() {
     // Group Financial Rules
     const [groupRules, setGroupRules] = useState<{ type: string; monthly: number; perMatch: number } | null>(null);
     const [autoPresence, setAutoPresence] = useState(false);
+    const [groupLogo, setGroupLogo] = useState<string | null>(null);
 
     // Map State
     const [isMapOpen, setIsMapOpen] = useState(false);
@@ -58,7 +63,7 @@ function CreateMatchContent() {
         const fetchGroupDefaults = async () => {
             const { data } = await supabase
                 .from('groups')
-                .select('price_avulso, price_mensalista, financial_type, auto_presenca_mensalista')
+                .select('price_avulso, price_mensalista, financial_type, auto_presenca_mensalista, logo_url')
                 .eq('id', groupId)
                 .single();
 
@@ -81,6 +86,7 @@ function CreateMatchContent() {
                     perMatch: data.price_avulso || 0
                 });
                 setAutoPresence(data.auto_presenca_mensalista || false);
+                if (data.logo_url) setGroupLogo(data.logo_url);
             }
         };
         fetchGroupDefaults();
@@ -117,6 +123,33 @@ function CreateMatchContent() {
         });
     };
 
+    const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+        try {
+            if (!event.target.files || event.target.files.length === 0) return;
+            setUploadingImage(true);
+            const file = event.target.files[0];
+            const fileExt = file.name.split('.').pop();
+            const fileName = `match-${Date.now()}.${fileExt}`;
+            const filePath = `${fileName}`;
+
+            const { error: uploadError } = await supabase.storage
+                .from('group-logos') // Reusing group-logos bucket for convenience
+                .upload(filePath, file);
+
+            if (uploadError) throw uploadError;
+
+            const { data: { publicUrl } } = supabase.storage.from('group-logos').getPublicUrl(filePath);
+            setImageUrl(publicUrl);
+
+        } catch (error: any) {
+            console.error("Error uploading image:", error);
+            alert("Erro ao fazer upload da imagem. Tente novamente.");
+        } finally {
+            setUploadingImage(false);
+        }
+    };
+
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsLoading(true);
@@ -149,7 +182,8 @@ function CreateMatchContent() {
                 longitude: formData.lon ? parseFloat(formData.lon) : null,
                 capacity: parseInt(formData.capacity),
                 price: parseFloat(formData.price.replace(',', '.')),
-                gender: "Misto", // Simplified for now or add to form if needed
+                gender: "Misto",
+                image_url: imageUrl,
             };
 
             const { data, error } = await supabase
@@ -242,6 +276,42 @@ function CreateMatchContent() {
                 <div className="bg-white dark:bg-[#1a2e22] rounded-3xl shadow-xl shadow-slate-200/50 dark:shadow-black/20 border border-slate-100 dark:border-slate-800 overflow-hidden">
                     {/* Main Form */}
                     <form onSubmit={handleSubmit} className="p-6 md:p-8 flex flex-col gap-8">
+
+                        {/* Match Image (Optional) */}
+                        <div className="flex flex-col gap-2">
+                            <span className="text-slate-700 dark:text-slate-300 font-semibold pl-1">Capa da Partida (Opcional)</span>
+                            <div className="flex items-center gap-4 p-4 bg-white dark:bg-[#1a3322] rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm">
+                                <div className="group relative flex h-24 w-24 flex-shrink-0 cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-[#cfe7d7] bg-[#f8fcf9] hover:border-[#13ec5b] hover:bg-[#f0fdf4] dark:border-gray-600 dark:bg-[#1a3322] dark:hover:border-[#13ec5b] dark:hover:bg-[#2a4533] transition-all overflow-hidden">
+                                    {imageUrl ? (
+                                        <img src={imageUrl} alt="Match Preview" className="absolute inset-0 w-full h-full object-cover" />
+                                    ) : groupLogo ? (
+                                        <img src={groupLogo} alt="Group Logo Default" className="absolute inset-0 w-full h-full object-cover opacity-50 grayscale group-hover:grayscale-0 group-hover:opacity-100 transition-all" />
+                                    ) : (
+                                        <div className="flex flex-col items-center justify-center text-[#4c9a66] dark:text-gray-400 group-hover:text-[#13ec5b] transition-colors">
+                                            <span className="material-symbols-outlined text-2xl mb-1">add_a_photo</span>
+                                        </div>
+                                    )}
+
+                                    {uploadingImage && (
+                                        <div className="absolute inset-0 bg-white/80 dark:bg-black/50 flex items-center justify-center z-10">
+                                            <span className="size-5 border-2 border-[#13ec5b] border-t-transparent rounded-full animate-spin"></span>
+                                        </div>
+                                    )}
+
+                                    <input
+                                        className="absolute inset-0 opacity-0 cursor-pointer disabled:cursor-not-allowed"
+                                        type="file"
+                                        onChange={handleImageUpload}
+                                        accept="image/*"
+                                        disabled={uploadingImage}
+                                    />
+                                </div>
+                                <div className="flex flex-col text-sm text-slate-500 dark:text-gray-400">
+                                    <p className="font-medium text-slate-900 dark:text-white mb-0.5">Definir imagem personalizada</p>
+                                    <p className="text-xs">Se não escolher, vamos usar o logo do grupo.</p>
+                                </div>
+                            </div>
+                        </div>
 
                         {/* Date & Time Row */}
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

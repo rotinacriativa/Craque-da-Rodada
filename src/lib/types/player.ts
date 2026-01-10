@@ -41,6 +41,7 @@ export interface Match {
   price: number;
   capacity: number;
   group_id: string;
+  image_url?: string;
   created_at?: string;
   updated_at?: string;
 }

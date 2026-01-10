@@ -12,6 +12,8 @@ interface NextMatchCardProps {
         start_time: string;
         location: string;
         group_id: string;
+        image_url?: string;
+        group_logo_url?: string;
     };
     groupName: string;
     participants: Array<{
@@ -26,7 +28,7 @@ export function NextMatchCard({ match, groupName, participants }: NextMatchCardP
             {/* Card Image */}
             <div
                 className="w-full md:w-2/5 aspect-video md:aspect-auto bg-center bg-no-repeat bg-cover rounded-2xl md:rounded-3xl relative overflow-hidden group"
-                style={{ backgroundImage: "url('https://lh3.googleusercontent.com/aida-public/AB6AXuDn1zLjEVJzzbfA6TQsi4mPWz6DPyZISrjM0oARG6tm3U10eaDmXgvuI2GeKtu4JeDz9JDEk-owaU-S7vJfd4sIzvuVbq7ayVwMnDDe-3flpSS5MSRFQh0NF_iQA8zsBmgzUMSvcsWVjM52PW6HwezkjqUIJm0WTiw7GcwK6tIPhcG6iLsbKByd886Zta5l-e6_GVFpQy_33J5uZ4z-sdbLRaR8dQjp-08S4aOYRmdiQB_QUUL1Sj6KeNbAa1T6L-lyQfMRCKjY-Rg')" }}
+                style={{ backgroundImage: `url('${match.image_url || match.group_logo_url || "https://images.unsplash.com/photo-1579952363873-27f3bade9f55?q=80&w=1000&auto=format&fit=crop"}')` }}
             >
                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent opacity-80" />
 
