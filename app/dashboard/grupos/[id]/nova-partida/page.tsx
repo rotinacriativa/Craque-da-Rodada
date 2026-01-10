@@ -268,8 +268,8 @@ function CreateMatchContent() {
                         <span className="material-symbols-outlined">arrow_back</span>
                     </Link>
                     <div>
-                        <h1 className="text-3xl md:text-4xl font-black text-slate-900 dark:text-white tracking-tight">Marcar Jogo</h1>
-                        <p className="text-slate-500 dark:text-slate-400 font-medium">Agende o próximo jogo da galera</p>
+                        <h1 className="text-3xl md:text-4xl font-black text-slate-900 dark:text-white tracking-tight">Dados do Jogo</h1>
+                        <p className="text-slate-500 dark:text-slate-400 font-medium">Vamos marcar pra quando?</p>
                     </div>
                 </div>
 
@@ -458,7 +458,7 @@ function CreateMatchContent() {
                                 {/* Local / Quadra Section */}
                                 <div className="col-span-1 md:col-span-2 space-y-4">
                                     <div className="flex items-center justify-between">
-                                        <h3 className="text-lg font-bold text-slate-800 dark:text-white">Local / Quadra</h3>
+                                        <h3 className="text-lg font-bold text-slate-800 dark:text-white">Onde vai ser?</h3>
                                     </div>
                                     <div className="bg-slate-50 dark:bg-[#15231a] p-1 rounded-xl border border-slate-200 dark:border-slate-700">
                                         <AddressAutocomplete

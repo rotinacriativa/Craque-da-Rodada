@@ -3,10 +3,10 @@ export function DashboardHeader() {
         <section className="flex flex-col md:flex-row md:items-end justify-between gap-4">
             <div className="flex flex-col gap-2">
                 <h3 className="text-[#0d1b12] dark:text-white text-3xl md:text-4xl font-black leading-tight tracking-[-0.033em]">
-                    Bem-vindo de volta, <span className="text-[#13ec5b]">Jogador!</span>
+                    E aí, <span className="text-[#13ec5b]">Craque!</span>
                 </h3>
                 <p className="text-[#4c9a66] text-base font-normal leading-normal max-w-xl">
-                    Aqui está o resumo dos seus jogos. Você tem convites pendentes e partidas confirmadas.
+                    Bora jogar? Marque seu próximo jogo ou confira seus convites.
                 </p>
             </div>
 

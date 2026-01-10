@@ -31,8 +31,8 @@ export function EmptyMatchState({ onCreateMatch, hasGroups = false }: EmptyMatch
                     href={hasGroups ? "/dashboard/grupos" : "/dashboard/criar-grupo"}
                     className="w-full h-14 rounded-full bg-[#13ec5b] hover:bg-[#0fd650] text-[#0d1b12] text-lg font-bold flex items-center justify-center gap-2 transition-all shadow-xl shadow-[#13ec5b]/25 hover:scale-105"
                 >
-                    <span className="material-symbols-outlined">add_circle</span>
-                    {hasGroups ? "Criar Nova Pelada" : "Criar Time"}
+                    <span className="material-symbols-outlined">sports_soccer</span>
+                    {hasGroups ? "Marcar Jogo" : "Organizar Turma"}
                 </Link>
 
                 <Link

@@ -136,8 +136,8 @@ export default function CreateGroupPage() {
 
                 {/* Header */}
                 <div className="text-center mb-4">
-                    <h2 className="text-3xl font-black tracking-tight text-[#0d1b12] dark:text-white mb-2">Criar Nova Pelada</h2>
-                    <p className="text-[#4c9a66] dark:text-gray-400">É vapt-vupt! Só o nome já resolve.</p>
+                    <h2 className="text-3xl font-black tracking-tight text-[#0d1b12] dark:text-white mb-2">Organizar Turma</h2>
+                    <p className="text-[#4c9a66] dark:text-gray-400">Crie um espaço fixo para somar estatísticas e organizar seus jogos.</p>
                 </div>
 
                 {error && (
@@ -166,8 +166,8 @@ export default function CreateGroupPage() {
                                                 <span className="size-5 border-2 border-[#13ec5b] border-t-transparent rounded-full animate-spin"></span>
                                             ) : (
                                                 <>
-                                                    <span className="material-symbols-outlined text-2xl mb-1">add_a_photo</span>
-                                                    <span className="text-[10px] font-bold uppercase">Logo</span>
+                                                    <span className="material-symbols-outlined text-2xl mb-1">shield</span>
+                                                    <span className="text-[10px] font-bold uppercase">Escudo</span>
                                                 </>
                                             )}
                                         </div>
@@ -184,7 +184,7 @@ export default function CreateGroupPage() {
 
                             {/* Name Input */}
                             <div className="flex-1 w-full">
-                                <label className="block text-sm font-bold text-[#0d1b12] dark:text-white mb-2 ml-1">Nome da Pelada <span className="text-red-500">*</span></label>
+                                <label className="block text-sm font-bold text-[#0d1b12] dark:text-white mb-2 ml-1">Nome da Turma <span className="text-red-500">*</span></label>
                                 <input
                                     value={name}
                                     onChange={(e) => setName(e.target.value)}
@@ -343,7 +343,7 @@ export default function CreateGroupPage() {
                                     <span className="size-6 border-3 border-[#0d1b12] border-t-transparent rounded-full animate-spin"></span>
                                 ) : (
                                     <>
-                                        <span>Criar Pelada e Começar</span>
+                                        <span>Criar Turma e Marcar Jogo</span>
                                         <span className="material-symbols-outlined text-2xl">rocket_launch</span>
                                     </>
                                 )}
