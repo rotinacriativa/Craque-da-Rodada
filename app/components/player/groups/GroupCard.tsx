@@ -6,6 +6,7 @@ interface GroupCardProps {
         name: string;
         description?: string;
         image_url?: string;
+        logo_url?: string;
     };
     isAdmin?: boolean;
 }
@@ -18,9 +19,9 @@ export function GroupCard({ group, isAdmin = false }: GroupCardProps) {
         >
             <div className="flex items-start justify-between mb-4">
                 <div className="size-14 rounded-2xl bg-gray-100 dark:bg-[#102216] bg-cover bg-center border-2 border-white dark:border-[#2a4535] shadow-sm"
-                    style={{ backgroundImage: group.image_url ? `url('${group.image_url}')` : 'none' }}
+                    style={{ backgroundImage: (group.logo_url || group.image_url) ? `url('${group.logo_url || group.image_url}')` : 'none' }}
                 >
-                    {!group.image_url && (
+                    {(!group.logo_url && !group.image_url) && (
                         <span className="flex h-full w-full items-center justify-center text-2xl">⚽</span>
                     )}
                 </div>
