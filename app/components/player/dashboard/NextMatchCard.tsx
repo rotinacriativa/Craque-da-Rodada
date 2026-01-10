@@ -1,3 +1,5 @@
+"use client";
+
 import Link from "next/link";
 import { formatDateForMatchList } from "../../../../src/lib/utils";
 import ShareButton from "../../../components/ShareButton";

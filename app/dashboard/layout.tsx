@@ -116,7 +116,7 @@ export default function DashboardLayout({
 
                 <Link className={linkClass("/dashboard/grupos")} href="/dashboard/grupos" onClick={onLinkClick}>
                     <span className="material-symbols-outlined" style={iconStyle("/dashboard/grupos")}>groups</span>
-                    <span>Minhas Peladas</span>
+                    <span>Meus Times</span>
                 </Link>
 
                 <Link className={linkClass("/dashboard/ranking")} href="/dashboard/ranking" onClick={onLinkClick}>
@@ -188,7 +188,7 @@ export default function DashboardLayout({
                 <div className="p-6 border-t border-[#e7f3eb] dark:border-[#2a4535]">
                     <Link href="/dashboard/grupos" className="w-full group flex items-center justify-center gap-2 bg-[#0d1b12] dark:bg-white text-white dark:text-[#0d1b12] py-3.5 rounded-full font-bold hover:opacity-90 hover:shadow-lg transition-all">
                         <span className="material-symbols-outlined text-xl group-hover:rotate-90 transition-transform">add</span>
-                        <span className="truncate">Criar Nova Pelada</span>
+                        <span className="truncate">Criar Time</span>
                     </Link>
                 </div>
             </aside>
@@ -224,7 +224,7 @@ export default function DashboardLayout({
                         <div className="p-4 border-t border-[#e7f3eb] dark:border-[#2a4535]">
                             <Link href="/dashboard/grupos" className="w-full group flex items-center justify-center gap-2 bg-[#0d1b12] dark:bg-white text-white dark:text-[#0d1b12] py-3.5 rounded-full font-bold hover:opacity-90 hover:shadow-lg transition-all" onClick={() => setIsMobileMenuOpen(false)}>
                                 <span className="material-symbols-outlined text-xl group-hover:rotate-90 transition-transform">add</span>
-                                <span className="truncate">Criar Nova Pelada</span>
+                                <span className="truncate">Criar Time</span>
                             </Link>
                         </div>
                     </aside>

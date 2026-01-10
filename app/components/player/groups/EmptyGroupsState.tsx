@@ -22,7 +22,7 @@ export function EmptyGroupsState() {
                 className="h-14 px-8 rounded-full bg-[#13ec5b] hover:bg-[#0fd650] text-[#0d1b12] font-bold flex items-center gap-2 transition-all shadow-xl shadow-[#13ec5b]/20 hover:scale-105"
             >
                 <span className="material-symbols-outlined">add_circle</span>
-                Criar Pelada
+                Criar Time
             </Link>
         </div>
     );

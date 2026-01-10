@@ -147,7 +147,7 @@ export default async function DashboardPage() {
                         participants={nextMatchParticipants}
                     />
                 ) : (
-                    <EmptyMatchState />
+                    <EmptyMatchState hasGroups={stats.organized > 0} />
                 )}
             </section>
 

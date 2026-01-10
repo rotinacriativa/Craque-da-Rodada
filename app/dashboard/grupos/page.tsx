@@ -65,7 +65,7 @@ export default function GroupsPage() {
             <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
                 <div>
                     <h1 className="text-3xl md:text-4xl font-black text-[#0d1b12] dark:text-white tracking-tight mb-2">
-                        Minhas Peladas
+                        Meus Times
                     </h1>
                     <p className="text-[#4c9a66] dark:text-[#8baaa0]">
                         Gerencie seus jogos ou entre em uma nova turma.
@@ -78,14 +78,14 @@ export default function GroupsPage() {
                         className="h-12 px-6 rounded-full border-2 border-[#e7f3eb] dark:border-[#2a4535] text-[#0d1b12] dark:text-white font-bold flex items-center gap-2 hover:bg-[#f6f8f6] dark:hover:bg-[#1a2c20] transition-colors"
                     >
                         <span className="material-symbols-outlined">group_add</span>
-                        Entrar na Pelada
+                        Entrar no Time
                     </Link>
                     <Link
                         href="/dashboard/criar-grupo"
                         className="h-12 px-6 rounded-full bg-[#13ec5b] hover:bg-[#0fd650] text-[#0d1b12] font-bold flex items-center gap-2 transition-all shadow-lg shadow-[#13ec5b]/20"
                     >
                         <span className="material-symbols-outlined">add_circle</span>
-                        Criar Pelada
+                        Criar Time
                     </Link>
                 </div>
             </div>

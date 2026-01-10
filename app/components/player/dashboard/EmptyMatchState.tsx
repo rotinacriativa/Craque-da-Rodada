@@ -2,9 +2,10 @@ import Link from "next/link";
 
 interface EmptyMatchStateProps {
     onCreateMatch?: () => void;
+    hasGroups?: boolean;
 }
 
-export function EmptyMatchState({ onCreateMatch }: EmptyMatchStateProps) {
+export function EmptyMatchState({ onCreateMatch, hasGroups = false }: EmptyMatchStateProps) {
     return (
         <div className="flex flex-col items-center justify-center py-16 px-6 text-center rounded-[2.5rem] bg-white dark:bg-[#1a2c20] border border-[#e7f3eb] dark:border-[#2a4535] shadow-sm relative overflow-hidden">
             <div className="absolute top-0 left-0 w-full h-2 bg-[#13ec5b]" />
@@ -20,16 +21,18 @@ export function EmptyMatchState({ onCreateMatch }: EmptyMatchStateProps) {
             </h3>
 
             <p className="text-[#4c9a66] dark:text-[#8baaa0] mb-8 max-w-md text-lg leading-relaxed">
-                Crie seu grupo, chame a galera e esqueça a planilha. O jeito mais fácil de gerenciar sua pelada.
+                {hasGroups
+                    ? "Agende sua próxima partida e convoque os jogadores. Gerencie tudo por aqui."
+                    : "Crie seu grupo, chame a galera e esqueça a planilha. O jeito mais fácil de gerenciar sua pelada."}
             </p>
 
             <div className="flex flex-col items-center gap-4 w-full max-w-xs">
                 <Link
-                    href="/dashboard/criar-grupo"
+                    href={hasGroups ? "/dashboard/grupos" : "/dashboard/criar-grupo"}
                     className="w-full h-14 rounded-full bg-[#13ec5b] hover:bg-[#0fd650] text-[#0d1b12] text-lg font-bold flex items-center justify-center gap-2 transition-all shadow-xl shadow-[#13ec5b]/25 hover:scale-105"
                 >
                     <span className="material-symbols-outlined">add_circle</span>
-                    Criar Nova Pelada
+                    {hasGroups ? "Criar Nova Pelada" : "Criar Time"}
                 </Link>
 
                 <Link
