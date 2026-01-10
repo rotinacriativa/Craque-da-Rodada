@@ -25,24 +25,23 @@ export function ProfileHeader({
                 <div className="relative mb-4 group-hover:scale-105 transition-transform">
                     <div
                         className="size-32 rounded-full border-4 border-white dark:border-[#1a2e22] shadow-md bg-cover bg-center bg-gray-200"
-                        style={{
-                            backgroundImage: `url('${avatarUrl || "https://lh3.googleusercontent.com/aida-public/AB6AXuB3vt9JQw3REUMc3ih_xWDe-F6VKiXrMCAGPIhj4e9ra_bDGcwiVf7OxA2h6_FXedMT77YDVGJJGTBRfD6Kf0WEG45K41ENoWNGa7MOqAa3YHxkXtpSoZ-QSPJB0BU5U5SSyZJ_13xwBC5uS3PrHNoOnVhJXFDJu_Xtd2kv0Tk7wTwRDnQ6LLZxeO12-_ZQXRXoc-Ik6ck8yUSqOubRqzWXKl_He7aZAu6aUTzyjUZ39NroZW0od4wgYhK81XigTzv__kekDBnJNu4'}')` }}
-                                />
-          <input 
-            type="file" 
-            ref={fileInputRef} 
-            className="hidden" 
-            accept="image/*" 
-            onChange={onAvatarUpload} 
-          />
-          <button 
-            onClick={() => fileInputRef.current?.click()} 
-            className="absolute bottom-0 right-0 p-2 bg-[#0d1b12] text-white rounded-full hover:bg-[#13ec5b] hover:text-[#0d1b12] transition-colors shadow-lg border-2 border-white dark:border-[#1a2e22] cursor-pointer" 
-            title="Alterar foto"
-          >
-            <span className="material-symbols-outlined text-sm font-bold">photo_camera</span>
-          </button>
-        </div>
+                        style={{ backgroundImage: avatarUrl ? `url('${avatarUrl}')` : 'none' }}
+                    />
+                    <input
+                        type="file"
+                        ref={fileInputRef}
+                        className="hidden"
+                        accept="image/*"
+                        onChange={onAvatarUpload}
+                    />
+                    <button
+                        onClick={() => fileInputRef.current?.click()}
+                        className="absolute bottom-0 right-0 p-2 bg-[#0d1b12] text-white rounded-full hover:bg-[#13ec5b] hover:text-[#0d1b12] transition-colors shadow-lg border-2 border-white dark:border-[#1a2e22] cursor-pointer"
+                        title="Alterar foto"
+                    >
+                        <span className="material-symbols-outlined text-sm font-bold">photo_camera</span>
+                    </button>
+                </div>
 
                 <h2 className="text-2xl font-bold text-center text-[#0d1b12] dark:text-white">
                     {fullName || "Nome do Jogador"}
