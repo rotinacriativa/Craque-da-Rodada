@@ -6,6 +6,7 @@ import { use, useEffect, useState } from "react";
 import { supabase } from "../../../../../../src/lib/client";
 import { getResilientUser } from "../../../../../../src/lib/auth-helpers";
 import ConfirmationModal from "../../../../../components/ConfirmationModal";
+import AddPlayerModal from "../../../../../components/AddPlayerModal";
 import { formatDateForGroup } from "../../../../../../src/lib/utils";
 
 interface Match {
@@ -55,6 +56,7 @@ export default function MatchDetailsPage({ params }: { params: Promise<{ id: str
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
     const [isRemovingParticipant, setIsRemovingParticipant] = useState<string | null>(null);
+    const [isAddPlayerOpen, setIsAddPlayerOpen] = useState(false);
 
     const fetchData = async () => {
         try {
@@ -361,7 +363,10 @@ export default function MatchDetailsPage({ params }: { params: Promise<{ id: str
                                 <span className="material-symbols-outlined">shuffle</span>
                                 Sortear Times
                             </button>
-                            <button className="flex-1 lg:flex-none bg-[#13ec5b] hover:bg-[#0fd652] text-slate-900 font-bold px-5 py-2.5 rounded-xl shadow-lg shadow-[#13ec5b]/20 flex items-center justify-center gap-2 transition-all transform active:scale-95 text-sm">
+                            <button
+                                onClick={() => setIsAddPlayerOpen(true)}
+                                className="flex-1 lg:flex-none bg-[#13ec5b] hover:bg-[#0fd652] text-slate-900 font-bold px-5 py-2.5 rounded-xl shadow-lg shadow-[#13ec5b]/20 flex items-center justify-center gap-2 transition-all transform active:scale-95 text-sm"
+                            >
                                 <span className="material-symbols-outlined icon-filled">person_add</span>
                                 Adicionar Jogador
                             </button>
@@ -490,6 +495,17 @@ export default function MatchDetailsPage({ params }: { params: Promise<{ id: str
                 type="danger"
                 isLoading={isDeleting}
             />
+
+            {match && (
+                <AddPlayerModal
+                    isOpen={isAddPlayerOpen}
+                    onClose={() => setIsAddPlayerOpen(false)}
+                    matchId={matchId}
+                    groupId={match.group_id}
+                    existingPlayerIds={participants.map(p => p.user_id)}
+                    onAdd={fetchData}
+                />
+            )}
         </div>
     );
 }

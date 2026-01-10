@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Lexend } from "next/font/google";
 import { usePathname, useRouter } from "next/navigation";
 import OnboardingModal from "../components/OnboardingModal";
+import CompleteProfileModal from "../components/CompleteProfileModal";
 import { supabase } from "../../src/lib/client";
 import { getResilientUser } from "../../src/lib/auth-helpers";
 import { cn } from "../../src/lib/utils";
@@ -24,24 +25,42 @@ export default function DashboardLayout({
 
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
+    // Profile Completion State
+    const [isProfileCompleteModalOpen, setIsProfileCompleteModalOpen] = useState(false);
+    const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+    const [initialProfileData, setInitialProfileData] = useState<any>(null);
+
     useEffect(() => {
         async function fetchUser() {
             const user = await getResilientUser(supabase);
             if (user) {
+                setCurrentUserId(user.id);
                 // Try to get profile data first
                 const { data: profile } = await supabase
                     .from('profiles')
-                    .select('full_name, avatar_url')
+                    .select('full_name, avatar_url, position, skill_level')
                     .eq('id', user.id)
                     .single();
 
-                if (profile && profile.full_name) {
-                    setUserName(profile.full_name.split(' ')[0]); // Display first name
-                    setUserAvatar(profile.avatar_url);
+                if (profile) {
+                    // Check Completion
+                    // We consider incomplete if: no name OR no position OR no skill_level
+                    if (!profile.full_name || !profile.position || !profile.skill_level) {
+                        setInitialProfileData(profile);
+                        setIsProfileCompleteModalOpen(true);
+                    }
+
+                    if (profile.full_name) {
+                        setUserName(profile.full_name.split(' ')[0]); // Display first name
+                        setUserAvatar(profile.avatar_url);
+                    }
                 } else if (user.user_metadata?.full_name) {
                     setUserName(user.user_metadata.full_name.split(' ')[0]);
+                    // If no profile row at all, we should probably trigger it too, but let's assume row exists from trigger
+                    setIsProfileCompleteModalOpen(true);
                 } else {
                     setUserName("Jogador");
+                    setIsProfileCompleteModalOpen(true);
                 }
             }
         }
@@ -126,6 +145,17 @@ export default function DashboardLayout({
     return (
         <div className={`${lexend.className} bg-[#f6f8f6] dark:bg-[#102216] font-sans text-[#0d1b12] dark:text-white h-screen overflow-hidden flex selection:bg-[#13ec5b] selection:text-[#0d1b12]`}>
             <OnboardingModal />
+            {currentUserId && (
+                <CompleteProfileModal
+                    isOpen={isProfileCompleteModalOpen}
+                    userId={currentUserId}
+                    initialData={initialProfileData}
+                    onComplete={() => {
+                        setIsProfileCompleteModalOpen(false);
+                        window.location.reload(); // Reload to update UI everywhere
+                    }}
+                />
+            )}
             {/* Material Symbols Font */}
             <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" />
 

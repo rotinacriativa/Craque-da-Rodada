@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { use, useEffect, useState } from "react";
 import { supabase } from "../../../../src/lib/client";
 import { getResilientUser } from "../../../../src/lib/auth-helpers";
@@ -19,6 +19,7 @@ export default function GroupDashboard({ params }: { params: Promise<{ id: strin
     const { id } = use(params);
     const groupId = id;
     const router = useRouter();
+    const searchParams = useSearchParams();
 
     const [currentUser, setCurrentUser] = useState<any>(null);
     const [matches, setMatches] = useState<any[]>([]);
@@ -32,6 +33,7 @@ export default function GroupDashboard({ params }: { params: Promise<{ id: strin
     // Modals
     const [isLeaveModalOpen, setIsLeaveModalOpen] = useState(false);
     const [isLeaving, setIsLeaving] = useState(false);
+    const [isJoining, setIsJoining] = useState(false);
 
     // Fetch Data Function
     const fetchData = async () => {
@@ -136,7 +138,10 @@ export default function GroupDashboard({ params }: { params: Promise<{ id: strin
 
     const handleInvite = async () => {
         if (!group) return;
-        const url = window.location.href;
+        // Adiciona ?join=1 para forçar entrada automática
+        const urlObj = new URL(window.location.href);
+        urlObj.searchParams.set('join', '1');
+        const url = urlObj.toString();
 
         // Função de cópia com múltiplos fallbacks
         const copyToClipboard = async (text: string): Promise<boolean> => {
@@ -176,8 +181,10 @@ export default function GroupDashboard({ params }: { params: Promise<{ id: strin
             url: url,
         };
 
-        // Tentar compartilhamento nativo primeiro (mobile)
-        if (navigator.share) {
+        // Tentar compartilhamento nativo APENAS se estiver em mobile (evita erro no Windows Desktop)
+        const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+
+        if (navigator.share && isMobile) {
             try {
                 await navigator.share(shareData);
                 setInviteCopied(true);
@@ -230,6 +237,74 @@ export default function GroupDashboard({ params }: { params: Promise<{ id: strin
             setIsLeaveModalOpen(false);
         }
     };
+
+    const handleJoinGroup = async () => {
+        if (!currentUser || !group) return;
+        setIsJoining(true);
+
+        try {
+            // Check if already requested (pending)
+            const { data: existingMember } = await supabase
+                .from('group_members')
+                .select('status')
+                .eq('group_id', groupId)
+                .eq('user_id', currentUser.id)
+                .single();
+
+            if (existingMember) {
+                if (existingMember.status === 'pending') {
+                    alert("Você já enviou uma solicitação para este grupo. Aguarde a aprovação do administrador.");
+                    return;
+                } else if (existingMember.status === 'banned') {
+                    alert("Você foi banido deste grupo e não pode entrar novamente.");
+                    return;
+                }
+                // If active, logic error elsewhere (should have userRole), but handle gracefully -> reload
+                window.location.reload();
+                return;
+            }
+
+            const { error } = await supabase
+                .from('group_members')
+                .insert({
+                    group_id: groupId,
+                    user_id: currentUser.id,
+                    role: 'member',
+                    status: group.manual_approval ? 'pending' : 'active',
+                    payment_type: 'DIARISTA'
+                });
+
+            if (error) throw error;
+
+            if (group.manual_approval) {
+                alert("Solicitação enviada! Aguarde a aprovação do administrador.");
+                // Update local state to reflect pending status if we wanted to be fancy, but reload is safer
+            } else {
+                // Success
+                // Force a reload to refresh all data and permissions
+                window.location.reload();
+            }
+
+        } catch (error: any) {
+            console.error("Error joining group:", error);
+            alert("Erro ao entrar no grupo: " + (error.message || "Erro desconhecido"));
+        } finally {
+            setIsJoining(false);
+        }
+    };
+
+    // Auto-Join Effect
+    useEffect(() => {
+        const shouldJoin = searchParams.get('join') === '1';
+        if (shouldJoin && !isLoading && currentUser && group && !userRole && !isJoining) {
+            // Remover o parametro da URL para não ficar tentando entrar em loop se der erro
+            const newUrl = window.location.pathname;
+            window.history.replaceState({}, '', newUrl);
+
+            // Tentar entrar
+            handleJoinGroup();
+        }
+    }, [isLoading, currentUser, group, userRole, searchParams]);
 
     const isAdmin = (currentUser && group && currentUser.id === group.created_by) || (userRole === 'admin' || userRole === 'owner');
 
@@ -291,16 +366,54 @@ export default function GroupDashboard({ params }: { params: Promise<{ id: strin
                     onInvite={handleInvite}
                 />
 
-                {/* Leave Group Button */}
-                <div className="flex items-center justify-end">
-                    <button
-                        onClick={handleLeaveGroup}
-                        className="group flex items-center justify-center gap-2 h-10 px-5 rounded-full bg-red-50 hover:bg-red-100 text-red-600 dark:bg-red-900/20 dark:hover:bg-red-900/30 dark:text-red-400 font-semibold text-sm transition-all"
-                    >
-                        <span className="material-symbols-outlined text-lg">logout</span>
-                        <span>Sair da Pelada</span>
-                    </button>
-                </div>
+                {/* Join Group Banner (if not member) */}
+                {!userRole && group && (
+                    <div className="w-full bg-white dark:bg-[#1a2c22] border-l-4 border-[#13ec5b] rounded-xl p-6 shadow-md flex flex-col md:flex-row items-center justify-between gap-6 animate-fade-in-up">
+                        <div className="flex items-start gap-4">
+                            <div className="bg-[#13ec5b]/10 p-3 rounded-full text-[#13ec5b]">
+                                <span className="material-symbols-outlined text-3xl">group_add</span>
+                            </div>
+                            <div>
+                                <h3 className="text-xl font-bold text-[#0d1b12] dark:text-white">Participe deste grupo!</h3>
+                                <p className="text-gray-600 dark:text-gray-300 mt-1">
+                                    {group.manual_approval
+                                        ? "Este grupo requer aprovação. Solicite sua entrada para jogar."
+                                        : "Entre agora para confirmar presença nos jogos e acompanhar as estatísticas."}
+                                </p>
+                            </div>
+                        </div>
+                        <button
+                            onClick={handleJoinGroup}
+                            disabled={isJoining}
+                            className="w-full md:w-auto px-8 py-4 bg-[#13ec5b] hover:bg-[#0fd652] text-[#0d1b12] font-black rounded-xl text-lg shadow-lg shadow-[#13ec5b]/20 transition-all hover:scale-105 active:scale-95 disabled:opacity-70 flex items-center justify-center gap-2 whitespace-nowrap"
+                        >
+                            {isJoining ? (
+                                <>
+                                    <span className="material-symbols-outlined animate-spin">refresh</span>
+                                    Entrando...
+                                </>
+                            ) : (
+                                <>
+                                    <span>Entrar no Grupo</span>
+                                    <span className="material-symbols-outlined">arrow_forward</span>
+                                </>
+                            )}
+                        </button>
+                    </div>
+                )}
+
+                {/* Leave Group Button (Only for members) */}
+                {userRole && (
+                    <div className="flex items-center justify-end">
+                        <button
+                            onClick={handleLeaveGroup}
+                            className="group flex items-center justify-center gap-2 h-10 px-5 rounded-full bg-red-50 hover:bg-red-100 text-red-600 dark:bg-red-900/20 dark:hover:bg-red-900/30 dark:text-red-400 font-semibold text-sm transition-all"
+                        >
+                            <span className="material-symbols-outlined text-lg">logout</span>
+                            <span>Sair da Pelada</span>
+                        </button>
+                    </div>
+                )}
 
                 {/* Layout Grid: Main Content & Sidebar */}
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6 w-full max-w-6xl mx-auto">
