@@ -96,7 +96,11 @@ export function NextMatchCard({ match, groupName, participants }: NextMatchCardP
                     >
                         <span className="truncate">Ver Detalhes do Jogo</span>
                     </Link>
-                    <ShareButton />
+                    <ShareButton
+                        title={`Jogo Confirmado: ${match.name}`}
+                        text={`Vem jogar com a gente! ${match.name} está confirmado.`}
+                        path={`/dashboard/grupos/${match.group_id}/partidas/${match.id}`}
+                    />
                 </div>
             </div>
         </div>
