@@ -413,7 +413,8 @@ export default function MatchDetails({ params }: { params: Promise<{ id: string 
                     onClose={() => setIsAddPlayerOpen(false)}
                     matchId={matchId}
                     groupId={match.group_id}
-                    onSuccess={fetchData}
+                    existingPlayerIds={participants.map(p => p.user_id)}
+                    onAdd={fetchData}
                 />
             )}
         </div>
