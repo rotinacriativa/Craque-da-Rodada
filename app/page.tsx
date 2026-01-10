@@ -113,7 +113,7 @@ export default function Home() {
               <div className="flex-1 w-full flex justify-center lg:justify-end">
                 <div
                   className="w-full aspect-[4/3] rounded-2xl bg-cover bg-center shadow-2xl shadow-green-900/10 dark:shadow-black/50 overflow-hidden relative"
-                  style={{ backgroundImage: "url('https://lh3.googleusercontent.com/aida-public/AB6AXuDdtfIxBTHaR_0f1jOSkMVmluNRLQR8Lyqa4ib8yu25qH7zMI0iHJmzixgJRRurqzUI4de-HCCOcnHs3HWRh_4BKWDpRJF3c1nXPqlrI8z6P0RVW-iQveLy-uu0Ny4ydZ9QjMFDr8jqZR58bm96x_RhY3l_LWs5dhWfb13Ic9qmv3GuPRAolYWlAudl4ndyMcto1y182yD5RXigxhOcWaAIBX7uLdplFsz70_QRRHAu4o2T3HsSLElIfE0MKAix2_gd53eAdfu8Spk')" }}
+                  style={{ backgroundImage: "url('/hero-ball-line.jpg')" }}
                 >
                   <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent"></div>
                   {/* Floating Card Element */}

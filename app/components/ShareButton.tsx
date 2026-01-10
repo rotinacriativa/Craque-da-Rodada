@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { toast } from "sonner";
 
 interface ShareButtonProps {
     title?: string;
@@ -11,6 +12,8 @@ interface ShareButtonProps {
 
 export default function ShareButton({ title, text, url, path }: ShareButtonProps) {
     const [copied, setCopied] = useState(false);
+
+
 
     const handleShare = async () => {
         // Determinar URL final
@@ -41,6 +44,7 @@ export default function ShareButton({ title, text, url, path }: ShareButtonProps
                 if (navigator.clipboard && window.isSecureContext) {
                     await navigator.clipboard.writeText(shareData.url);
                     setCopied(true);
+                    toast.success("Link copiado com sucesso!");
                     setTimeout(() => setCopied(false), 2000);
                 } else {
                     // Fallback antigo
@@ -54,10 +58,12 @@ export default function ShareButton({ title, text, url, path }: ShareButtonProps
                     document.execCommand('copy');
                     document.body.removeChild(textArea);
                     setCopied(true);
+                    toast.success("Link copiado com sucesso!");
                     setTimeout(() => setCopied(false), 2000);
                 }
             } catch (err) {
-                alert('Copie este link: ' + shareData.url);
+                toast.error("Não foi possível copiar o link automaticamente.");
+                // alert('Copie este link: ' + shareData.url); // Toast is better
             }
         }
     };

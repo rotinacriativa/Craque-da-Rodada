@@ -16,7 +16,7 @@ export function InviteBanner() {
                 <p className="text-[#8baaa0] text-sm mb-6 max-w-[200px]">
                     Aumente a resenha! Traga seus amigos para organizar o jogo com você.
                 </p>
-                <ShareButton />
+                <ShareButton path="/" title="Craque da Rodada" text="Vem jogar com a gente no Craque da Rodada!" />
             </div>
         </div>
     );
