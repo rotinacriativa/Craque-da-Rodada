@@ -32,7 +32,11 @@ export default function Login() {
                 setErrorMessage("Erro ao entrar: " + error.message);
                 setLoading(false);
             } else {
-                router.push("/dashboard");
+                // Check if there's a redirectTo parameter in the URL
+                const searchParams = new URLSearchParams(window.location.search);
+                const redirectTo = searchParams.get('redirectTo') || '/dashboard';
+
+                router.push(redirectTo);
                 router.refresh();
             }
         } catch (error) {

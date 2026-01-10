@@ -5,6 +5,9 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "../../../src/lib/client";
 import { getResilientUser } from "../../../src/lib/auth-helpers";
+import { LoadingSpinner } from "../../components/shared/LoadingSpinner";
+import { GroupCard } from "../../components/player/groups/GroupCard";
+import { EmptyGroupsState } from "../../components/player/groups/EmptyGroupsState";
 
 export default function GroupsPage() {
     const router = useRouter();
@@ -14,11 +17,10 @@ export default function GroupsPage() {
     useEffect(() => {
         async function fetchGroups() {
             try {
-                // 1. Get Current User with Multi-Stage Check (Resilient for Mobile)
                 const user = await getResilientUser(supabase);
 
                 if (!user) {
-                    router.push("/login");
+                    console.warn("[Groups] No resilient user found. Middleware should have handled this.");
                     return;
                 }
 
@@ -55,19 +57,19 @@ export default function GroupsPage() {
     }, []);
 
     if (loading) {
-        return (
-            <div className="flex-1 flex items-center justify-center min-h-[400px]">
-                <span className="size-10 border-4 border-[#13ec5b] border-r-transparent rounded-full animate-spin"></span>
-            </div>
-        );
+        return <LoadingSpinner size="lg" message="Carregando suas peladas..." fullScreen />;
     }
 
     return (
         <div className="w-full flex flex-col gap-8">
             <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
                 <div>
-                    <h1 className="text-3xl md:text-4xl font-black text-[#0d1b12] dark:text-white tracking-tight mb-2">Minhas Peladas</h1>
-                    <p className="text-[#4c9a66] dark:text-[#8baaa0]">Gerencie seus jogos ou entre em uma nova turma.</p>
+                    <h1 className="text-3xl md:text-4xl font-black text-[#0d1b12] dark:text-white tracking-tight mb-2">
+                        Minhas Peladas
+                    </h1>
+                    <p className="text-[#4c9a66] dark:text-[#8baaa0]">
+                        Gerencie seus jogos ou entre em uma nova turma.
+                    </p>
                 </div>
 
                 <div className="flex gap-3">
@@ -91,49 +93,11 @@ export default function GroupsPage() {
             {groups.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {groups.map(group => (
-                        <Link
-                            key={group.id}
-                            href={`/dashboard/grupos/${group.id}`}
-                            className="bg-white dark:bg-[#1a2c20] rounded-[2rem] p-6 border border-[#e7f3eb] dark:border-[#2a4535] hover:border-[#13ec5b] hover:shadow-xl hover:shadow-[#13ec5b]/10 transition-all group flex flex-col h-full"
-                        >
-                            <div className="flex items-start justify-between mb-4">
-                                <div className="size-14 rounded-2xl bg-gray-100 dark:bg-[#102216] bg-cover bg-center border-2 border-white dark:border-[#2a4535] shadow-sm" style={{ backgroundImage: group.image_url ? `url('${group.image_url}')` : 'none' }}>
-                                    {!group.image_url && <span className="flex h-full w-full items-center justify-center text-2xl">⚽</span>}
-                                </div>
-                                <span className="px-3 py-1 bg-[#13ec5b]/10 text-[#0ea841] dark:text-[#13ec5b] text-xs font-bold uppercase rounded-full">
-                                    Admin
-                                </span>
-                            </div>
-
-                            <h3 className="font-bold text-xl text-[#0d1b12] dark:text-white mb-2 line-clamp-1">{group.name}</h3>
-                            <p className="text-sm text-[#4c9a66] dark:text-[#8baaa0] line-clamp-2 mb-6 flex-1">
-                                {group.description || "Sem descrição definida."}
-                            </p>
-
-                            <div className="flex items-center gap-2 text-xs font-bold text-[#0d1b12] dark:text-white mt-auto pt-4 border-t border-[#f0f7f2] dark:border-[#2a4535] group-hover:text-[#13ec5b] transition-colors">
-                                <span>Acessar Painel</span>
-                                <span className="material-symbols-outlined text-lg">arrow_forward</span>
-                            </div>
-                        </Link>
+                        <GroupCard key={group.id} group={group} isAdmin={true} />
                     ))}
                 </div>
             ) : (
-                <div className="flex flex-col items-center justify-center py-20 px-4 text-center rounded-[3rem] bg-white dark:bg-[#1a2c20] border-2 border-dashed border-[#e7f3eb] dark:border-[#2a4535]">
-                    <div className="bg-[#13ec5b]/10 p-6 rounded-full mb-6 animate-pulse">
-                        <span className="material-symbols-outlined text-5xl text-[#0ea841] dark:text-[#13ec5b]">sports_soccer</span>
-                    </div>
-                    <h2 className="text-2xl font-black text-[#0d1b12] dark:text-white mb-3">Nenhuma pelada por aqui</h2>
-                    <p className="text-[#4c9a66] dark:text-[#8baaa0] mb-8 max-w-sm text-lg">
-                        Tá parado por quê? Crie sua pelada ou entre na de um parceiro para começar a resenha.
-                    </p>
-                    <Link
-                        href="/dashboard/criar-grupo"
-                        className="h-14 px-8 rounded-full bg-[#13ec5b] hover:bg-[#0fd650] text-[#0d1b12] font-bold flex items-center gap-2 transition-all shadow-xl shadow-[#13ec5b]/20 hover:scale-105"
-                    >
-                        <span className="material-symbols-outlined">add_circle</span>
-                        Criar Pelada
-                    </Link>
-                </div>
+                <EmptyGroupsState />
             )}
         </div>
     );

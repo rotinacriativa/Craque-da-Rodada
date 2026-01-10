@@ -14,6 +14,7 @@ export default function GroupFinancePage({ params }: { params: Promise<{ id: str
     const [expense, setExpense] = useState(0);
     const [transactions, setTransactions] = useState<any[]>([]);
     const [pendingPayments, setPendingPayments] = useState<any[]>([]);
+    const [totalPendingAmount, setTotalPendingAmount] = useState(0);
 
     // Pix State
     const [pixKey, setPixKey] = useState("");
@@ -73,30 +74,39 @@ export default function GroupFinancePage({ params }: { params: Promise<{ id: str
                 setTransactions(txData.slice(0, 5)); // Show top 5
             }
 
-            // 3. Fetch Pending Payments (Match Participants with pending status)
-            // We need to join with match to ensure it's from this group
-            // For simplicity, we assume we want pending payments for *future* or *recent* matches, 
-            // but here we'll just fetch all pending for the group's matches.
-            const { data: matches } = await supabase.from('matches').select('id').eq('group_id', groupId);
-            const matchIds = matches?.map(m => m.id) || [];
+            // 3. Fetch Payments (centralized from new table)
+            const { data: paymentsData, error: paymentsError } = await supabase
+                .from('payments')
+                .select('*, profiles:user_id(full_name)')
+                .eq('group_id', groupId)
+                .eq('status', 'PENDENTE')
+                .order('created_at', { ascending: false });
 
-            if (matchIds.length > 0) {
-                const { data: pendingData } = await supabase
-                    .from('match_participants')
-                    .select('*, profiles(full_name, id)')
-                    .in('match_id', matchIds)
-                    .eq('payment_status', 'pending');
-
-                // Group by match or just list them
-                setPendingPayments(pendingData || []);
-            } else {
-                setPendingPayments([]);
+            if (paymentsData) {
+                setPendingPayments(paymentsData);
+                const pendingTotal = paymentsData.reduce((acc, curr) => acc + Number(curr.amount), 0);
+                setTotalPendingAmount(pendingTotal);
             }
 
         } catch (error) {
             console.error("Error fetching finance data:", error);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleMarkAsPaid = async (paymentId: string) => {
+        try {
+            const { error } = await supabase
+                .from('payments')
+                .update({ status: 'PAGO', paid_at: new Date().toISOString() })
+                .eq('id', paymentId);
+
+            if (error) throw error;
+            fetchData(); // Refresh
+        } catch (error) {
+            console.error("Error marking as paid:", error);
+            alert("Erro ao confirmar pagamento.");
         }
     };
 
@@ -218,154 +228,160 @@ export default function GroupFinancePage({ params }: { params: Promise<{ id: str
                         </div>
                     </div>
 
-                    {/* Saídas */}
+                    {/* Pendente - NEW CARD */}
                     <div className="bg-white dark:bg-[#1a2c20] p-6 rounded-2xl shadow-sm border border-gray-200 dark:border-[#2a4032] flex flex-col gap-4 relative overflow-hidden">
                         <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-full bg-red-100 dark:bg-red-900/20 flex items-center justify-center text-red-600 dark:text-red-400">
-                                <span className="material-symbols-outlined">arrow_upward</span>
+                            <div className="w-10 h-10 rounded-full bg-amber-100 dark:bg-amber-900/20 flex items-center justify-center text-amber-600 dark:text-amber-400">
+                                <span className="material-symbols-outlined">pending_actions</span>
                             </div>
-                            <span className="text-gray-500 font-semibold uppercase text-xs tracking-wider">Saídas (Out)</span>
+                            <span className="text-gray-500 font-semibold uppercase text-xs tracking-wider">Pendente (Receber)</span>
                         </div>
                         <div className="flex items-baseline gap-2">
-                            <span className="text-3xl md:text-4xl font-black text-[#0d1b12] dark:text-white">{formatMoney(expense)}</span>
+                            <span className="text-3xl md:text-4xl font-black text-amber-500">{formatMoney(totalPendingAmount)}</span>
                         </div>
                         <div className="w-full bg-gray-100 dark:bg-[#25382e] h-1.5 rounded-full mt-auto">
-                            <div className="bg-red-500 h-1.5 rounded-full" style={{ width: expense > 0 && income > 0 ? `${Math.min((expense / income) * 100, 100)}%` : '0%' }}></div>
+                            <div className="bg-amber-500 h-1.5 rounded-full" style={{ width: totalPendingAmount > 0 ? '100%' : '0' }}></div>
                         </div>
                     </div>
                 </div>
+            </div>
 
-                {/* Main Split Layout */}
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            {/* Main Split Layout */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
 
-                    {/* Left: Recent Transactions */}
-                    <div className="lg:col-span-2 flex flex-col gap-6">
-                        <div className="flex items-center justify-between">
-                            <h3 className="text-xl font-bold text-[#0d1b12] dark:text-white">Transações Recentes</h3>
-                            <button disabled className="text-[#13ec5b] opacity-50 cursor-not-allowed text-sm font-semibold flex items-center gap-1 transition-colors" title="Em breve">
-                                Ver tudo <span className="material-symbols-outlined text-[18px]">arrow_forward</span>
-                            </button>
-                        </div>
-                        <div className="bg-white dark:bg-[#1a2c20] rounded-xl shadow-sm border border-gray-200 dark:border-[#2a4032] overflow-hidden">
-                            {transactions.length === 0 ? (
-                                <div className="p-8 text-center text-gray-500">Nenhuma transação encontrada.</div>
-                            ) : (
-                                transactions.map((tx: any) => (
-                                    <div key={tx.id} className="p-4 flex items-center gap-4 hover:bg-gray-50 dark:hover:bg-[#25382e] transition-colors border-b border-gray-100 dark:border-[#2a4032] last:border-0">
-                                        <div className={`h-10 w-10 rounded-full flex items-center justify-center flex-shrink-0 ${tx.type === 'income' ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600' : 'bg-red-100 dark:bg-red-900/30 text-red-600'}`}>
-                                            <span className="material-symbols-outlined">{tx.type === 'income' ? 'add' : 'remove'}</span>
-                                        </div>
-                                        <div className="flex-1 min-w-0">
-                                            <p className="text-sm font-bold text-[#0d1b12] dark:text-white truncate">{tx.description}</p>
-                                            <p className="text-xs text-gray-500 capitalize">{tx.category} • {tx.payment_method || 'Outro'}</p>
-                                        </div>
-                                        <div className="text-right">
-                                            <p className={`text-sm font-bold ${tx.type === 'income' ? 'text-emerald-600' : 'text-[#0d1b12] dark:text-gray-200'}`}>
-                                                {tx.type === 'income' ? '+' : '-'} {formatMoney(tx.amount)}
-                                            </p>
-                                            <p className="text-xs text-gray-400">{new Date(tx.created_at).toLocaleDateString('pt-BR')} {new Date(tx.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</p>
-                                        </div>
-                                    </div>
-                                ))
-                            )}
-                        </div>
-                    </div>
-
-                    {/* Right: Config & Pendings */}
-                    <div className="flex flex-col gap-6">
-                        <h3 className="text-xl font-bold text-[#0d1b12] dark:text-white">Configurações</h3>
-
-                        {/* Pix Card */}
-                        <div className="bg-gradient-to-br from-[#0d1b12] to-[#1a2c20] text-white p-6 rounded-2xl shadow-lg relative overflow-hidden">
-                            <div className="absolute top-0 right-0 w-32 h-32 bg-[#13ec5b] blur-[60px] opacity-20"></div>
-                            <div className="flex items-center gap-2 mb-6">
-                                <span className="material-symbols-outlined text-[#13ec5b]">qr_code_2</span>
-                                <h4 className="font-bold text-lg">Chave PIX do Grupo</h4>
-                            </div>
-
-                            {isEditingPix ? (
-                                <div className="flex flex-col gap-3 mb-4">
-                                    <select
-                                        value={newPixKeyType}
-                                        onChange={(e) => setNewPixKeyType(e.target.value)}
-                                        className="bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-[#13ec5b]"
-                                    >
-                                        <option value="email" className="text-black">E-mail</option>
-                                        <option value="cpf" className="text-black">CPF</option>
-                                        <option value="phone" className="text-black">Celular</option>
-                                        <option value="random" className="text-black">Aleatória</option>
-                                    </select>
-                                    <input
-                                        type="text"
-                                        value={newPixKey}
-                                        onChange={(e) => setNewPixKey(e.target.value)}
-                                        placeholder="Digite a chave PIX"
-                                        className="bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-[#13ec5b]"
-                                    />
-                                    <div className="flex gap-2 mt-2">
-                                        <button onClick={() => setIsEditingPix(false)} className="flex-1 bg-white/10 hover:bg-white/20 py-2 rounded-lg text-sm transition-colors">Cancelar</button>
-                                        <button onClick={handleSavePix} className="flex-1 bg-[#13ec5b] hover:bg-[#0fd652] text-[#0d1b12] py-2 rounded-lg text-sm font-bold transition-colors">Salvar</button>
-                                    </div>
-                                </div>
-                            ) : (
-                                <>
-                                    <div className="bg-white/10 backdrop-blur-sm p-3 rounded-lg border border-white/10 mb-4">
-                                        <p className="text-xs text-gray-400 mb-1 capitalize">{pixKeyType || 'Chave'}</p>
-                                        <p className="font-mono text-sm tracking-wide truncate">{pixKey || 'Nenhuma chave cadastrada'}</p>
-                                    </div>
-                                    <div className="flex gap-2">
-                                        <button onClick={handleCopyPix} className="flex-1 bg-white/10 hover:bg-white/20 py-2 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2">
-                                            <span className="material-symbols-outlined text-[18px]">content_copy</span>
-                                            Copiar
-                                        </button>
-                                        <button onClick={() => setIsEditingPix(true)} className="flex-1 bg-[#13ec5b] hover:bg-[#0fd652] text-[#0d1b12] py-2 rounded-lg text-sm font-bold transition-colors">
-                                            Editar
-                                        </button>
-                                    </div>
-                                </>
-                            )}
-                        </div>
-
-                        {/* Pending Payments */}
-                        <div className="bg-white dark:bg-[#1a2c20] p-6 rounded-2xl shadow-sm border border-gray-200 dark:border-[#2a4032]">
-                            <h4 className="font-bold text-[#0d1b12] dark:text-white mb-4">Pagamentos Pendentes</h4>
-                            {pendingPayments.length === 0 ? (
-                                <p className="text-sm text-gray-500">Nenhum pagamento pendente.</p>
-                            ) : (
-                                <ul className="flex flex-col gap-3 max-h-60 overflow-y-auto">
-                                    {pendingPayments.map((pp: any) => (
-                                        <li key={pp.id} className="flex items-center justify-between text-sm">
-                                            <div className="flex items-center gap-2">
-                                                <div className="w-2 h-2 rounded-full bg-amber-500"></div>
-                                                <span className="text-gray-600 dark:text-gray-300 truncate max-w-[120px]">{pp.profiles?.full_name || 'Jogador'}</span>
-                                            </div>
-                                            <span className="font-semibold text-[#0d1b12] dark:text-white">
-                                                {/* Assuming standard price if not stored, for now we don't have price in match_participant, using placeholder or match price if available. 
-                                                Actually, match_participants doesn't have amount. Let's assume a standard R$ 25,00 or fetch match price.
-                                                For this MVP we might need to fetch match price. Let's assume generic R$25 or leave separate task. 
-                                                Wait, the design shows price. I'll just show 'Pendente' or a fixed value for now if dynamic is too complex without match price.
-                                                Actually, matches table should have price.
-                                                 */}
-                                                Pendente
-                                            </span>
-                                        </li>
-                                    ))}
-                                </ul>
-                            )}
-
-                            {pendingPayments.length > 0 && (
-                                <button className="w-full mt-4 py-2 text-sm text-gray-500 hover:text-[#0d1b12] dark:hover:text-white font-medium border border-gray-200 dark:border-[#2a4032] rounded-lg hover:bg-gray-50 dark:hover:bg-[#25382e] transition-colors">
-                                    Cobrar Todos
-                                </button>
-                            )}
-                        </div>
-
-                        {/* Export Button */}
-                        <button disabled className="flex items-center justify-center gap-2 w-full py-4 rounded-xl border border-dashed border-gray-300 dark:border-gray-600 text-gray-400 cursor-not-allowed transition-all group opacity-70" title="Em breve">
-                            <span className="material-symbols-outlined">download</span>
-                            <span className="font-medium">Exportar Relatório Mensal</span>
+                {/* Left: Recent Transactions */}
+                <div className="lg:col-span-2 flex flex-col gap-6">
+                    <div className="flex items-center justify-between">
+                        <h3 className="text-xl font-bold text-[#0d1b12] dark:text-white">Transações Recentes</h3>
+                        <button disabled className="text-[#13ec5b] opacity-50 cursor-not-allowed text-sm font-semibold flex items-center gap-1 transition-colors" title="Em breve">
+                            Ver tudo <span className="material-symbols-outlined text-[18px]">arrow_forward</span>
                         </button>
                     </div>
+                    <div className="bg-white dark:bg-[#1a2c20] rounded-xl shadow-sm border border-gray-200 dark:border-[#2a4032] overflow-hidden">
+                        {transactions.length === 0 ? (
+                            <div className="p-8 text-center text-gray-500">Nenhuma transação encontrada.</div>
+                        ) : (
+                            transactions.map((tx: any) => (
+                                <div key={tx.id} className="p-4 flex items-center gap-4 hover:bg-gray-50 dark:hover:bg-[#25382e] transition-colors border-b border-gray-100 dark:border-[#2a4032] last:border-0">
+                                    <div className={`h-10 w-10 rounded-full flex items-center justify-center flex-shrink-0 ${tx.type === 'income' ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600' : 'bg-red-100 dark:bg-red-900/30 text-red-600'}`}>
+                                        <span className="material-symbols-outlined">{tx.type === 'income' ? 'add' : 'remove'}</span>
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <p className="text-sm font-bold text-[#0d1b12] dark:text-white truncate">{tx.description}</p>
+                                        <p className="text-xs text-gray-500 capitalize">{tx.category} • {tx.payment_method || 'Outro'}</p>
+                                    </div>
+                                    <div className="text-right">
+                                        <p className={`text-sm font-bold ${tx.type === 'income' ? 'text-emerald-600' : 'text-[#0d1b12] dark:text-gray-200'}`}>
+                                            {tx.type === 'income' ? '+' : '-'} {formatMoney(tx.amount)}
+                                        </p>
+                                        <p className="text-xs text-gray-400">{new Date(tx.created_at).toLocaleDateString('pt-BR')} {new Date(tx.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</p>
+                                    </div>
+                                </div>
+                            ))
+                        )}
+                    </div>
+                </div>
+
+                {/* Right: Config & Pendings */}
+                <div className="flex flex-col gap-6">
+                    <h3 className="text-xl font-bold text-[#0d1b12] dark:text-white">Configurações</h3>
+
+                    {/* Pix Card */}
+                    <div className="bg-gradient-to-br from-[#0d1b12] to-[#1a2c20] text-white p-6 rounded-2xl shadow-lg relative overflow-hidden">
+                        <div className="absolute top-0 right-0 w-32 h-32 bg-[#13ec5b] blur-[60px] opacity-20"></div>
+                        <div className="flex items-center gap-2 mb-6">
+                            <span className="material-symbols-outlined text-[#13ec5b]">qr_code_2</span>
+                            <h4 className="font-bold text-lg">Chave PIX do Grupo</h4>
+                        </div>
+
+                        {isEditingPix ? (
+                            <div className="flex flex-col gap-3 mb-4">
+                                <select
+                                    value={newPixKeyType}
+                                    onChange={(e) => setNewPixKeyType(e.target.value)}
+                                    className="bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-[#13ec5b]"
+                                >
+                                    <option value="email" className="text-black">E-mail</option>
+                                    <option value="cpf" className="text-black">CPF</option>
+                                    <option value="phone" className="text-black">Celular</option>
+                                    <option value="random" className="text-black">Aleatória</option>
+                                </select>
+                                <input
+                                    type="text"
+                                    value={newPixKey}
+                                    onChange={(e) => setNewPixKey(e.target.value)}
+                                    placeholder="Digite a chave PIX"
+                                    className="bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-[#13ec5b]"
+                                />
+                                <div className="flex gap-2 mt-2">
+                                    <button onClick={() => setIsEditingPix(false)} className="flex-1 bg-white/10 hover:bg-white/20 py-2 rounded-lg text-sm transition-colors">Cancelar</button>
+                                    <button onClick={handleSavePix} className="flex-1 bg-[#13ec5b] hover:bg-[#0fd652] text-[#0d1b12] py-2 rounded-lg text-sm font-bold transition-colors">Salvar</button>
+                                </div>
+                            </div>
+                        ) : (
+                            <>
+                                <div className="bg-white/10 backdrop-blur-sm p-3 rounded-lg border border-white/10 mb-4">
+                                    <p className="text-xs text-gray-400 mb-1 capitalize">{pixKeyType || 'Chave'}</p>
+                                    <p className="font-mono text-sm tracking-wide truncate">{pixKey || 'Nenhuma chave cadastrada'}</p>
+                                </div>
+                                <div className="flex gap-2">
+                                    <button onClick={handleCopyPix} className="flex-1 bg-white/10 hover:bg-white/20 py-2 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2">
+                                        <span className="material-symbols-outlined text-[18px]">content_copy</span>
+                                        Copiar
+                                    </button>
+                                    <button onClick={() => setIsEditingPix(true)} className="flex-1 bg-[#13ec5b] hover:bg-[#0fd652] text-[#0d1b12] py-2 rounded-lg text-sm font-bold transition-colors">
+                                        Editar
+                                    </button>
+                                </div>
+                            </>
+                        )}
+                    </div>
+
+                    {/* Pending Payments */}
+                    <div className="bg-white dark:bg-[#1a2c20] p-6 rounded-2xl shadow-sm border border-gray-200 dark:border-[#2a4032]">
+                        <h4 className="font-bold text-[#0d1b12] dark:text-white mb-4">Pagamentos Pendentes</h4>
+                        {pendingPayments.length === 0 ? (
+                            <p className="text-sm text-gray-500">Nenhum pagamento pendente.</p>
+                        ) : (
+                            <ul className="flex flex-col gap-3 max-h-60 overflow-y-auto pr-2">
+                                {pendingPayments.map((pp: any) => (
+                                    <li key={pp.id} className="flex items-center justify-between text-sm group/item">
+                                        <div className="flex items-center gap-2 overflow-hidden">
+                                            <div className={`w-2 h-2 rounded-full shrink-0 ${pp.type === 'MENSAL' ? 'bg-purple-500' : 'bg-amber-500'}`}></div>
+                                            <div className="flex flex-col min-w-0">
+                                                <span className="text-gray-600 dark:text-gray-300 truncate font-bold">{pp.profiles?.full_name || 'Jogador'}</span>
+                                                <span className="text-[10px] text-gray-400">{pp.type === 'MENSAL' ? 'Mensalidade' : 'Partida'}</span>
+                                            </div>
+                                        </div>
+                                        <div className="flex items-center gap-2 shrink-0">
+                                            <span className="font-semibold text-[#0d1b12] dark:text-white">
+                                                {formatMoney(pp.amount)}
+                                            </span>
+                                            <button
+                                                onClick={() => handleMarkAsPaid(pp.id)}
+                                                className="opacity-0 group-hover/item:opacity-100 bg-emerald-500 text-white p-1 rounded hover:bg-emerald-600 transition-all"
+                                                title="Confirmar Pagamento"
+                                            >
+                                                <span className="material-symbols-outlined text-[16px]">check</span>
+                                            </button>
+                                        </div>
+                                    </li>
+                                ))}
+                            </ul>
+                        )}
+
+                        {pendingPayments.length > 0 && (
+                            <button className="w-full mt-4 py-2 text-sm text-gray-500 hover:text-[#0d1b12] dark:hover:text-white font-medium border border-gray-200 dark:border-[#2a4032] rounded-lg hover:bg-gray-50 dark:hover:bg-[#25382e] transition-colors">
+                                Cobrar Todos
+                            </button>
+                        )}
+                    </div>
+
+                    {/* Export Button */}
+                    <button disabled className="flex items-center justify-center gap-2 w-full py-4 rounded-xl border border-dashed border-gray-300 dark:border-gray-600 text-gray-400 cursor-not-allowed transition-all group opacity-70" title="Em breve">
+                        <span className="material-symbols-outlined">download</span>
+                        <span className="font-medium">Exportar Relatório Mensal</span>
+                    </button>
                 </div>
             </div>
         </div>

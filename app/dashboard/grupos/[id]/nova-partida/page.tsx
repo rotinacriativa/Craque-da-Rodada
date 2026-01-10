@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, use } from "react";
+import { useState, use, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -47,6 +47,23 @@ function CreateMatchContent() {
 
     // Map State
     const [isMapOpen, setIsMapOpen] = useState(false);
+
+    // Fetch Group Defaults
+    useEffect(() => {
+        if (!groupId) return;
+        const fetchGroupDefaults = async () => {
+            const { data } = await supabase
+                .from('groups')
+                .select('price_avulso')
+                .eq('id', groupId)
+                .single();
+
+            if (data?.price_avulso) {
+                setFormData(prev => ({ ...prev, price: data.price_avulso.toString().replace('.', ',') }));
+            }
+        };
+        fetchGroupDefaults();
+    }, [groupId]);
 
     // Auth Loading State
     if (authLoading) {

@@ -8,7 +8,8 @@ interface Member {
     user_id: string;
     role: string;
     status: string; // 'active', 'pending', 'banned'
-    member_type: string; // 'mensalista', 'avulso'
+    payment_type: 'MENSALISTA' | 'AVULSO' | 'CONVIDADO';
+    monthly_price_override: number | null;
     joined_at: string;
     profiles: {
         full_name: string;
@@ -101,11 +102,28 @@ export default function PlayersAdminPage({ params }: { params: Promise<{ id: str
         if (groupId) fetchMembers();
     }, [groupId]);
 
+    const handleUpdatePaymentType = async (memberId: string, newType: string) => {
+        try {
+            const { error } = await supabase
+                .from('group_members')
+                .update({ payment_type: newType })
+                .eq('id', memberId);
+
+            if (error) throw error;
+
+            setMembers(prev => prev.map(m => m.id === memberId ? { ...m, payment_type: newType as any } : m));
+        } catch (error) {
+            console.error("Error updating payment type:", error);
+            alert("Erro ao atualizar tipo de pagamento.");
+        }
+    };
+
     // Stats
     const totalPlayers = members.length;
-    const mensalistas = members.filter(m => m.member_type === 'mensalista').length;
-    const avulsos = members.filter(m => m.member_type === 'avulso' || !m.member_type).length;
-    const inativos = members.filter(m => m.status === 'banned' || m.status === 'inactive').length; // Assuming 'inactive' exists or mapping banned
+    const mensalistas = members.filter(m => m.payment_type === 'MENSALISTA').length;
+    const avulsos = members.filter(m => m.payment_type === 'AVULSO').length;
+    const convidados = members.filter(m => m.payment_type === 'CONVIDADO').length;
+    const inativos = members.filter(m => m.status === 'banned' || m.status === 'inactive').length;
 
     // Filtering
     const filteredMembers = members.filter(member => {
@@ -116,8 +134,10 @@ export default function PlayersAdminPage({ params }: { params: Promise<{ id: str
         const matchesType = typeFilter === "Todos os tipos"
             ? true
             : typeFilter === "Mensalistas"
-                ? member.member_type === 'mensalista'
-                : (member.member_type === 'avulso' || !member.member_type);
+                ? member.payment_type === 'MENSALISTA'
+                : typeFilter === "Avulsos"
+                    ? member.payment_type === 'AVULSO'
+                    : member.payment_type === 'CONVIDADO';
 
         const matchesStatus = statusFilter === "Status: Todos"
             ? true
@@ -205,12 +225,12 @@ export default function PlayersAdminPage({ params }: { params: Promise<{ id: str
                         </div>
                     </div>
                     <div className="bg-white dark:bg-[#1a2c22] p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex items-center gap-4">
-                        <div className="h-12 w-12 rounded-xl bg-red-50 dark:bg-red-900/20 flex items-center justify-center text-red-600 dark:text-red-400">
-                            <span className="material-symbols-outlined icon-filled">person_off</span>
+                        <div className="h-12 w-12 rounded-xl bg-purple-50 dark:bg-purple-900/20 flex items-center justify-center text-purple-600 dark:text-purple-400">
+                            <span className="material-symbols-outlined icon-filled">person_celebrate</span>
                         </div>
                         <div>
-                            <p className="text-sm font-medium text-slate-500 dark:text-slate-400">Inativos</p>
-                            <p className="text-2xl font-black text-slate-900 dark:text-white">{inativos}</p>
+                            <p className="text-sm font-medium text-slate-500 dark:text-slate-400">Convidados</p>
+                            <p className="text-2xl font-black text-slate-900 dark:text-white">{convidados}</p>
                         </div>
                     </div>
                 </div>
@@ -238,6 +258,7 @@ export default function PlayersAdminPage({ params }: { params: Promise<{ id: str
                             <option>Todos os tipos</option>
                             <option>Mensalistas</option>
                             <option>Avulsos</option>
+                            <option>Convidados</option>
                         </select>
                         <select
                             value={statusFilter}
@@ -302,12 +323,20 @@ export default function PlayersAdminPage({ params }: { params: Promise<{ id: str
                                                 </div>
                                             </td>
                                             <td className="p-4">
-                                                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold border ${member.member_type === 'mensalista'
-                                                    ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800'
-                                                    : 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-800'
-                                                    }`}>
-                                                    {member.member_type === 'mensalista' ? 'Mensalista' : 'Avulso'}
-                                                </span>
+                                                <select
+                                                    value={member.payment_type}
+                                                    onChange={(e) => handleUpdatePaymentType(member.id, e.target.value)}
+                                                    className={`text-xs font-bold border rounded-full px-2 py-0.5 outline-none cursor-pointer transition-colors ${member.payment_type === 'MENSALISTA'
+                                                        ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800'
+                                                        : member.payment_type === 'AVULSO'
+                                                            ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-800'
+                                                            : 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400 border-purple-200 dark:border-purple-800'
+                                                        }`}
+                                                >
+                                                    <option value="AVULSO">Avulso</option>
+                                                    <option value="MENSALISTA">Mensalista</option>
+                                                    <option value="CONVIDADO">Convidado</option>
+                                                </select>
                                             </td>
                                             <td className="p-4">
                                                 <span className="text-sm font-medium text-slate-600 dark:text-slate-300">

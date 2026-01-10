@@ -31,7 +31,12 @@ interface Participant {
         full_name: string;
         position: string;
         avatar_url?: string;
-    }
+    };
+    payments?: {
+        id: string;
+        status: string;
+        amount: number;
+    }[];
 }
 
 export default function MatchDetailsPage({ params }: { params: Promise<{ id: string; matchId: string }> }) {
@@ -79,13 +84,17 @@ export default function MatchDetailsPage({ params }: { params: Promise<{ id: str
                     id,
                     user_id,
                     status,
-                    payment_status,
                     player_type,
                     team,
                     profiles (
                         full_name,
                         position,
                         avatar_url
+                    ),
+                    payments:payments!match_id(
+                        id,
+                        status,
+                        amount
                     )
                 `)
                 .eq("match_id", matchId);
@@ -137,6 +146,22 @@ export default function MatchDetailsPage({ params }: { params: Promise<{ id: str
         }
     };
 
+    const handleMarkAsPaid = async (paymentId: string) => {
+        if (!isAdmin) return;
+        try {
+            const { error } = await supabase
+                .from('payments')
+                .update({ status: 'PAGO', paid_at: new Date().toISOString() })
+                .eq('id', paymentId);
+
+            if (error) throw error;
+            await fetchData();
+        } catch (error) {
+            console.error("Error marking as paid:", error);
+            alert("Erro ao confirmar pagamento.");
+        }
+    };
+
     const handleDeleteMatch = () => {
         setIsDeleteModalOpen(true);
     };
@@ -178,7 +203,10 @@ export default function MatchDetailsPage({ params }: { params: Promise<{ id: str
     const waitingPlayers = participants.filter(p => p.status === 'waiting');
     const invitedPlayers = participants.filter(p => p.status === 'invited');
 
-    const pendingPayments = confirmedPlayers.filter(p => p.payment_status === 'pending').length;
+    const pendingPayments = confirmedPlayers.filter(p => {
+        const payment = p.payments?.[0];
+        return payment && payment.status === 'PENDENTE';
+    }).length;
 
     const displayedPlayers = activeTab === 'confirmed' ? confirmedPlayers : activeTab === 'waiting' ? waitingPlayers : invitedPlayers;
 
@@ -386,17 +414,39 @@ export default function MatchDetailsPage({ params }: { params: Promise<{ id: str
                                                     </span>
                                                 </td>
                                                 <td className="px-6 py-4 whitespace-nowrap">
-                                                    {player.payment_status === 'paid' ? (
-                                                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 border border-green-200 dark:border-green-800">
-                                                            <span className="w-1.5 h-1.5 rounded-full bg-green-500"></span>
-                                                            Pago
-                                                        </span>
-                                                    ) : (
-                                                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-800">
-                                                            <span className="w-1.5 h-1.5 rounded-full bg-red-500"></span>
-                                                            Pendente
-                                                        </span>
-                                                    )}
+                                                    {(() => {
+                                                        const payment = player.payments?.find(p => p.status === 'PAGO' || p.status === 'PENDENTE');
+                                                        if (!payment) return (
+                                                            <span className="text-xs text-slate-400">Isento/Mensalista</span>
+                                                        );
+
+                                                        if (payment.status === 'PAGO') {
+                                                            return (
+                                                                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 border border-green-200 dark:border-green-800">
+                                                                    <span className="w-1.5 h-1.5 rounded-full bg-green-500"></span>
+                                                                    Pago
+                                                                </span>
+                                                            );
+                                                        }
+
+                                                        return (
+                                                            <div className="flex items-center gap-2">
+                                                                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-800">
+                                                                    <span className="w-1.5 h-1.5 rounded-full bg-red-500"></span>
+                                                                    Pendente
+                                                                </span>
+                                                                {isAdmin && (
+                                                                    <button
+                                                                        onClick={() => handleMarkAsPaid(payment.id)}
+                                                                        className="p-1.5 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 transition-colors shadow-sm"
+                                                                        title="Marcar como Pago"
+                                                                    >
+                                                                        <span className="material-symbols-outlined text-[16px]">check</span>
+                                                                    </button>
+                                                                )}
+                                                            </div>
+                                                        );
+                                                    })()}
                                                 </td>
                                                 <td className="px-6 py-4 whitespace-nowrap text-right">
                                                     <div className="flex justify-end gap-2 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity">

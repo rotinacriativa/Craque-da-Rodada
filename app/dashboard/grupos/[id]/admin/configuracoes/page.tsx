@@ -40,6 +40,10 @@ export default function GroupSettingsPage({ params }: { params: Promise<{ id: st
     const [maxPlayers, setMaxPlayers] = useState(14);
     const [tolerance, setTolerance] = useState(15);
 
+    // Finance Data
+    const [priceMensalista, setPriceMensalista] = useState(0);
+    const [priceAvulso, setPriceAvulso] = useState(0);
+
     // Privacy Data
     const [isPrivate, setIsPrivate] = useState(false);
     const [manualApproval, setManualApproval] = useState(false);
@@ -62,7 +66,7 @@ export default function GroupSettingsPage({ params }: { params: Promise<{ id: st
             // 1. Fetch Group Details
             const { data: groupData, error: groupError } = await supabase
                 .from("groups")
-                .select("name, location, description, max_members, visibility, image_url, manual_approval")
+                .select("name, location, description, max_members, visibility, image_url, manual_approval, price_mensalista, price_avulso")
                 .eq("id", groupId)
                 .single();
 
@@ -77,6 +81,8 @@ export default function GroupSettingsPage({ params }: { params: Promise<{ id: st
                 if (groupData.max_members) setMaxPlayers(groupData.max_members);
                 setIsPrivate(groupData.visibility === 'private');
                 setManualApproval(groupData.manual_approval || false);
+                setPriceMensalista(groupData.price_mensalista || 0);
+                setPriceAvulso(groupData.price_avulso || 0);
             }
 
             // 2. Fetch All Members (to separate admins and potential admins)
@@ -178,7 +184,9 @@ export default function GroupSettingsPage({ params }: { params: Promise<{ id: st
                     description: description,
                     max_members: maxPlayers,
                     visibility: isPrivate ? 'private' : 'public',
-                    manual_approval: manualApproval
+                    manual_approval: manualApproval,
+                    price_mensalista: priceMensalista,
+                    price_avulso: priceAvulso
                 })
                 .eq("id", groupId);
 
@@ -494,6 +502,34 @@ export default function GroupSettingsPage({ params }: { params: Promise<{ id: st
                                 <p className="text-xs text-gray-400 mt-2 leading-tight">
                                     Tempo de espera permitido para confirmação de presença antes de liberar a vaga.
                                 </p>
+                            </div>
+
+                            {/* Preços */}
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-xs font-bold text-gray-500 mb-1 uppercase">Preço Mensalista</label>
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-sm font-medium text-gray-400">R$</span>
+                                        <input
+                                            type="number"
+                                            value={priceMensalista}
+                                            onChange={(e) => setPriceMensalista(Number(e.target.value))}
+                                            className="w-full bg-gray-50 dark:bg-[#102216]/50 border border-gray-200 dark:border-[#2a4032] rounded-lg p-2 text-center font-bold text-[#0d1b12] dark:text-white"
+                                        />
+                                    </div>
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-bold text-gray-500 mb-1 uppercase">Preço Avulso</label>
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-sm font-medium text-gray-400">R$</span>
+                                        <input
+                                            type="number"
+                                            value={priceAvulso}
+                                            onChange={(e) => setPriceAvulso(Number(e.target.value))}
+                                            className="w-full bg-gray-50 dark:bg-[#102216]/50 border border-gray-200 dark:border-[#2a4032] rounded-lg p-2 text-center font-bold text-[#0d1b12] dark:text-white"
+                                        />
+                                    </div>
+                                </div>
                             </div>
 
                             <button

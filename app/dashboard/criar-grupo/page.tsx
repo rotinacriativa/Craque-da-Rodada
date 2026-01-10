@@ -21,6 +21,10 @@ export default function CreateGroupPage() {
     const [defaultTimeStart, setDefaultTimeStart] = useState("20:00");
     const [defaultMaxMembers] = useState("20");
 
+    // Finance Defaults
+    const [priceMensalista, setPriceMensalista] = useState(0);
+    const [priceAvulso, setPriceAvulso] = useState(0);
+
     // UI States
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -54,6 +58,8 @@ export default function CreateGroupPage() {
                 default_day: defaultDay,
                 default_time_start: defaultTimeStart,
                 logo_url: logoUrl,
+                price_mensalista: priceMensalista,
+                price_avulso: priceAvulso
             };
 
             // 1. Create Group
@@ -233,6 +239,34 @@ export default function CreateGroupPage() {
                                         className="h-24 w-full rounded-xl border border-[#e7f3eb] bg-white px-4 py-3 text-sm resize-none outline-none focus:border-[#13ec5b] dark:border-gray-600 dark:bg-[#1a3322] dark:text-white"
                                         placeholder="Descrição breve da pelada..."
                                     ></textarea>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="block text-xs font-bold text-[#4c9a66] dark:text-gray-400 mb-1 ml-1 uppercase tracking-wide">Preço Mensalista</label>
+                                            <div className="flex items-center gap-2 bg-white dark:bg-[#1a3322] border border-[#e7f3eb] dark:border-gray-600 rounded-xl px-4 py-2">
+                                                <span className="text-gray-400 text-sm">R$</span>
+                                                <input
+                                                    type="number"
+                                                    value={priceMensalista}
+                                                    onChange={(e) => setPriceMensalista(Number(e.target.value))}
+                                                    className="w-full bg-transparent text-sm font-bold outline-none dark:text-white"
+                                                    placeholder="0"
+                                                />
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-bold text-[#4c9a66] dark:text-gray-400 mb-1 ml-1 uppercase tracking-wide">Preço Avulso</label>
+                                            <div className="flex items-center gap-2 bg-white dark:bg-[#1a3322] border border-[#e7f3eb] dark:border-gray-600 rounded-xl px-4 py-2">
+                                                <span className="text-gray-400 text-sm">R$</span>
+                                                <input
+                                                    type="number"
+                                                    value={priceAvulso}
+                                                    onChange={(e) => setPriceAvulso(Number(e.target.value))}
+                                                    className="w-full bg-transparent text-sm font-bold outline-none dark:text-white"
+                                                    placeholder="0"
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
                                     <div className="flex items-center gap-4">
                                         <button
                                             onClick={() => setVisibility("public")}

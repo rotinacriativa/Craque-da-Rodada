@@ -1,7 +1,11 @@
-import Link from "next/link";
 import { createClient } from "../../src/lib/server";
-import { formatDateForMatchList } from "../../src/lib/utils";
-import ShareButton from "../components/ShareButton";
+import { DashboardHeader } from "../components/player/dashboard/DashboardHeader";
+import { StatsCard } from "../components/player/dashboard/StatsCard";
+import { NextMatchCard } from "../components/player/dashboard/NextMatchCard";
+import { EmptyMatchState } from "../components/player/dashboard/EmptyMatchState";
+import { ActivityFeed } from "../components/player/dashboard/ActivityFeed";
+import { CraqueCard } from "../components/player/dashboard/CraqueCard";
+import { InviteBanner } from "../components/player/dashboard/InviteBanner";
 
 export default async function DashboardPage() {
     const supabase = await createClient();
@@ -12,7 +16,6 @@ export default async function DashboardPage() {
     let nextMatchParticipants: any[] = [];
     let lastCraque = null;
     let stats = { organized: 0, participated: 0 };
-    let loading = false; // It's server side, so loading is implicit until streaming
 
     if (user) {
         // 1. Fetch Next Match
@@ -97,243 +100,67 @@ export default async function DashboardPage() {
     return (
         <>
             {/* Page Heading */}
-            <section className="flex flex-col md:flex-row md:items-end justify-between gap-4">
-                <div className="flex flex-col gap-2">
-                    <h3 className="text-[#0d1b12] dark:text-white text-3xl md:text-4xl font-black leading-tight tracking-[-0.033em]">
-                        Bem-vindo de volta, <span className="text-[#13ec5b]">Jogador!</span>
-                    </h3>
-                    <p className="text-[#4c9a66] text-base font-normal leading-normal max-w-xl">
-                        Aqui está o resumo dos seus jogos. Você tem convites pendentes e partidas confirmadas.
-                    </p>
-                </div>
-                <div className="hidden md:block">
-                    <span className="text-xs font-bold text-[#4c9a66] uppercase tracking-wider mb-1 block">Sua Performance</span>
-                    <div className="flex gap-1">
-                        <div className="w-12 h-1.5 rounded-full bg-[#13ec5b]"></div>
-                        <div className="w-12 h-1.5 rounded-full bg-[#13ec5b]"></div>
-                        <div className="w-12 h-1.5 rounded-full bg-[#13ec5b]/40"></div>
-                        <div className="w-12 h-1.5 rounded-full bg-[#e7f3eb] dark:bg-[#2a4535]"></div>
-                    </div>
-                </div>
-            </section>
+            <DashboardHeader />
 
             {/* Stats Cards */}
             <section className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
-                {/* Card 1 */}
-                <div className="flex flex-col gap-2 rounded-xl p-6 bg-white dark:bg-[#1a2c20] border border-[#cfe7d7] dark:border-[#2a4535] shadow-[0_2px_8px_rgba(0,0,0,0.04)] hover:shadow-[0_4px_12px_rgba(19,236,91,0.15)] transition-shadow group">
-                    <div className="flex justify-between items-start">
-                        <p className="text-[#4c9a66] text-sm font-bold uppercase tracking-wider">Peladas Organizadas</p>
-                        <div className="p-2 bg-[#e7f3eb] dark:bg-[#22382b] text-[#13ec5b] rounded-lg group-hover:bg-[#13ec5b] group-hover:text-[#0d1b12] transition-colors">
-                            <span className="material-symbols-outlined text-xl">stadium</span>
-                        </div>
-                    </div>
-                    <div className="mt-2 flex items-baseline gap-2">
-                        <p className="text-[#0d1b12] dark:text-white text-4xl font-bold leading-tight">{stats.organized}</p>
-                    </div>
-                    <p className="text-xs text-[#8baaa0] mt-1">Total acumulado</p>
-                </div>
-                {/* Card 2 */}
-                <div className="flex flex-col gap-2 rounded-xl p-6 bg-white dark:bg-[#1a2c20] border border-[#cfe7d7] dark:border-[#2a4535] shadow-sm opacity-60">
-                    <div className="flex justify-between items-start">
-                        <p className="text-[#4c9a66] text-sm font-bold uppercase tracking-wider">Partidas</p>
-                        <div className="p-2 bg-gray-100 dark:bg-[#22382b] text-gray-400 rounded-lg">
-                            <span className="material-symbols-outlined text-xl">directions_run</span>
-                        </div>
-                    </div>
-                    <div className="mt-2 flex items-baseline gap-2">
-                        <p className="text-gray-400 text-2xl font-bold leading-tight">Em breve</p>
-                    </div>
-                    <p className="text-xs text-gray-400 mt-1">Estatísticas de jogos</p>
-                </div>
-                {/* Card 3 */}
-                <div className="flex flex-col gap-2 rounded-xl p-6 bg-white dark:bg-[#1a2c20] border border-[#cfe7d7] dark:border-[#2a4535] shadow-sm opacity-60">
-                    <div className="flex justify-between items-start">
-                        <p className="text-[#4c9a66] text-sm font-bold uppercase tracking-wider">Gols</p>
-                        <div className="p-2 bg-gray-100 dark:bg-[#22382b] text-gray-400 rounded-lg">
-                            <span className="material-symbols-outlined text-xl">sports_soccer</span>
-                        </div>
-                    </div>
-                    <div className="mt-2 flex items-baseline gap-2">
-                        <p className="text-gray-400 text-2xl font-bold leading-tight">Em breve</p>
-                    </div>
-                    <p className="text-xs text-gray-400 mt-1">Ranking de artilharia</p>
-                </div>
+                <StatsCard
+                    title="Peladas Organizadas"
+                    value={stats.organized}
+                    icon="stadium"
+                    subtitle="Total acumulado"
+                    active={true}
+                />
+                <StatsCard
+                    title="Partidas"
+                    value="Em breve"
+                    icon="directions_run"
+                    subtitle="Estatísticas de jogos"
+                    active={false}
+                />
+                <StatsCard
+                    title="Gols"
+                    value="Em breve"
+                    icon="sports_soccer"
+                    subtitle="Ranking de artilharia"
+                    active={false}
+                />
             </section>
 
             {/* Featured Card: Next Game */}
             <section>
                 <div className="flex items-center justify-between mb-4">
                     <h4 className="text-[#0d1b12] dark:text-white text-xl font-bold">Próxima Pelada</h4>
-                    <Link className="text-[#13ec5b] text-sm font-bold hover:underline" href="/dashboard/grupos">Ver agenda completa</Link>
                 </div>
 
                 {nextMatch ? (
-                    <div className="flex flex-col md:flex-row items-stretch gap-0 md:gap-6 rounded-[2rem] bg-white dark:bg-[#1a2c20] p-4 md:p-6 shadow-[0_4px_20px_rgba(0,0,0,0.05)] border border-[#e7f3eb] dark:border-[#2a4535]">
-                        {/* Card Image */}
-                        <div className="w-full md:w-2/5 aspect-video md:aspect-auto bg-center bg-no-repeat bg-cover rounded-2xl md:rounded-3xl relative overflow-hidden group" style={{ backgroundImage: "url('https://lh3.googleusercontent.com/aida-public/AB6AXuDn1zLjEVJzzbfA6TQsi4mPWz6DPyZISrjM0oARG6tm3U10eaDmXgvuI2GeKtu4JeDz9JDEk-owaU-S7vJfd4sIzvuVbq7ayVwMnDDe-3flpSS5MSRFQh0NF_iQA8zsBmgzUMSvcsWVjM52PW6HwezkjqUIJm0WTiw7GcwK6tIPhcG6iLsbKByd886Zta5l-e6_GVFpQy_33J5uZ4z-sdbLRaR8dQjp-08S4aOYRmdiQB_QUUL1Sj6KeNbAa1T6L-lyQfMRCKjY-Rg')" }}>
-                            <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent opacity-80"></div>
-                            <div className="absolute top-4 left-4 bg-[#13ec5b] text-[#0d1b12] text-xs font-bold px-3 py-1.5 rounded-full uppercase tracking-wide">
-                                Confirmado
-                            </div>
-                            <div className="absolute bottom-4 left-4 text-white">
-                                <div className="flex items-center gap-1 mb-1">
-                                    <span className="material-symbols-outlined text-sm">cloud</span>
-                                    <span className="text-xs font-medium">18°C • Sem chuva</span>
-                                </div>
-                            </div>
-                        </div>
-                        {/* Card Content */}
-                        <div className="flex flex-1 flex-col gap-4 pt-4 md:pt-2">
-                            <div className="flex flex-col gap-1">
-                                <div className="flex items-center gap-2 text-[#13ec5b] text-sm font-bold uppercase tracking-wide">
-                                    <span className="material-symbols-outlined text-lg">calendar_month</span>
-                                    {formatDateForMatchList(nextMatch.date, nextMatch.start_time)}
-                                </div>
-                                <h3 className="text-[#0d1b12] dark:text-white text-2xl md:text-3xl font-bold leading-tight">
-                                    {nextMatch.name} - {nextMatch.groups?.name}
-                                </h3>
-                                <div className="flex items-center gap-2 text-[#4c9a66] text-sm md:text-base font-medium mt-1">
-                                    <span className="material-symbols-outlined text-lg">location_on</span>
-                                    {nextMatch.location}
-                                </div>
-                            </div>
-
-                            {/* Players Section */}
-                            <div className="flex items-center gap-3 py-2">
-                                <div className="flex -space-x-3">
-                                    {nextMatchParticipants.slice(0, 4).map((p, i) => (
-                                        <div key={i} className="w-10 h-10 rounded-full border-2 border-white dark:border-[#1a2c20] bg-gray-200 bg-cover bg-center" style={{ backgroundImage: `url('${p.avatar_url || ""}')` }}>
-                                            {!p.avatar_url && <span className="flex items-center justify-center w-full h-full text-[10px] font-bold text-gray-500">{p.full_name?.charAt(0)}</span>}
-                                        </div>
-                                    ))}
-                                    {nextMatchParticipants.length > 4 && (
-                                        <div className="w-10 h-10 rounded-full border-2 border-white dark:border-[#1a2c20] bg-gray-100 flex items-center justify-center text-xs font-bold text-gray-600">
-                                            +{nextMatchParticipants.length - 4}
-                                        </div>
-                                    )}
-                                </div>
-                                <div className="flex flex-col">
-                                    <span className="text-[#0d1b12] dark:text-white font-bold text-sm">{nextMatchParticipants.length} Confirmados</span>
-                                    <span className="text-xs text-[#4c9a66]">Garanta sua vaga!</span>
-                                </div>
-                            </div>
-
-                            <div className="mt-auto flex gap-3 pt-4 border-t border-[#e7f3eb] dark:border-[#2a4535]">
-                                <Link
-                                    href={`/dashboard/grupos/${nextMatch.group_id}/partidas/${nextMatch.id}`}
-                                    className="flex-1 min-w-[120px] cursor-pointer items-center justify-center overflow-hidden rounded-full h-12 px-6 bg-[#13ec5b] text-[#0d1b12] text-sm font-bold leading-normal tracking-[0.015em] hover:bg-[#0fd651] transition-colors shadow-lg shadow-[#13ec5b]/20 flex"
-                                >
-                                    <span className="truncate">Ver Detalhes do Jogo</span>
-                                </Link>
-                                <ShareButton />
-                            </div>
-                        </div>
-                    </div>
+                    <NextMatchCard
+                        match={{
+                            id: nextMatch.id,
+                            name: nextMatch.name,
+                            date: nextMatch.date,
+                            start_time: nextMatch.start_time,
+                            location: nextMatch.location,
+                            group_id: nextMatch.group_id
+                        }}
+                        groupName={nextMatch.groups?.name || 'Grupo'}
+                        participants={nextMatchParticipants}
+                    />
                 ) : (
-                    <div className="flex flex-col items-center justify-center py-16 px-6 text-center rounded-[2.5rem] bg-white dark:bg-[#1a2c20] border border-[#e7f3eb] dark:border-[#2a4535] shadow-sm relative overflow-hidden">
-                        <div className="absolute top-0 left-0 w-full h-2 bg-[#13ec5b]"></div>
-                        <div className="bg-[#13ec5b]/10 p-6 rounded-full mb-6">
-                            <span className="material-symbols-outlined text-4xl text-[#0ea841] dark:text-[#13ec5b]">sports_soccer</span>
-                        </div>
-                        <h3 className="text-2xl md:text-3xl font-black text-[#0d1b12] dark:text-white mb-3 tracking-tight">
-                            Bora organizar o jogo?
-                        </h3>
-                        <p className="text-[#4c9a66] dark:text-[#8baaa0] mb-8 max-w-md text-lg leading-relaxed">
-                            Crie seu grupo, chame a galera e esqueça a planilha. O jeito mais fácil de gerenciar sua pelada.
-                        </p>
-                        <div className="flex flex-col items-center gap-4 w-full max-w-xs">
-                            <Link
-                                href="/dashboard/criar-grupo"
-                                className="w-full h-14 rounded-full bg-[#13ec5b] hover:bg-[#0fd650] text-[#0d1b12] text-lg font-bold flex items-center justify-center gap-2 transition-all shadow-xl shadow-[#13ec5b]/25 hover:scale-105"
-                            >
-                                <span className="material-symbols-outlined">add_circle</span>
-                                Criar Nova Pelada
-                            </Link>
-                            <Link
-                                href="/dashboard/explorar"
-                                className="text-sm font-bold text-[#4c9a66] dark:text-[#8baaa0] hover:text-[#13ec5b] dark:hover:text-white transition-colors"
-                            >
-                                Ou procure uma pelada para jogar
-                            </Link>
-                        </div>
-                    </div>
+                    <EmptyMatchState />
                 )}
             </section>
 
             {/* Quick Access / Secondary Content */}
             <section className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {/* Recent Activity */}
-                <div className="bg-white dark:bg-[#1a2c20] rounded-[2rem] p-6 border border-[#e7f3eb] dark:border-[#2a4535] shadow-sm">
-                    <div className="flex items-center justify-between mb-6">
-                        <h4 className="font-bold text-lg text-[#0d1b12] dark:text-white">Atividade Recente</h4>
-                        <button disabled className="text-[#4c9a66] opacity-50 cursor-not-allowed" title="Em breve">
-                            <span className="material-symbols-outlined">more_horiz</span>
-                        </button>
-                    </div>
-                    <div className="flex flex-col items-center justify-center py-8 opacity-50">
-                        <div className="w-10 h-10 bg-gray-100 dark:bg-[#22382b] rounded-full flex items-center justify-center mb-2">
-                            <span className="material-symbols-outlined text-gray-400">notifications_off</span>
-                        </div>
-                        <p className="text-sm font-bold text-[#0d1b12] dark:text-white">Nenhuma atividade recente</p>
-                        <p className="text-xs text-[#4c9a66]">Suas notificações aparecerão aqui.</p>
-                    </div>
-                </div>
+                <ActivityFeed />
 
                 {/* Last Craque Card */}
-                {lastCraque && (
-                    <div className="bg-gradient-to-br from-yellow-50 to-white dark:from-yellow-900/10 dark:to-[#1a2c20] rounded-[2rem] p-6 border border-yellow-200 dark:border-yellow-900/30 shadow-sm relative overflow-hidden group">
-                        <div className="flex items-start justify-between relative z-10">
-                            <div>
-                                <h4 className="font-bold text-lg text-[#0d1b12] dark:text-white mb-1">Último Craque</h4>
-                                <p className="text-xs text-[#4c9a66] dark:text-gray-400">O melhor em campo da última rodada</p>
-                            </div>
-                            <div className="bg-yellow-100 dark:bg-yellow-900/20 text-yellow-600 p-2 rounded-lg">
-                                <span className="material-symbols-outlined">stars</span>
-                            </div>
-                        </div>
-
-                        <div className="mt-6 flex items-center gap-4 relative z-10">
-                            <div className="size-16 rounded-full border-4 border-yellow-400 p-0.5 bg-white dark:bg-[#1a2c20]">
-                                <div className="w-full h-full rounded-full bg-cover bg-center" style={{ backgroundImage: `url('${lastCraque.avatar_url || ""}')` }}>
-                                    {!lastCraque.avatar_url && <span className="flex items-center justify-center w-full h-full bg-gray-200 text-gray-500 font-bold">{lastCraque.full_name?.charAt(0)}</span>}
-                                </div>
-                            </div>
-                            <div>
-                                <p className="font-black text-xl text-[#0d1b12] dark:text-white leading-none mb-1">{lastCraque.full_name}</p>
-                                <p className="text-sm font-bold text-yellow-600 dark:text-yellow-500">{lastCraque.votes} Votos</p>
-                            </div>
-                        </div>
-
-                        {/* Background Decor */}
-                        <div className="absolute -bottom-8 -right-8 text-yellow-500/10 dark:text-yellow-500/5 rotate-12">
-                            <span className="material-symbols-outlined text-[150px]">trophy</span>
-                        </div>
-                    </div>
-                )}
-
-                {!lastCraque && (
-                    <div className="bg-white dark:bg-[#1a2c20] rounded-[2rem] p-6 border border-[#e7f3eb] dark:border-[#2a4535] shadow-sm flex items-center justify-center text-center">
-                        <div>
-                            <div className="w-12 h-12 bg-gray-100 dark:bg-[#22382b] rounded-full flex items-center justify-center mx-auto mb-3 text-gray-400">
-                                <span className="material-symbols-outlined">emoji_events</span>
-                            </div>
-                            <h4 className="font-bold text-[#0d1b12] dark:text-white">Sem Craque Recente</h4>
-                            <p className="text-xs text-gray-500 mt-1">Jogue e vote para eleger o melhor.</p>
-                        </div>
-                    </div>
-                )}
+                <CraqueCard craque={lastCraque} />
 
                 {/* Invite Banner */}
-                <div className="bg-[#0d1b12] rounded-[2rem] p-8 flex flex-col justify-between relative overflow-hidden group">
-                    <div className="absolute right-[-20px] bottom-[-40px] opacity-20 group-hover:scale-110 transition-transform duration-500">
-                        <span className="material-symbols-outlined text-[180px] text-[#13ec5b]">mark_email_unread</span>
-                    </div>
-                    <div className="relative z-10">
-                        <h4 className="text-white font-bold text-xl mb-2">Convide seus amigos</h4>
-                        <p className="text-[#8baaa0] text-sm mb-6 max-w-[200px]">Aumente a resenha! Traga seus amigos para organizar o jogo com você.</p>
-                        <ShareButton />
-                    </div>
-                </div>
+                <InviteBanner />
             </section>
         </>
     );

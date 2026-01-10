@@ -32,6 +32,12 @@ export default function GroupDashboard({ params }: { params: Promise<{ id: strin
         try {
             // 1. Get Current User with Multi-Stage Check (Resilient for Mobile)
             const user = await getResilientUser(supabase);
+
+            if (!user) {
+                console.warn("[Group] No resilient user found. Middleware should have handled this. Waiting for hydration...");
+                return;
+            }
+
             setCurrentUser(user);
 
             // Fetch Group Details

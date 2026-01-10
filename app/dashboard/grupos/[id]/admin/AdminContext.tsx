@@ -35,7 +35,7 @@ export function AdminProvider({
                 const actualUser = await getResilientUser(supabase);
 
                 if (!actualUser) {
-                    router.push("/login");
+                    console.warn("[AdminContext] No resilient user found. Middleware should handle this.");
                     return;
                 }
 
