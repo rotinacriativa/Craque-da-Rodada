@@ -15,6 +15,7 @@ import { LocationCard } from "../../../components/player/matches/LocationCard";
 import { VotingSection } from "../../../components/player/matches/VotingSection";
 import { ParticipantsList } from "../../../components/player/matches/ParticipantsList";
 import { ActionCard } from "../../../components/player/matches/ActionCard";
+import TeamGeneratorModal from "../../../components/TeamGeneratorModal";
 
 interface Match {
     id: string;
@@ -70,6 +71,7 @@ export default function MatchDetails({ params }: { params: Promise<{ id: string 
     const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
     const [isCanceling, setIsCanceling] = useState(false);
     const [isAddPlayerOpen, setIsAddPlayerOpen] = useState(false);
+    const [isTeamGeneratorOpen, setIsTeamGeneratorOpen] = useState(false);
 
     // Messages
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -211,6 +213,33 @@ export default function MatchDetails({ params }: { params: Promise<{ id: string 
     useEffect(() => {
         fetchData();
     }, [matchId]);
+
+    const handleSaveTeams = async (teamsMap: { teamA: string[], teamB: string[], teamC: string[], teamD: string[] }) => {
+        try {
+            const updates: Promise<any>[] = [];
+
+            const queueUpdate = (ids: string[], teamName: string) => {
+                ids.forEach(id => {
+                    updates.push(
+                        supabase.from('match_participants').update({ team: teamName }).eq('id', id)
+                    );
+                });
+            };
+
+            queueUpdate(teamsMap.teamA, 'A');
+            queueUpdate(teamsMap.teamB, 'B');
+            queueUpdate(teamsMap.teamC, 'C');
+            queueUpdate(teamsMap.teamD, 'D');
+
+            await Promise.all(updates);
+
+            setSuccessMessage("Times salvos com sucesso!");
+            fetchData();
+        } catch (error) {
+            console.error("Error saving teams:", error);
+            setErrorMessage("Erro ao salvar times.");
+        }
+    };
 
     const handleCancelMatch = () => {
         setIsCancelModalOpen(true);
@@ -363,14 +392,56 @@ export default function MatchDetails({ params }: { params: Promise<{ id: string 
 
                     {/* Roster Section */}
                     <section className="flex flex-col gap-4">
-                        <div className="flex items-center justify-between">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                             <h2 className="text-2xl font-bold text-[#0d1b12] dark:text-white">Quem vai jogar</h2>
-                            <div className="flex bg-gray-100 dark:bg-[#183020] p-1 rounded-full">
-                                <button className="px-4 py-1.5 rounded-full bg-white dark:bg-[#102216] text-[#0d1b12] dark:text-white shadow-sm text-sm font-bold">
-                                    Confirmados ({confirmedPlayers.length})
-                                </button>
-                                <button className="px-4 py-1.5 rounded-full text-gray-500 dark:text-gray-400 text-sm font-medium hover:text-[#0d1b12] dark:hover:text-white transition-colors">
-                                    Espera (0)
+                            <div className="flex items-center gap-2">
+                                {isAdmin && confirmedPlayers.length >= 4 && (
+                                    <button
+                                        onClick={() => setIsTeamGeneratorOpen(true)}
+                                        className="px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white rounded-lg text-sm font-bold flex items-center gap-2 shadow-sm transition-colors"
+                                    >
+                                        <span className="material-symbols-outlined text-[18px]">shuffle</span>
+                                        Sortear Times
+                                    </button>
+                                )}
+
+                                <button
+                                    onClick={() => {
+                                        const confirmed = confirmedPlayers;
+                                        const waitlist = participants.filter(p => p.status === 'waitlist');
+                                        const declined = participants.filter(p => p.status === 'declined');
+
+                                        const formatDate = (dateStr: string) => {
+                                            const [year, month, day] = dateStr.split('-');
+                                            return `${day}/${month}`;
+                                        };
+
+                                        let listText = `⚽ *${match.name}* ⚽\n`;
+                                        listText += `📅 Data: ${formatDate(match.date)} às ${match.start_time.slice(0, 5)}\n`;
+                                        listText += `📍 Local: ${match.location}\n\n`;
+
+                                        listText += `✅ *CONFIRMADOS (${confirmed.length}/${match.capacity})*\n`;
+                                        confirmed.forEach((p, index) => {
+                                            listText += `${index + 1}. ${p.profile.full_name || 'Jogador'}\n`;
+                                        });
+
+                                        if (waitlist.length > 0) {
+                                            listText += `\n⌛ *LISTA DE ESPERA*\n`;
+                                            waitlist.forEach((p, index) => {
+                                                listText += `${index + 1}. ${p.profile.full_name || 'Jogador'}\n`;
+                                            });
+                                        }
+
+                                        listText += `\n🔗 *Confirme sua presença:*\n${window.location.href}`;
+
+                                        navigator.clipboard.writeText(listText)
+                                            .then(() => setSuccessMessage("Lista copiada para o WhatsApp!"))
+                                            .catch(() => setErrorMessage("Erro ao copiar lista."));
+                                    }}
+                                    className="px-4 py-2 bg-[#13ec5b] hover:bg-[#0fd652] text-[#0d1b12] rounded-lg text-sm font-bold flex items-center gap-2 shadow-sm transition-colors"
+                                >
+                                    <span className="material-symbols-outlined text-[18px]">content_copy</span>
+                                    Copiar Lista
                                 </button>
                             </div>
                         </div>
@@ -412,6 +483,15 @@ export default function MatchDetails({ params }: { params: Promise<{ id: string 
                 type="danger"
                 isLoading={isCanceling}
             />
+
+            {match && (
+                <TeamGeneratorModal
+                    isOpen={isTeamGeneratorOpen}
+                    onClose={() => setIsTeamGeneratorOpen(false)}
+                    players={confirmedPlayers}
+                    onSave={handleSaveTeams}
+                />
+            )}
 
             {match && (
                 <AddPlayerModal

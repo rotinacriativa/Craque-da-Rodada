@@ -227,10 +227,10 @@ export default function GroupAdminDashboard({ params }: { params: Promise<{ id: 
                                 <span className="material-symbols-outlined text-[20px]">sports_soccer</span>
                                 Gerenciar Partida
                             </Link>
-                            <button className="w-full lg:w-auto px-6 py-3 bg-transparent border border-[#e7f3eb] dark:border-[#2a4032] hover:bg-gray-50 dark:hover:bg-[#25382e] text-[#0d1b12] dark:text-white text-sm font-bold rounded-full transition-colors flex items-center justify-center gap-2">
+                            <Link href={`/dashboard/grupos/${groupId}/partidas/${data.nextMatch.id}`} className="w-full lg:w-auto px-6 py-3 bg-transparent border border-[#e7f3eb] dark:border-[#2a4032] hover:bg-gray-50 dark:hover:bg-[#25382e] text-[#0d1b12] dark:text-white text-sm font-bold rounded-full transition-colors flex items-center justify-center gap-2">
                                 <span className="material-symbols-outlined text-[20px]">groups</span>
                                 Gerar Times
-                            </button>
+                            </Link>
                         </div>
                     </div>
                 </div>
@@ -299,22 +299,39 @@ export default function GroupAdminDashboard({ params }: { params: Promise<{ id: 
                         </div>
                     </div>
                 </Link>
-                {/* Times Card - Placeholder for now */}
-                <div className="bg-white dark:bg-[#1a2c20] p-6 rounded-2xl border border-[#e7f3eb] dark:border-[#2a4032] hover:shadow-md transition-shadow cursor-pointer group flex flex-col justify-between min-h-[180px]">
-                    <div className="flex justify-between items-start">
-                        <div className="p-3 bg-orange-100 dark:bg-orange-900/20 rounded-xl text-orange-700 dark:text-orange-400 group-hover:scale-110 transition-transform duration-300">
-                            <span className="material-symbols-outlined icon-filled">shuffle</span>
+                {/* Times Card */}
+                {data.nextMatch ? (
+                    <Link href={`/dashboard/grupos/${groupId}/partidas/${data.nextMatch.id}`} className="bg-white dark:bg-[#1a2c20] p-6 rounded-2xl border border-[#e7f3eb] dark:border-[#2a4032] hover:shadow-md transition-shadow cursor-pointer group flex flex-col justify-between min-h-[180px]">
+                        <div className="flex justify-between items-start">
+                            <div className="p-3 bg-orange-100 dark:bg-orange-900/20 rounded-xl text-orange-700 dark:text-orange-400 group-hover:scale-110 transition-transform duration-300">
+                                <span className="material-symbols-outlined icon-filled">shuffle</span>
+                            </div>
+                            <span className="material-symbols-outlined text-gray-300 dark:text-gray-600">arrow_outward</span>
                         </div>
-                        <span className="material-symbols-outlined text-gray-300 dark:text-gray-600">arrow_outward</span>
-                    </div>
-                    <div>
-                        <p className="text-[#4c9a66] text-sm font-medium mb-1">Ferramentas</p>
-                        <h4 className="text-2xl font-bold text-[#0d1b12] dark:text-white tracking-tight">Sorteador</h4>
-                        <div className="flex items-center gap-1 mt-1 text-xs font-medium text-[#4c9a66]">
-                            <span>Criar times equilibrados</span>
+                        <div>
+                            <p className="text-[#4c9a66] text-sm font-medium mb-1">Ferramentas</p>
+                            <h4 className="text-2xl font-bold text-[#0d1b12] dark:text-white tracking-tight">Sorteador</h4>
+                            <div className="flex items-center gap-1 mt-1 text-xs font-medium text-[#4c9a66]">
+                                <span>Criar times equilibrados</span>
+                            </div>
+                        </div>
+                    </Link>
+                ) : (
+                    <div className="bg-gray-50 dark:bg-[#1a2c20]/50 p-6 rounded-2xl border border-[#e7f3eb] dark:border-[#2a4032] cursor-not-allowed group flex flex-col justify-between min-h-[180px] opacity-70">
+                        <div className="flex justify-between items-start">
+                            <div className="p-3 bg-gray-100 dark:bg-gray-800 rounded-xl text-gray-400 dark:text-gray-500">
+                                <span className="material-symbols-outlined icon-filled">shuffle</span>
+                            </div>
+                        </div>
+                        <div>
+                            <p className="text-gray-400 text-sm font-medium mb-1">Ferramentas</p>
+                            <h4 className="text-2xl font-bold text-gray-400 dark:text-gray-500 tracking-tight">Sorteador</h4>
+                            <div className="flex items-center gap-1 mt-1 text-xs font-medium text-gray-400">
+                                <span>Sem partidas agendadas</span>
+                            </div>
                         </div>
                     </div>
-                </div>
+                )}
 
 
             </div>

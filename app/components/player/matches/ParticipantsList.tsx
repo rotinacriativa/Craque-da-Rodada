@@ -1,6 +1,7 @@
 interface Participant {
     id: string;
     user_id: string;
+    team?: string | null;
     profile: {
         full_name: string;
         avatar_url: string | null;
@@ -38,6 +39,50 @@ export function ParticipantsList({
                     <span className="material-symbols-outlined">share</span>
                     Convidar Galera
                 </button>
+            </div>
+        );
+    }
+
+    const hasTeams = confirmedPlayers.some(p => p.team);
+
+    if (hasTeams) {
+        const teams = ['A', 'B', 'C', 'D'].filter(t => confirmedPlayers.some(p => p.team === t));
+
+        return (
+            <div className="flex flex-col gap-6">
+                {teams.map((teamLetter, index) => {
+                    const teamPlayers = confirmedPlayers.filter(p => p.team === teamLetter);
+                    const teamColors = ['bg-blue-500', 'bg-red-500', 'bg-green-500', 'bg-yellow-500'];
+                    const color = teamColors[index % teamColors.length];
+
+                    return (
+                        <div key={teamLetter} className="rounded-xl border border-gray-100 dark:border-gray-800 bg-white dark:bg-[#183020] overflow-hidden">
+                            <div className="p-3 bg-gray-50 dark:bg-black/20 border-b border-gray-100 dark:border-gray-800 flex items-center gap-2">
+                                <div className={`w-3 h-3 rounded-full ${color}`}></div>
+                                <h3 className="font-bold text-[#0d1b12] dark:text-white">Time {teamLetter}</h3>
+                                <span className="text-xs text-gray-400">({teamPlayers.length} jogadores)</span>
+                            </div>
+                            <div className="p-2 grid grid-cols-1 md:grid-cols-2 gap-2">
+                                {teamPlayers.map(p => (
+                                    <div key={p.id} className="flex items-center p-2 gap-3 rounded-lg hover:bg-gray-50 dark:hover:bg-white/5 transition-colors">
+                                        <div
+                                            className="size-10 rounded-full bg-gray-300 bg-cover bg-center shrink-0"
+                                            style={{ backgroundImage: `url('${p.profile.avatar_url || "https://upload.wikimedia.org/wikipedia/commons/7/7c/Profile_avatar_placeholder_large.png"}')` }}
+                                        />
+                                        <div className="min-w-0">
+                                            <p className="font-bold text-sm text-[#0d1b12] dark:text-white truncate">
+                                                {p.profile.full_name}
+                                            </p>
+                                            <p className="text-[10px] text-gray-500 dark:text-gray-400 capitalize">
+                                                {p.profile.position || 'Jogador'}
+                                            </p>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    );
+                })}
             </div>
         );
     }

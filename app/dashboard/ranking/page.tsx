@@ -6,17 +6,17 @@ export default async function RankingPage({ searchParams }: { searchParams: Prom
     const { groupId } = await searchParams;
 
     // 1. Fetch Ranking Data
-    // Note: We are using the RPC function we created in SQL
+    // Handle 'all' or empty groupId
+    const validGroupId = (groupId && groupId !== 'all' && groupId !== 'undefined') ? groupId : null;
+
     const { data: players, error } = await supabase
         .rpc('get_player_ranking', {
-            p_group_id: groupId || null,
-            // You can add season start/end dates here if needed later
-            // p_start_date: '2026-01-01'
+            p_group_id: validGroupId,
         });
 
     if (error) {
-        console.error("Error fetching ranking:", error);
-        // Handle error gracefully (maybe show empty state or toast in client)
+        console.error("Error fetching ranking details:", error.message, error.details, error.hint);
+        // We can throw or just pass empty array
     }
 
     // 2. Fetch Groups for Filter
@@ -34,11 +34,40 @@ export default async function RankingPage({ searchParams }: { searchParams: Prom
         }
     }
 
+    // 3. Fetch Match History (Last 2 finished)
+    let historyQuery = supabase
+        .from('matches')
+        .select('*, match_participants(count)')
+        .eq('status', 'finished')
+        .order('date', { ascending: false })
+        .limit(2);
+
+    if (validGroupId) {
+        historyQuery = historyQuery.eq('group_id', validGroupId);
+    }
+    const { data: recentMatches } = await historyQuery;
+
+    // 4. Fetch Next Match
+    let nextMatchQuery = supabase
+        .from('matches')
+        .select('*, groups(name)')
+        .eq('status', 'scheduled')
+        .gte('date', new Date().toISOString().split('T')[0])
+        .order('date', { ascending: true })
+        .limit(1);
+
+    if (validGroupId) {
+        nextMatchQuery = nextMatchQuery.eq('group_id', validGroupId);
+    }
+    const { data: nextMatchData } = await nextMatchQuery;
+
     return (
         <RankingView
             players={players || []}
             groups={groups}
             currentGroupId={groupId}
+            recentMatches={recentMatches || []}
+            nextMatch={nextMatchData?.[0] || null}
         />
     );
 }

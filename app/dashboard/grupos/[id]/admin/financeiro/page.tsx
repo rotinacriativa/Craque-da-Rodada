@@ -273,6 +273,34 @@ export default function GroupFinancePage({ params }: { params: Promise<{ id: str
         return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
     };
 
+    const handleWhatsAppCharge = (payment: any) => {
+        const name = payment.profiles?.full_name?.split(' ')[0] || 'Jogador';
+        const type = payment.type === 'MENSAL' ? 'mensalidade' : 'partida';
+        const amount = formatMoney(payment.amount);
+
+        let message = `Fala ${name}! ⚽\nLembrete amigável do pagamento da ${type} no valor de ${amount}.`;
+
+        if (pixKey) {
+            message += `\n\nChave PIX: ${pixKey}`;
+        }
+
+        message += `\n\nValeu!`;
+
+        const url = `https://wa.me/?text=${encodeURIComponent(message)}`;
+        window.open(url, '_blank');
+    };
+
+    const handleChargeAll = () => {
+        let message = `Fala Galera! ⚽\nQuem ainda não pagou, segue a chave PIX para regularizar.`;
+
+        if (pixKey) {
+            message += `\n\nChave PIX: ${pixKey}`;
+        }
+
+        const url = `https://wa.me/?text=${encodeURIComponent(message)}`;
+        window.open(url, '_blank');
+    }
+
     if (loading) {
         return <div className="p-8 text-center">Carregando financeiro...</div>;
     }
@@ -474,9 +502,18 @@ export default function GroupFinancePage({ params }: { params: Promise<{ id: str
                                             <span className="font-semibold text-[#0d1b12] dark:text-white">
                                                 {formatMoney(pp.amount)}
                                             </span>
+
+                                            <button
+                                                onClick={() => handleWhatsAppCharge(pp)}
+                                                className="opacity-0 group-hover/item:opacity-100 bg-green-500 text-white p-1 rounded hover:bg-green-600 transition-all"
+                                                title="Cobrar no WhatsApp"
+                                            >
+                                                <span className="material-symbols-outlined text-[16px] object-cover">chat</span>
+                                            </button>
+
                                             <button
                                                 onClick={() => handleMarkAsPaid(pp.id)}
-                                                className="opacity-0 group-hover/item:opacity-100 bg-emerald-500 text-white p-1 rounded hover:bg-emerald-600 transition-all"
+                                                className="opacity-0 group-hover/item:opacity-100 bg-blue-500 text-white p-1 rounded hover:bg-blue-600 transition-all"
                                                 title="Confirmar Pagamento"
                                             >
                                                 <span className="material-symbols-outlined text-[16px]">check</span>
@@ -488,8 +525,9 @@ export default function GroupFinancePage({ params }: { params: Promise<{ id: str
                         )}
 
                         {pendingPayments.length > 0 && (
-                            <button className="w-full mt-4 py-2 text-sm text-gray-500 hover:text-[#0d1b12] dark:hover:text-white font-medium border border-gray-200 dark:border-[#2a4032] rounded-lg hover:bg-gray-50 dark:hover:bg-[#25382e] transition-colors">
-                                Cobrar Todos
+                            <button onClick={handleChargeAll} className="w-full mt-4 py-2 text-sm text-gray-500 hover:text-[#0d1b12] dark:hover:text-white font-medium border border-gray-200 dark:border-[#2a4032] rounded-lg hover:bg-gray-50 dark:hover:bg-[#25382e] transition-colors flex items-center justify-center gap-2">
+                                <span className="material-symbols-outlined text-[18px]">chat</span>
+                                Cobrar Todos no WhatsApp
                             </button>
                         )}
                     </div>

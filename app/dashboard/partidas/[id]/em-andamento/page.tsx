@@ -1,9 +1,11 @@
 "use client";
 
 import { use, useState, useEffect, useRef } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 // Ensure correct relative path to client
 import { supabase } from "../../../../../src/lib/client";
+import { toast } from "sonner";
 
 interface MatchEvent {
     id: string;
@@ -18,6 +20,7 @@ interface MatchEvent {
 export default function LiveMatchPage({ params }: { params: Promise<{ id: string }> }) {
     const { id } = use(params);
     const matchId = id;
+    const router = useRouter();
 
     // Timer State
     const [seconds, setSeconds] = useState(0);
@@ -31,7 +34,10 @@ export default function LiveMatchPage({ params }: { params: Promise<{ id: string
 
     // Data State
     const [match, setMatch] = useState<any>(null);
-    const [teams, setTeams] = useState<{ A: any[], B: any[] }>({ A: [], B: [] });
+    const [teams, setTeams] = useState<Record<string, any[]>>({});
+    const [availableTeams, setAvailableTeams] = useState<string[]>([]);
+    const [activeTeamA, setActiveTeamA] = useState<string>('A');
+    const [activeTeamB, setActiveTeamB] = useState<string>('B');
     const [loading, setLoading] = useState(true);
 
     // Team Colors
@@ -76,40 +82,81 @@ export default function LiveMatchPage({ params }: { params: Promise<{ id: string
             if (matchError) throw matchError;
             setMatch(matchData);
 
-            // Fetch Participants/Teams
-            const { data: participants, error: partError } = await supabase
+            // Fetch Participants/Teams with a fallback for missing columns
+            let { data: participants, error: partError } = await supabase
                 .from('match_participants')
-                .select(`
-                    id, 
-                    team, 
-                    user_id,
-                    goals,
-                    assists,
-                    profile:profiles(full_name, avatar_url)
-                `)
+                .select(`id, team, user_id, guest_name, goals, assists, wins, draws`)
                 .eq('match_id', matchId)
                 .eq('status', 'confirmed');
 
-            if (partError) throw partError;
+            // Fallback if columns don't exist yet
+            if (partError && partError.message?.includes('column')) {
+                console.warn("Falling back to minimal participant columns due to schema mismatch.");
+                const { data: minimalData, error: minimalError } = await supabase
+                    .from('match_participants')
+                    .select(`id, team, user_id, goals, assists`)
+                    .eq('match_id', matchId)
+                    .eq('status', 'confirmed');
+
+                if (minimalError) throw minimalError;
+                participants = minimalData as any;
+            } else if (partError) {
+                throw partError;
+            }
+
+            // Fetch profiles separately
+            const userIds = participants?.map(p => p.user_id).filter(Boolean) as string[];
+            let profilesMap: Record<string, any> = {};
+
+            if (userIds.length > 0) {
+                const { data: profilesData } = await supabase
+                    .from('profiles')
+                    .select('id, full_name, avatar_url')
+                    .in('id', userIds);
+
+                if (profilesData) {
+                    profilesMap = profilesData.reduce((acc, curr) => ({ ...acc, [curr.id]: curr }), {});
+                }
+            }
 
             // Organize by team
-            const teamA: any[] = [];
-            const teamB: any[] = [];
+            const organizedTeams: Record<string, any[]> = {};
+            const teamLetters: string[] = [];
 
-            participants?.forEach((p: any) => {
-                const formatted = {
-                    ...p,
-                    full_name: p.profile?.full_name || 'Jogador',
-                    avatar_url: p.profile?.avatar_url
-                };
-                if (p.team === 'A') teamA.push(formatted);
-                else if (p.team === 'B') teamB.push(formatted);
-            });
+            if (participants && participants.length > 0) {
+                participants.forEach((p: any) => {
+                    const teamChar = p.team || 'A';
+                    if (!organizedTeams[teamChar]) {
+                        organizedTeams[teamChar] = [];
+                        teamLetters.push(teamChar);
+                    }
 
-            setTeams({ A: teamA, B: teamB });
+                    const profile = p.user_id ? profilesMap[p.user_id] : null;
+                    const formatted = {
+                        ...p,
+                        full_name: profile?.full_name || p.guest_name || 'Jogador',
+                        avatar_url: profile?.avatar_url
+                    };
+                    organizedTeams[teamChar].push(formatted);
+                });
+            }
 
-        } catch (error) {
-            console.error("Error loading match:", error);
+            setTeams(organizedTeams);
+            const sortedLetters = teamLetters.sort();
+            setAvailableTeams(sortedLetters);
+
+            // Default selection
+            if (sortedLetters.length >= 2) {
+                setActiveTeamA(prev => sortedLetters.includes(prev) ? prev : sortedLetters[0]);
+                setActiveTeamB(prev => sortedLetters.includes(prev) ? prev : sortedLetters[1]);
+            } else if (sortedLetters.length === 1) {
+                setActiveTeamA(sortedLetters[0]);
+                setActiveTeamB('B');
+            }
+
+        } catch (error: any) {
+            console.error("Error loading match detail details:", error.message || error);
+            toast.error("Erro técnico ao carregar partida.");
         } finally {
             setLoading(false);
         }
@@ -139,6 +186,84 @@ export default function LiveMatchPage({ params }: { params: Promise<{ id: string
     const resetTimer = () => {
         setIsRunning(false);
         setSeconds(0);
+    };
+
+    const finishRound = async () => {
+        const winner = scoreA > scoreB ? 'A' : scoreB > scoreA ? 'B' : 'Draw';
+        const msg = winner === 'Draw' ? "Empate técnico!" : `Vitória do Time ${winner === 'A' ? activeTeamA : activeTeamB}!`;
+
+        if (!confirm(`Finalizar Round: ${msg}\nDeseja computar os pontos e iniciar o próximo?`)) return;
+
+        try {
+            const teamAChar = activeTeamA;
+            const teamBChar = activeTeamB;
+
+            // Update wins/draws in DB
+            const updates = [];
+
+            // Team A Players
+            for (const player of (teams[teamAChar] || [])) {
+                if (winner === 'A') {
+                    updates.push(supabase.rpc('increment_participant_stat', { p_id: player.id, p_col: 'wins' }));
+                } else if (winner === 'Draw') {
+                    updates.push(supabase.rpc('increment_participant_stat', { p_id: player.id, p_col: 'draws' }));
+                }
+            }
+
+            // Team B Players
+            for (const player of (teams[teamBChar] || [])) {
+                if (winner === 'B') {
+                    updates.push(supabase.rpc('increment_participant_stat', { p_id: player.id, p_col: 'wins' }));
+                } else if (winner === 'Draw') {
+                    updates.push(supabase.rpc('increment_participant_stat', { p_id: player.id, p_col: 'draws' }));
+                }
+            }
+
+            await Promise.all(updates);
+
+            setScoreA(0);
+            setScoreB(0);
+            setSeconds(0);
+            setIsRunning(false);
+            toast.success("Round finalizado e pontos computados!");
+
+        } catch (err) {
+            console.error("Error finishing round:", err);
+            toast.error("Erro ao salvar round.");
+        }
+    };
+
+    const finishMatch = async () => {
+        if (!match) {
+            toast.error("Dados da partida não carregados.");
+            return;
+        }
+
+        if (!confirm("Encerrar de vez a pelada do dia? Isso fechará a súmula e salvará o resultado final.")) return;
+
+        try {
+            // Updated payload with final scores
+            const { error } = await supabase
+                .from('matches')
+                .update({
+                    status: 'finished',
+                    score_a: scoreA,
+                    score_b: scoreB,
+                    updated_at: new Date().toISOString()
+                })
+                .eq('id', matchId);
+
+            if (error) {
+                console.error("Supabase error finishing match:", error);
+                throw new Error(error.message || "Falha na permissão do banco de dados.");
+            }
+
+            toast.success("Pelada finalizada com sucesso! Partiu resenha! 🍻");
+            router.push(`/dashboard/grupos/${match.group_id}/partidas/${matchId}`);
+        } catch (err: any) {
+            console.error("Error in finishMatch:", err);
+            toast.error(`Erro ao finalizar: ${err.message || "Verifique se você é admin."}`);
+        }
     };
 
     // Actions
@@ -176,9 +301,9 @@ export default function LiveMatchPage({ params }: { params: Promise<{ id: string
     };
 
     const createMatchEvent = async (player: any, type: MatchEvent['type'], team: 'A' | 'B', scorer?: { id: string, name: string } | null) => {
-        const playerName = type === 'goal' ? scorer!.name : player.full_name;
+        const playerName = type === 'goal' ? scorer!.name : (player.profile?.full_name || player.guest_name || player.full_name);
         const playerId = type === 'goal' ? scorer!.id : player.id;
-        const assistName = type === 'goal' && player ? player.full_name : null;
+        const assistName = type === 'goal' && player ? (player.profile?.full_name || player.guest_name || player.full_name) : null;
         const assistId = type === 'goal' && player ? player.id : null;
 
         const newEvent: MatchEvent = {
@@ -201,22 +326,27 @@ export default function LiveMatchPage({ params }: { params: Promise<{ id: string
 
         // PERSISTENCE IN DB
         try {
-            // 1. Update Participant Stats (Goals/Assists)
+            // 1. Update Participant Totals (using the helper RPC for safety)
             if (type === 'goal') {
-                // Increment Scorer Goals
-                const { data: scorerData } = await supabase.from('match_participants').select('goals').eq('id', playerId).single();
-                await supabase.from('match_participants').update({ goals: (scorerData?.goals || 0) + 1 }).eq('id', playerId);
-
-                // Increment Assister Assists if exists
+                await supabase.rpc('increment_participant_stat', { p_id: playerId, p_col: 'goals' });
                 if (assistId) {
-                    const { data: assisterData } = await supabase.from('match_participants').select('assists').eq('id', assistId).single();
-                    await supabase.from('match_participants').update({ assists: (assisterData?.assists || 0) + 1 }).eq('id', assistId);
+                    await supabase.rpc('increment_participant_stat', { p_id: assistId, p_col: 'assists' });
                 }
             }
-            // Add to a match_events table if you had one, for now we just keep local log or we could have a table.
-            // But user asked to "computa automaticamente", which likely means updating the match_participants totals we added earlier.
+
+            // 2. Save Event in history table
+            await supabase.from('match_events').insert([{
+                match_id: matchId,
+                player_id: playerId,
+                type,
+                team,
+                event_time: formatTime(seconds),
+                assist_id: assistId
+            }]);
+
         } catch (err) {
-            console.error("Error updating stats:", err);
+            console.error("Error persisting match event:", err);
+            // Non-blocking for the UI
         }
     };
 
@@ -235,7 +365,8 @@ export default function LiveMatchPage({ params }: { params: Promise<{ id: string
 
     if (loading) return <div className="p-10 text-center">Carregando cronômetro...</div>;
 
-    const modalPlayers = teams[modalTeam].filter(p =>
+    const modalTeamLetter = modalTeam === 'A' ? activeTeamA : activeTeamB;
+    const modalPlayers = (teams[modalTeamLetter] || []).filter(p =>
         p.full_name.toLowerCase().includes(searchTerm.toLowerCase()) &&
         (modalStep === 'assister' ? p.id !== tempScorer?.id : true)
     );
@@ -244,21 +375,28 @@ export default function LiveMatchPage({ params }: { params: Promise<{ id: string
         <div className="flex-1 flex flex-col h-full bg-slate-50 dark:bg-[#0d1612]">
             {/* Header Simplified */}
             <header className="px-6 py-4 bg-white dark:bg-[#1a2c22] border-b border-slate-200 dark:border-slate-800 flex items-center justify-between sticky top-0 z-10">
-                <div className="flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
-                    <h1 className="font-bold text-[#0d1b12] dark:text-white text-lg">Ao Vivo</h1>
-                </div>
-                {match && (
-                    <div className="text-sm font-medium text-slate-500 dark:text-slate-400">
-                        {match.name}
+                <div className="flex items-center gap-4">
+                    <Link
+                        href={`/dashboard/grupos/${match?.group_id}/partidas/${matchId}`}
+                        className="p-2 text-slate-400 hover:text-slate-600 transition-colors"
+                    >
+                        <span className="material-symbols-outlined">arrow_back</span>
+                    </Link>
+                    <div className="flex items-center gap-2 border-l pl-4 border-slate-200 dark:border-slate-700">
+                        <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
+                        <h1 className="font-bold text-[#0d1b12] dark:text-white text-lg">Ao Vivo</h1>
                     </div>
-                )}
-                <Link
-                    href={`/dashboard/grupos/${match?.group_id}/partidas/${matchId}`}
-                    className="p-2 text-slate-400 hover:text-[#13ec5b] transition-colors"
-                >
-                    <span className="material-symbols-outlined">close</span>
-                </Link>
+                </div>
+
+                <div className="flex items-center gap-4">
+                    <button
+                        onClick={finishMatch}
+                        className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white text-sm font-black rounded-xl transition-all shadow-lg shadow-red-500/20 flex items-center gap-2"
+                    >
+                        <span className="material-symbols-outlined text-sm">flag</span>
+                        ENCERRAR PELADA
+                    </button>
+                </div>
             </header>
 
             <div className="flex-1 p-4 md:p-8 overflow-y-auto">
@@ -272,13 +410,24 @@ export default function LiveMatchPage({ params }: { params: Promise<{ id: string
                         {/* Team A */}
                         <div className="md:col-span-4 flex flex-col md:flex-row items-center justify-between gap-4 md:pl-8">
                             <div className="flex items-center gap-4">
-                                <button
-                                    onClick={() => setIsColorPickerOpen({ team: 'A' })}
-                                    className={`w-16 h-16 rounded-2xl bg-gradient-to-br transition-all hover:scale-110 ${colorClasses[colorA].bg} flex items-center justify-center text-white font-black text-xl shadow-lg ${colorClasses[colorA].shadow} border-2 ${colorClasses[colorA].border}`}>
-                                    A
-                                </button>
+                                <div className="relative">
+                                    <button
+                                        onClick={() => setIsColorPickerOpen({ team: 'A' })}
+                                        className={`w-16 h-16 rounded-2xl bg-gradient-to-br transition-all hover:scale-110 ${colorClasses[colorA].bg} flex items-center justify-center text-white font-black text-xl shadow-lg ${colorClasses[colorA].shadow} border-2 ${colorClasses[colorA].border}`}>
+                                        {activeTeamA}
+                                    </button>
+                                    {availableTeams && availableTeams.length > 1 && (
+                                        <select
+                                            value={activeTeamA}
+                                            onChange={(e) => setActiveTeamA(e.target.value)}
+                                            className="absolute -bottom-2 -right-2 bg-slate-800 text-white text-[10px] font-bold rounded-lg px-1 border border-slate-700"
+                                        >
+                                            {availableTeams.filter(t => t !== activeTeamB).map(t => <option key={t} value={t}>Time {t}</option>)}
+                                        </select>
+                                    )}
+                                </div>
                                 <div className="text-center md:text-left">
-                                    <h2 className="text-white font-bold text-xl md:text-2xl tracking-tight">Time A</h2>
+                                    <h2 className="text-white font-bold text-xl md:text-2xl tracking-tight">Time {activeTeamA}</h2>
                                 </div>
                             </div>
                             <div className={`text-5xl md:text-7xl font-black tabular-nums tracking-tighter drop-shadow-sm transition-colors ${colorClasses[colorA].text}`}>
@@ -288,7 +437,12 @@ export default function LiveMatchPage({ params }: { params: Promise<{ id: string
 
                         {/* VS */}
                         <div className="md:col-span-4 flex flex-col items-center justify-center py-2 md:py-0">
-                            <span className="text-slate-600 font-black text-2xl opacity-30 italic">VERSUS</span>
+                            <button
+                                onClick={finishRound}
+                                className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-[#13ec5b] text-xs font-black rounded-full border border-slate-700 transition-all active:scale-95"
+                            >
+                                FINALIZAR ROUND
+                            </button>
                         </div>
 
                         {/* Team B */}
@@ -298,13 +452,24 @@ export default function LiveMatchPage({ params }: { params: Promise<{ id: string
                             </div>
                             <div className="flex flex-row-reverse md:flex-row items-center gap-4">
                                 <div className="text-center md:text-right">
-                                    <h2 className="text-white font-bold text-xl md:text-2xl tracking-tight">Time B</h2>
+                                    <h2 className="text-white font-bold text-xl md:text-2xl tracking-tight">Time {activeTeamB}</h2>
                                 </div>
-                                <button
-                                    onClick={() => setIsColorPickerOpen({ team: 'B' })}
-                                    className={`w-16 h-16 rounded-2xl bg-gradient-to-br transition-all hover:scale-110 ${colorClasses[colorB].bg} flex items-center justify-center text-white font-black text-xl shadow-lg ${colorClasses[colorB].shadow} border-2 ${colorClasses[colorB].border}`}>
-                                    B
-                                </button>
+                                <div className="relative">
+                                    <button
+                                        onClick={() => setIsColorPickerOpen({ team: 'B' })}
+                                        className={`w-16 h-16 rounded-2xl bg-gradient-to-br transition-all hover:scale-110 ${colorClasses[colorB].bg} flex items-center justify-center text-white font-black text-xl shadow-lg ${colorClasses[colorB].shadow} border-2 ${colorClasses[colorB].border}`}>
+                                        {activeTeamB}
+                                    </button>
+                                    {availableTeams && availableTeams.length > 1 && (
+                                        <select
+                                            value={activeTeamB}
+                                            onChange={(e) => setActiveTeamB(e.target.value)}
+                                            className="absolute -bottom-2 -left-2 bg-slate-800 text-white text-[10px] font-bold rounded-lg px-1 border border-slate-700"
+                                        >
+                                            {availableTeams.filter(t => t !== activeTeamA).map(t => <option key={t} value={t}>Time {t}</option>)}
+                                        </select>
+                                    )}
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -312,11 +477,10 @@ export default function LiveMatchPage({ params }: { params: Promise<{ id: string
                     {/* Controls & Actions Grid */}
                     <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
 
-                        {/* Team A Actions */}
                         <div className="lg:col-span-3 flex flex-col gap-3 order-2 lg:order-1">
                             <div className="flex items-center gap-2 mb-2 px-2">
                                 <span className={`w-2 h-2 rounded-full ${colorClasses[colorA].text.replace('text-', 'bg-')}`}></span>
-                                <h3 className="text-slate-500 dark:text-slate-400 text-xs font-bold uppercase tracking-wider">Ações Time A</h3>
+                                <h3 className="text-slate-500 dark:text-slate-400 text-xs font-bold uppercase tracking-wider">Ações Time {activeTeamA}</h3>
                             </div>
                             <ActionButton onClick={() => handleActionClick('goal', 'A')} icon="sports_soccer" label="Gol" colorClass={colorClasses[colorA].text} bgClass={colorClasses[colorA].btn} />
                             <ActionButton onClick={() => handleActionClick('card_yellow', 'A')} icon="style" label="Cartão" colorClass="text-amber-500 border-amber-500" bgClass="bg-amber-50 text-amber-600" />
@@ -358,14 +522,13 @@ export default function LiveMatchPage({ params }: { params: Promise<{ id: string
                             </div>
                         </div>
 
-                        {/* Team B Actions */}
                         <div className="lg:col-span-3 flex flex-col gap-3 order-3">
                             <div className="flex items-center justify-end gap-2 mb-2 px-2">
-                                <h3 className="text-slate-500 dark:text-slate-400 text-xs font-bold uppercase tracking-wider">Ações Time B</h3>
+                                <h3 className="text-slate-500 dark:text-slate-400 text-xs font-bold uppercase tracking-wider">Ações Time {activeTeamB}</h3>
                                 <span className={`w-2 h-2 rounded-full ${colorClasses[colorB].text.replace('text-', 'bg-')}`}></span>
                             </div>
                             <ActionButton onClick={() => handleActionClick('goal', 'B')} icon="sports_soccer" label="Gol" colorClass={colorClasses[colorB].text} bgClass={colorClasses[colorB].btn} reverse />
-                            <ActionButton onClick={() => handleActionClick('card_yellow', 'B')} icon="style" label="Cartão" colorClass="text-amber-500 border-amber-500" bgClass="bg-amber-50 text-amber-600" reverse />
+                            Slot                            <ActionButton onClick={() => handleActionClick('card_yellow', 'B')} icon="style" label="Cartão" colorClass="text-amber-500 border-amber-500" bgClass="bg-amber-50 text-amber-600" reverse />
                             <ActionButton onClick={() => handleActionClick('foul', 'B')} icon="pan_tool" label="Falta" colorClass="text-slate-500 border-slate-500" bgClass="bg-slate-100 text-slate-600" reverse />
                         </div>
                     </div>
@@ -396,7 +559,7 @@ export default function LiveMatchPage({ params }: { params: Promise<{ id: string
                                                 <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2">
                                                     <span className="font-bold text-slate-800 dark:text-slate-200">{event.player_name}</span>
                                                     <span className="text-xs text-slate-500 dark:text-slate-400">
-                                                        ({event.team === 'A' ? 'Time A' : 'Time B'})
+                                                        ({event.team === 'A' ? `Time ${activeTeamA}` : `Time ${activeTeamB}`})
                                                     </span>
                                                 </div>
                                             </div>

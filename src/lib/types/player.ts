@@ -155,4 +155,4 @@ export interface PlayerStat {
   total_score: number;
 }
 
-export type SortMode = 'goals' | 'assists' | 'rating';
+export type SortMode = 'goals' | 'assists' | 'rating' | 'score';
