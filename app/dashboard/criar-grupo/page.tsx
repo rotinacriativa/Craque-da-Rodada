@@ -51,7 +51,7 @@ export default function CreateGroupPage() {
 
             // Smart Defaults
             const finalDescription = description || "Pelada organizada pelo Craque da Rodada.";
-            const finalLocation = location || "Campo do Bairro";
+            const finalLocation = location || "Local a definir";
 
             // Prepare payload
             const payload: any = {
@@ -196,50 +196,17 @@ export default function CreateGroupPage() {
                             </div>
                         </div>
 
-                        {/* Optional Grid */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                                <label className="block text-xs font-bold text-[#4c9a66] dark:text-gray-400 mb-1 ml-1 uppercase tracking-wide">Dia Padrão (Opcional)</label>
-                                <select
-                                    value={defaultDay}
-                                    onChange={(e) => setDefaultDay(e.target.value)}
-                                    className="h-12 w-full rounded-xl border border-[#e7f3eb] bg-white px-4 text-base font-medium outline-none focus:border-[#13ec5b] dark:border-gray-600 dark:bg-[#1a3322] dark:text-white cursor-pointer appearance-none"
-                                >
-                                    <option value="domingo">Domingo</option>
-                                    <option value="segunda">Segunda-feira</option>
-                                    <option value="terca">Terça-feira</option>
-                                    <option value="quarta">Quarta-feira</option>
-                                    <option value="quinta">Quinta-feira</option>
-                                    <option value="sexta">Sexta-feira</option>
-                                    <option value="sabado">Sábado</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label className="block text-xs font-bold text-[#4c9a66] dark:text-gray-400 mb-1 ml-1 uppercase tracking-wide">Horário (Opcional)</label>
-                                <input
-                                    value={defaultTimeStart}
-                                    onChange={(e) => setDefaultTimeStart(e.target.value)}
-                                    className="h-12 w-full rounded-xl border border-[#e7f3eb] bg-white px-4 text-base font-medium outline-none focus:border-[#13ec5b] dark:border-gray-600 dark:bg-[#1a3322] dark:text-white [color-scheme:light] dark:[color-scheme:dark]"
-                                    type="time"
-                                />
-                            </div>
-                        </div>
+
 
                         {/* Collapsible Details (Simplification: Just show them as minimal inputs) */}
                         <div className="pt-4 border-t border-[#e7f3eb] dark:border-white/5">
                             <details className="group">
                                 <summary className="flex items-center gap-2 cursor-pointer text-sm font-bold text-[#4c9a66] hover:text-[#13ec5b] transition-colors select-none">
                                     <span className="material-symbols-outlined transition-transform group-open:rotate-180">expand_more</span>
-                                    Mais opções (Local, Descrição, Privacidade)
+                                    Mais opções (Descrição, Privacidade)
                                 </summary>
                                 <div className="mt-4 grid grid-cols-1 gap-4 animate-in slide-in-from-top-2 duration-300">
-                                    <input
-                                        value={location}
-                                        onChange={(e) => setLocation(e.target.value)}
-                                        className="h-12 w-full rounded-xl border border-[#e7f3eb] bg-white px-4 text-sm outline-none focus:border-[#13ec5b] dark:border-gray-600 dark:bg-[#1a3322] dark:text-white"
-                                        placeholder="Local (Ex: Arena Society)"
-                                        type="text"
-                                    />
+
                                     <textarea
                                         value={description}
                                         onChange={(e) => setDescription(e.target.value)}
