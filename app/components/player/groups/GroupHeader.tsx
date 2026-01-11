@@ -69,13 +69,48 @@ export function GroupHeader({ group, isAdmin, groupId, inviteCopied, onInvite, o
                     <p className="text-gray-500 dark:text-gray-400 text-sm line-clamp-2 mt-1">
                         {group.description || "Sem descrição definida."}
                     </p>
+
+                    {/* Desktop Actions Row */}
+                    <div className="hidden md:flex items-center gap-3 mt-4">
+                        <button
+                            onClick={onInvite}
+                            className={`flex items-center gap-2 px-4 py-2 rounded-full font-bold text-sm transition-all ${inviteCopied
+                                ? "bg-green-600 text-white shadow-lg scale-105"
+                                : "bg-gray-100 hover:bg-gray-200 dark:bg-[#2a4031] dark:hover:bg-[#35503d] text-[#0d1b12] dark:text-white"
+                                }`}
+                        >
+                            <span className="material-symbols-outlined text-lg">
+                                {inviteCopied ? "check_circle" : "share"}
+                            </span>
+                            <span>{inviteCopied ? "Link Copiado!" : "Convidar galera"}</span>
+                        </button>
+
+                        {isAdmin && (
+                            <Link
+                                href={`/dashboard/grupos/${groupId}/admin`}
+                                className="flex items-center gap-2 px-4 py-2 bg-[#0d1b12] hover:bg-[#1a2c20] dark:bg-white dark:hover:bg-gray-200 text-white dark:text-[#0d1b12] rounded-full font-bold text-sm transition-colors shadow-md"
+                            >
+                                <span className="material-symbols-outlined text-lg">settings</span>
+                                <span>Painel</span>
+                            </Link>
+                        )}
+
+                        <button
+                            onClick={onLeave}
+                            className="flex items-center gap-2 px-4 py-2 bg-red-50 hover:bg-red-100 text-red-600 dark:bg-red-900/10 dark:hover:bg-red-900/20 dark:text-red-400 rounded-full font-bold text-sm transition-colors"
+                        >
+                            <span className="material-symbols-outlined text-lg">logout</span>
+                            <span>Sair</span>
+                        </button>
+                    </div>
                 </div>
 
-                {/* Three Dots Menu */}
-                <div className="relative shrink-0" ref={menuRef}>
+                {/* Three Dots Menu (Mobile Only) */}
+                <div className="relative shrink-0 md:hidden" ref={menuRef}>
                     <button
                         onClick={() => setIsMenuOpen(!isMenuOpen)}
                         className="p-2 -mr-2 text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-white transition-colors rounded-full active:bg-gray-100 dark:active:bg-white/5"
+                        title="Mais opções"
                     >
                         <span className="material-symbols-outlined">more_vert</span>
                     </button>
@@ -132,15 +167,16 @@ export function GroupHeader({ group, isAdmin, groupId, inviteCopied, onInvite, o
                 ) : (
                     <button
                         onClick={onInvite}
-                        className="w-full h-12 bg-white dark:bg-white/5 border border-gray-200 dark:border-white/10 hover:border-[#13ec5b] dark:hover:border-[#13ec5b] text-[#0d1b12] dark:text-white flex items-center justify-center gap-2 rounded-xl font-bold text-sm transition-all active:scale-[0.98]"
+                        className="w-full h-12 bg-white dark:bg-white/5 border border-gray-200 dark:border-white/10 hover:border-[#13ec5b] dark:hover:border-[#13ec5b] text-[#0d1b12] dark:text-white flex items-center justify-center gap-2 rounded-xl font-bold text-sm transition-all active:scale-[0.98]" // Keep this for player on mobile AND desktop as requested by prompt "Apenas 1 CTA primário por tela" rule, but maybe desktop can have it in the row? 
+                    // Actually, prompts says "Mobile-first" and "Apenas 1 CTA". 
+                    // But user specifically asked to RESTORE desktop buttons.
+                    // So I added the desktop row above.
+                    // I will keep this big button here too as it's the PRIMARY action (Create Match / Invite).
+                    // It effectively duplicates the invite button for members on desktop, but that's okay for emphasis.
                     >
                         <span className="material-symbols-outlined text-xl">share</span>
                         {inviteCopied ? "Copiado!" : "Convidar Galera"}
                     </button>
-                    // Note: If the user is a member, the primary action could be checking status or inviting.
-                    // Since "Próximos Jogos" is effectively handled by the list below, providing an Invite or simple "Status" button is good.
-                    // The prompt says "Apenas 1 CTA primário".
-                    // I used a secondary style for the member button to not compete with potential "Confirmar Presença" buttons in match cards.
                 )}
             </div>
         </div>

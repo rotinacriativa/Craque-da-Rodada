@@ -97,19 +97,27 @@ export default function GroupDashboard({ params }: { params: Promise<{ id: strin
             if (membersRaw && membersRaw.length > 0) {
                 const userIds = membersRaw.map((m: any) => m.user_id);
 
-                const { data: profilesData, error: profilesError } = await supabase
-                    .from('profiles')
-                    .select('id, full_name, avatar_url')
-                    .in('id', userIds);
+                if (userIds.length > 0) {
+                    const { data: profilesData, error: profilesError } = await supabase
+                        .from('profiles')
+                        .select('id, full_name, avatar_url')
+                        .in('id', userIds);
 
-                if (profilesError) {
-                    console.error("Error fetching profiles:", profilesError);
+                    if (profilesError) {
+                        console.error("Error fetching profiles:", JSON.stringify(profilesError, null, 2));
+                    }
+
+                    if (profilesData) {
+                        membersWithProfiles = membersRaw.map((member: any) => {
+                            const profile = profilesData.find((p: any) => p.id === member.user_id);
+                            return { ...member, profile };
+                        });
+                    } else {
+                        membersWithProfiles = membersRaw;
+                    }
+                } else {
+                    membersWithProfiles = membersRaw;
                 }
-
-                membersWithProfiles = membersRaw.map((member: any) => {
-                    const profile = profilesData?.find((p: any) => p.id === member.user_id);
-                    return { ...member, profile };
-                });
             }
 
             setMembers(membersWithProfiles);

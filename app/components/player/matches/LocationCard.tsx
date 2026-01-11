@@ -1,8 +1,20 @@
 interface LocationCardProps {
     location: string;
+    latitude?: number;
+    longitude?: number;
 }
 
-export function LocationCard({ location }: LocationCardProps) {
+export function LocationCard({ location, latitude, longitude }: LocationCardProps) {
+    const handleOpenMap = () => {
+        let url = "";
+        if (latitude && longitude) {
+            url = `https://www.google.com/maps/search/?api=1&query=${latitude},${longitude}`;
+        } else {
+            url = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(location)}`;
+        }
+        window.open(url, '_blank');
+    };
+
     return (
         <section className="rounded-2xl overflow-hidden border border-[#e7f3eb] dark:border-[#1f3b28] bg-white dark:bg-[#183020] shadow-sm">
             <div className="h-48 w-full bg-gray-200 relative group">
@@ -11,7 +23,10 @@ export function LocationCard({ location }: LocationCardProps) {
                     className="absolute inset-0 bg-cover bg-center transition-opacity hover:opacity-90"
                     style={{ backgroundImage: 'url("https://lh3.googleusercontent.com/aida-public/AB6AXuAXN2pk8LXHs1dsBLfAhgFB3zKlTTOOymcoK9-htdI6HJe7H_tFy3FbZy719E3qzsI-He-8AQwruCn5QbrQJ7SxwfefiaS04MlhIsAVPnOVYNabWFI6V45Wcs36gRxsCgZaPXs6zZmGFDTXEr5Vf_0YlWd3YotfGAOZiy0Ol2bt_4qg5e9p702ISVP8a_Iy9cWU3QLsBvrgSj1PG5OYJ1hOPgv27H0Ul9GyDljiyNB9jfQf2TdoORZL8uPnfPumx8pclO8jzirPwIY")' }}
                 />
-                <button className="absolute bottom-4 right-4 bg-white dark:bg-[#102216] text-[#0d1b12] dark:text-white px-4 py-2 rounded-full text-sm font-bold shadow-lg flex items-center gap-2 hover:scale-105 transition-transform">
+                <button
+                    onClick={handleOpenMap}
+                    className="absolute bottom-4 right-4 bg-white dark:bg-[#102216] text-[#0d1b12] dark:text-white px-4 py-2 rounded-full text-sm font-bold shadow-lg flex items-center gap-2 hover:scale-105 transition-transform"
+                >
                     <span className="material-symbols-outlined text-[#13ec5b]">map</span>
                     Ver no Mapa
                 </button>

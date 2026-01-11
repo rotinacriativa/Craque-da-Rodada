@@ -26,6 +26,8 @@ interface Match {
     price: number;
     capacity: number;
     group_id: string;
+    latitude?: number;
+    longitude?: number;
 }
 
 interface Participant {
@@ -341,7 +343,11 @@ export default function MatchDetails({ params }: { params: Promise<{ id: string 
                         onCancelMatch={handleCancelMatch}
                     />
 
-                    <LocationCard location={match.location} />
+                    <LocationCard
+                        location={match.location}
+                        latitude={match.latitude}
+                        longitude={match.longitude}
+                    />
 
                     <VotingSection
                         isConfirmed={isConfirmed}

@@ -3,6 +3,7 @@
 import { use, useEffect, useState } from "react";
 import Link from "next/link";
 import { supabase } from "../../../../../../src/lib/client";
+import AddExpenseModal from "../../../../../components/AddExpenseModal";
 
 export default function GroupFinancePage({ params }: { params: Promise<{ id: string }> }) {
     const { id } = use(params);
@@ -15,6 +16,9 @@ export default function GroupFinancePage({ params }: { params: Promise<{ id: str
     const [transactions, setTransactions] = useState<any[]>([]);
     const [pendingPayments, setPendingPayments] = useState<any[]>([]);
     const [totalPendingAmount, setTotalPendingAmount] = useState(0);
+
+    // Modal State
+    const [isAddExpenseModalOpen, setIsAddExpenseModalOpen] = useState(false);
 
     // Pix State
     const [pixKey, setPixKey] = useState("");
@@ -166,6 +170,105 @@ export default function GroupFinancePage({ params }: { params: Promise<{ id: str
         document.body.removeChild(textArea);
     };
 
+    const handleExportReport = async () => {
+        try {
+            const now = new Date();
+            // Start of current month
+            const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+            // End of current month
+            const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59).toISOString();
+
+            // 1. Fetch Manual Transactions created this month
+            const { data: txData, error: txError } = await supabase
+                .from('transactions')
+                .select('*')
+                .eq('group_id', groupId)
+                .gte('created_at', startOfMonth)
+                .lte('created_at', endOfMonth)
+                .order('created_at', { ascending: false });
+
+            if (txError) throw txError;
+
+            // 2. Fetch Payments (Paid) this month
+            // We use 'paid_at' to check when the money actually came in
+            const { data: paymentsData, error: paymentsError } = await supabase
+                .from('payments')
+                .select('*, profiles:user_id(full_name)')
+                .eq('group_id', groupId)
+                .eq('status', 'PAGO')
+                .gte('paid_at', startOfMonth)
+                .lte('paid_at', endOfMonth);
+
+            if (paymentsError) throw paymentsError;
+
+            // Combine Data
+            const reportData: any[] = [];
+
+            if (txData) {
+                txData.forEach(tx => {
+                    reportData.push({
+                        Data: new Date(tx.created_at).toLocaleDateString('pt-BR'),
+                        Descricao: tx.description,
+                        Categoria: tx.category,
+                        Tipo: tx.type === 'income' ? 'Entrada' : 'Saída',
+                        Valor: tx.amount,
+                        Metodo: tx.payment_method || 'Outros'
+                    });
+                });
+            }
+
+            if (paymentsData) {
+                paymentsData.forEach(pay => {
+                    // Avoid duplicates if you track payments in transactions table too
+                    // Assuming they are separate for now based on current logic
+                    reportData.push({
+                        Data: new Date(pay.paid_at).toLocaleDateString('pt-BR'),
+                        Descricao: `Pagamento: ${pay.profiles?.full_name || 'Usuário'}`,
+                        Categoria: pay.type === 'MENSAL' ? 'Mensalidade' : 'Partida',
+                        Tipo: 'Entrada',
+                        Valor: pay.amount,
+                        Metodo: 'Plataforma'
+                    });
+                });
+            }
+
+            if (reportData.length === 0) {
+                alert("Não há dados para exportar neste mês.");
+                return;
+            }
+
+            // CSV Generation with BOM for Excel compatibility
+            const bom = "\uFEFF";
+            const headers = ["Data", "Descricao", "Categoria", "Tipo", "Valor", "Metodo"];
+            const csvContent = [
+                headers.join(";"), // Using semicolon for broader Excel support in regions like Brazil
+                ...reportData.map(row =>
+                    [
+                        row.Data,
+                        `"${row.Descricao.replace(/"/g, '""')}"`,
+                        row.Categoria,
+                        row.Tipo,
+                        row.Valor.toString().replace('.', ','),
+                        row.Metodo
+                    ].join(";")
+                )
+            ].join("\n");
+
+            const blob = new Blob([bom + csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.href = url;
+            link.setAttribute("download", `relatorio_financeiro_${now.getMonth() + 1}_${now.getFullYear()}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+
+        } catch (error) {
+            console.error("Error exporting report:", error);
+            alert("Erro ao exportar relatório.");
+        }
+    };
+
     const formatMoney = (val: number) => {
         return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
     };
@@ -181,10 +284,24 @@ export default function GroupFinancePage({ params }: { params: Promise<{ id: str
                     <h2 className="text-3xl md:text-3xl font-black tracking-tight text-[#0d1b12] dark:text-white">Financeiro do Grupo</h2>
                     <p className="text-gray-500 dark:text-gray-400 text-lg">Visão geral do caixa, arrecadações e despesas.</p>
                 </div>
-                <div className="flex items-center gap-3 bg-white dark:bg-[#1a2c20] p-1 rounded-xl shadow-sm border border-gray-200 dark:border-[#2a4032]">
-                    <button className="px-4 py-2 text-sm font-semibold rounded-lg bg-gray-100 dark:bg-[#25382e] text-[#0d1b12] dark:text-white">Este Mês</button>
-                    <button className="px-4 py-2 text-sm font-medium rounded-lg text-gray-500 hover:bg-gray-50 dark:hover:bg-[#25382e]/50 transition-colors">Mês Passado</button>
-                    <button className="px-4 py-2 text-sm font-medium rounded-lg text-gray-500 hover:bg-gray-50 dark:hover:bg-[#25382e]/50 transition-colors">Total</button>
+                <div className="flex items-center gap-3">
+                    <button
+                        onClick={() => setIsAddExpenseModalOpen(true)}
+                        className="px-4 py-2 text-sm font-bold rounded-lg bg-red-600 hover:bg-red-700 text-white shadow-lg shadow-red-600/20 transition-all flex items-center gap-2"
+                    >
+                        <span className="material-symbols-outlined text-[20px]">remove_circle</span>
+                        Adicionar Despesa
+                    </button>
+
+                    <button onClick={handleExportReport} className="px-4 py-2 text-sm font-semibold rounded-lg bg-white dark:bg-[#25382e] border border-gray-200 dark:border-[#2a4032] text-[#0d1b12] dark:text-white hover:bg-gray-50 dark:hover:bg-[#25382e]/80 transition-colors flex items-center gap-2">
+                        <span className="material-symbols-outlined text-[18px]">download</span>
+                        Exportar
+                    </button>
+
+                    <div className="flex items-center gap-1 bg-white dark:bg-[#1a2c20] p-1 rounded-xl shadow-sm border border-gray-200 dark:border-[#2a4032]">
+                        <button className="px-4 py-2 text-sm font-semibold rounded-lg bg-gray-100 dark:bg-[#25382e] text-[#0d1b12] dark:text-white">Este Mês</button>
+                        <button className="px-4 py-2 text-sm font-medium rounded-lg text-gray-500 hover:bg-gray-50 dark:hover:bg-[#25382e]/50 transition-colors">Total</button>
+                    </div>
                 </div>
             </div>
 
@@ -253,9 +370,9 @@ export default function GroupFinancePage({ params }: { params: Promise<{ id: str
                 <div className="lg:col-span-2 flex flex-col gap-6">
                     <div className="flex items-center justify-between">
                         <h3 className="text-xl font-bold text-[#0d1b12] dark:text-white">Transações Recentes</h3>
-                        <button disabled className="text-[#13ec5b] opacity-50 cursor-not-allowed text-sm font-semibold flex items-center gap-1 transition-colors" title="Em breve">
+                        <Link href={`/dashboard/grupos/${groupId}/admin/financeiro/transacoes`} className="text-[#13ec5b] text-sm font-semibold flex items-center gap-1 hover:underline transition-all">
                             Ver tudo <span className="material-symbols-outlined text-[18px]">arrow_forward</span>
-                        </button>
+                        </Link>
                     </div>
                     <div className="bg-white dark:bg-[#1a2c20] rounded-xl shadow-sm border border-gray-200 dark:border-[#2a4032] overflow-hidden">
                         {transactions.length === 0 ? (
@@ -378,12 +495,22 @@ export default function GroupFinancePage({ params }: { params: Promise<{ id: str
                     </div>
 
                     {/* Export Button */}
-                    <button disabled className="flex items-center justify-center gap-2 w-full py-4 rounded-xl border border-dashed border-gray-300 dark:border-gray-600 text-gray-400 cursor-not-allowed transition-all group opacity-70" title="Em breve">
-                        <span className="material-symbols-outlined">download</span>
+                    <button
+                        onClick={handleExportReport}
+                        className="flex items-center justify-center gap-2 w-full py-4 rounded-xl border border-dashed border-gray-300 dark:border-gray-600 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-[#25382e] hover:border-[#13ec5b] hover:text-[#13ec5b] transition-all group cursor-pointer"
+                    >
+                        <span className="material-symbols-outlined text-gray-400 group-hover:text-[#13ec5b] transition-colors">download</span>
                         <span className="font-medium">Exportar Relatório Mensal</span>
                     </button>
                 </div>
             </div>
+
+            <AddExpenseModal
+                isOpen={isAddExpenseModalOpen}
+                onClose={() => setIsAddExpenseModalOpen(false)}
+                onSuccess={fetchData}
+                groupId={groupId}
+            />
         </div>
     );
 }

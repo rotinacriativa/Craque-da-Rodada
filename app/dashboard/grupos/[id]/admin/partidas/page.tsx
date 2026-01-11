@@ -197,7 +197,7 @@ export default function GroupMatchesPage({ params }: { params: Promise<{ id: str
                     ) : filteredMatches.length === 0 ? (
                         <div className="col-span-full py-10 text-center flex flex-col items-center gap-4">
                             <div className="bg-slate-100 dark:bg-slate-800 p-4 rounded-full">
-                                <span className="material-symbols-outlined text-4xl text-slate-400">sports_soccer_off</span>
+                                <span className="material-symbols-outlined text-4xl text-slate-400">event_busy</span>
                             </div>
                             <p className="text-slate-500 dark:text-slate-400">Nenhuma partida encontrada nesta aba.</p>
                             {activeTab === 'upcoming' && (
