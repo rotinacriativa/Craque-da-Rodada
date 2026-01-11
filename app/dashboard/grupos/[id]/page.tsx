@@ -364,6 +364,7 @@ export default function GroupDashboard({ params }: { params: Promise<{ id: strin
                     groupId={groupId}
                     inviteCopied={inviteCopied}
                     onInvite={handleInvite}
+                    onLeave={handleLeaveGroup}
                 />
 
                 {/* Join Group Banner (if not member) */}
@@ -402,18 +403,7 @@ export default function GroupDashboard({ params }: { params: Promise<{ id: strin
                     </div>
                 )}
 
-                {/* Leave Group Button (Only for members) */}
-                {userRole && (
-                    <div className="flex items-center justify-end">
-                        <button
-                            onClick={handleLeaveGroup}
-                            className="group flex items-center justify-center gap-2 h-10 px-5 rounded-full bg-red-50 hover:bg-red-100 text-red-600 dark:bg-red-900/20 dark:hover:bg-red-900/30 dark:text-red-400 font-semibold text-sm transition-all"
-                        >
-                            <span className="material-symbols-outlined text-lg">logout</span>
-                            <span>Sair da Pelada</span>
-                        </button>
-                    </div>
-                )}
+
 
                 {/* Layout Grid: Main Content & Sidebar */}
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6 w-full max-w-6xl mx-auto">
